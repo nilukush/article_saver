@@ -1,0 +1,27 @@
+{
+    "compilerOptions": {
+        "noEmit": false,
+        "outDir": "dist/main",
+        "target": "ES2020",
+        "module": "CommonJS",
+        "moduleResolution": "node",
+        "allowImportingTsExtensions": false,
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "strict": true,
+        "skipLibCheck": true,
+        "baseUrl": ".",
+        "rootDir": ".",
+        "paths": {
+            "@shared/*": [
+                "../shared/*"
+            ]
+        }
+    },
+    "include": [
+        "src/main/**/*"
+    ],
+    "exclude": [
+        "src/renderer/**/*"
+    ]
+}

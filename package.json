@@ -1,0 +1,30 @@
+{
+    "name": "article-saver",
+    "version": "1.0.0",
+    "description": "A desktop application for saving and reading articles, similar to Pocket",
+    "main": "index.js",
+    "scripts": {
+        "dev:desktop": "cd desktop && npm run dev",
+        "dev:backend": "cd backend && npm run dev",
+        "build:desktop": "cd desktop && npm run build",
+        "build:backend": "cd backend && npm run build",
+        "install:all": "npm install && cd desktop && npm install && cd ../backend && npm install"
+    },
+    "keywords": [
+        "article",
+        "reader",
+        "pocket",
+        "electron",
+        "desktop"
+    ],
+    "author": "Article Saver Team",
+    "license": "MIT",
+    "workspaces": [
+        "desktop",
+        "backend",
+        "shared"
+    ],
+    "dependencies": {
+        "better-sqlite3": "^11.10.0"
+    }
+}
