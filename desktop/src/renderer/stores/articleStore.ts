@@ -7,8 +7,18 @@ interface ArticleStore {
     error: string | null
     searchResults: Article[] | null
 
+    // New pagination properties
+    currentPage: number
+    totalPages: number
+    totalArticles: number
+    hasMore: boolean
+    loadingMore: boolean
+
     // Actions
     loadArticles: () => Promise<void>
+    loadInitialArticles: () => Promise<void>
+    loadMoreArticles: () => Promise<void>
+    resetArticles: () => void
     saveArticle: (url: string, tags?: string[]) => Promise<void>
     updateArticle: (id: string, updates: Partial<Article>) => Promise<void>
     deleteArticle: (id: string) => Promise<void>
@@ -62,6 +72,13 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
     loading: false,
     error: null,
     searchResults: null,
+
+    // Pagination properties
+    currentPage: 0,
+    totalPages: 0,
+    totalArticles: 0,
+    hasMore: false,
+    loadingMore: false,
 
     loadArticles: async () => {
         set({ loading: true, error: null })
@@ -178,6 +195,91 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
 
     clearSearch: () => {
         set({ searchResults: null })
+    },
+
+    loadInitialArticles: async () => {
+        set({ loading: true, error: null })
+        try {
+            console.log('Loading initial 100 articles...')
+            const data = await apiRequest('/api/articles?page=1&limit=100')
+            console.log('Initial articles loaded:', data)
+
+            if (data.articles && data.pagination) {
+                set({
+                    articles: data.articles,
+                    currentPage: 1,
+                    totalPages: data.pagination.pages,
+                    totalArticles: data.pagination.total,
+                    hasMore: data.pagination.page < data.pagination.pages,
+                    loading: false
+                })
+                console.log(`Loaded ${data.articles.length} of ${data.pagination.total} articles`)
+            } else {
+                set({
+                    articles: [],
+                    currentPage: 0,
+                    totalPages: 0,
+                    totalArticles: 0,
+                    hasMore: false,
+                    loading: false
+                })
+            }
+        } catch (error) {
+            console.error('Error loading initial articles:', error)
+            const errorMessage = error instanceof Error ? error.message : 'Failed to load articles'
+            set({ error: errorMessage, loading: false })
+        }
+    },
+
+    loadMoreArticles: async () => {
+        const { hasMore, loadingMore, currentPage } = get()
+
+        if (!hasMore || loadingMore) {
+            console.log('Skipping load more - hasMore:', hasMore, 'loadingMore:', loadingMore)
+            return
+        }
+
+        set({ loadingMore: true, error: null })
+
+        try {
+            const nextPage = currentPage + 1
+            console.log(`Loading more articles - page ${nextPage}...`)
+
+            const data = await apiRequest(`/api/articles?page=${nextPage}&limit=50`)
+            console.log('More articles loaded:', data)
+
+            if (data.articles && data.pagination) {
+                const { articles } = get()
+                set({
+                    articles: [...articles, ...data.articles],
+                    currentPage: nextPage,
+                    hasMore: nextPage < data.pagination.pages,
+                    loadingMore: false
+                })
+                console.log(`Loaded ${data.articles.length} more articles. Total: ${articles.length + data.articles.length}`)
+            } else {
+                set({ loadingMore: false })
+            }
+        } catch (error) {
+            console.error('Error loading more articles:', error)
+            const errorMessage = error instanceof Error ? error.message : 'Failed to load more articles'
+            set({ error: errorMessage, loadingMore: false })
+        }
+    },
+
+    resetArticles: () => {
+        set({
+            articles: [],
+            currentPage: 0,
+            totalPages: 0,
+            totalArticles: 0,
+            hasMore: false,
+            loadingMore: false,
+            loading: false,
+            error: null,
+            searchResults: null
+        })
+        console.log('Articles reset')
     },
 
     setError: (error: string | null) => {

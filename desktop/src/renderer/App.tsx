@@ -22,7 +22,7 @@ function App() {
         loading,
         error,
         searchResults,
-        loadArticles,
+        loadInitialArticles,
         searchArticles,
         clearSearch
     } = useArticleStore()
@@ -34,9 +34,9 @@ function App() {
 
         // Only load articles if authenticated
         if (token) {
-            loadArticles()
+            loadInitialArticles()
         }
-    }, [loadArticles])
+    }, [loadInitialArticles])
 
     // Check for authentication changes
     useEffect(() => {
@@ -44,7 +44,7 @@ function App() {
             const token = localStorage.getItem('authToken')
             setIsAuthenticated(!!token)
             if (token) {
-                loadArticles()
+                loadInitialArticles()
             }
         }
 
@@ -58,7 +58,7 @@ function App() {
             if (currentAuth !== isAuthenticated) {
                 setIsAuthenticated(currentAuth)
                 if (currentAuth) {
-                    loadArticles()
+                    loadInitialArticles()
                 }
             }
         }, 1000) // Check every second
@@ -67,7 +67,7 @@ function App() {
             window.removeEventListener('storage', handleStorageChange)
             clearInterval(authCheckInterval)
         }
-    }, [loadArticles, isAuthenticated])
+    }, [loadInitialArticles, isAuthenticated])
 
     const handleSearch = async (query: string) => {
         setSearchQuery(query)
@@ -75,7 +75,7 @@ function App() {
             await searchArticles(query)
         } else {
             clearSearch()
-            await loadArticles()
+            await loadInitialArticles()
         }
     }
 
@@ -97,7 +97,7 @@ function App() {
 
     const handleArticleAdded = () => {
         setShowAddForm(false)
-        loadArticles() // Refresh the list
+        loadInitialArticles() // Refresh the list
     }
 
     const handleOpenSettings = () => {

@@ -1,4 +1,8 @@
 import type { Article } from '../../../shared/types'
+import { useArticleStore } from '../stores/articleStore'
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll'
+import { LoadingIndicator } from './LoadingIndicator'
+import { ArticleSkeletonList } from './ArticleSkeleton'
 
 interface ArticleListProps {
     articles: Article[]
@@ -8,15 +12,26 @@ interface ArticleListProps {
 }
 
 export function ArticleList({ articles, loading, onArticleSelect, searchQuery }: ArticleListProps) {
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-64">
-                <div className="text-gray-500 dark:text-gray-400">Loading articles...</div>
-            </div>
-        )
+    const {
+        loadMoreArticles,
+        hasMore,
+        loadingMore,
+        totalArticles,
+        currentPage,
+        totalPages
+    } = useArticleStore()
+
+    const { isFetching } = useInfiniteScroll({
+        threshold: 0.8,
+        onLoadMore: loadMoreArticles,
+        hasMore,
+        loading: loadingMore
+    })
+    if (loading && articles.length === 0) {
+        return <ArticleSkeletonList count={10} />
     }
 
-    if (articles.length === 0) {
+    if (articles.length === 0 && !loading) {
         return (
             <div className="flex items-center justify-center h-64">
                 <div className="text-center">
@@ -36,6 +51,22 @@ export function ArticleList({ articles, loading, onArticleSelect, searchQuery }:
     return (
         <div className="overflow-y-auto h-full">
             <div className="p-4 space-y-4">
+                {/* Article count header */}
+                {totalArticles > 0 && (
+                    <div className="text-sm text-gray-500 dark:text-gray-400 mb-4 flex items-center justify-between">
+                        <span>
+                            Showing {articles.length} of {totalArticles} articles
+                            {searchQuery && ` for "${searchQuery}"`}
+                        </span>
+                        {totalPages > 1 && (
+                            <span className="text-xs">
+                                Page {currentPage} of {totalPages}
+                            </span>
+                        )}
+                    </div>
+                )}
+
+                {/* Article cards */}
                 {articles.map((article) => (
                     <ArticleCard
                         key={article.id}
@@ -43,6 +74,35 @@ export function ArticleList({ articles, loading, onArticleSelect, searchQuery }:
                         onClick={() => onArticleSelect(article)}
                     />
                 ))}
+
+                {/* Loading indicator for infinite scroll */}
+                {(loadingMore || isFetching) && <LoadingIndicator />}
+
+                {/* Load more fallback button */}
+                {!hasMore && articles.length > 0 && (
+                    <div className="text-center py-4 text-gray-500 dark:text-gray-400">
+                        <div className="text-sm">
+                            All articles loaded ({totalArticles} total)
+                        </div>
+                        {totalArticles >= 100 && (
+                            <div className="text-xs mt-1">
+                                🎉 Great collection! You have {totalArticles} articles saved.
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Error state with retry */}
+                {!loading && !loadingMore && hasMore && articles.length > 0 && (
+                    <div className="text-center py-4">
+                        <button
+                            onClick={loadMoreArticles}
+                            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                        >
+                            Load More Articles
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     )
