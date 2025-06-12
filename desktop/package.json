@@ -13,7 +13,13 @@
         "dist": "npm run build && electron-builder",
         "preview": "vite preview",
         "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-        "type-check": "tsc --noEmit"
+        "type-check": "tsc --noEmit",
+        "clean": "npm run clean:dist && npm run clean:cache",
+        "clean:dist": "rm -rf dist",
+        "clean:cache": "rm -rf node_modules/.cache && rm -rf node_modules/.vite",
+        "clean:all": "npm run clean && rm -rf node_modules && npm install",
+        "dev:clean": "npm run clean && npm run dev",
+        "build:clean": "npm run clean && npm run build"
     },
     "dependencies": {
         "@types/sqlite3": "^3.1.11",

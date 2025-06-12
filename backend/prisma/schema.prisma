@@ -1,0 +1,72 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  articles Article[]
+  credentials Credential[]
+
+  @@map("users")
+}
+
+model Article {
+  id            String    @id @default(uuid())
+  userId        String    @map("user_id")
+  url           String
+  title         String?
+  content       String?
+  excerpt       String?
+  author        String?
+  publishedDate DateTime? @map("published_date")
+  tags          String[]  @default([])
+  isRead        Boolean   @default(false) @map("is_read")
+  isArchived    Boolean   @default(false) @map("is_archived")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Indexes
+  @@index([userId])
+  @@index([createdAt])
+  @@index([isRead])
+  @@index([isArchived])
+  @@map("articles")
+}
+
+model Credential {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  credentialId    String   @unique @map("credential_id")
+  publicKey       String   @map("public_key")
+  counter         BigInt   @default(0)
+  deviceType      String   @map("device_type")
+  backedUp        Boolean  @default(false) @map("backed_up")
+  transports      String[] @default([])
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Indexes
+  @@index([userId])
+  @@index([credentialId])
+  @@map("credentials")
+}

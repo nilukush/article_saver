@@ -1,6 +1,6 @@
 import React from 'react'
 import { useArticleStore } from '../stores/articleStore'
-import type { Article } from '@shared/types'
+import type { Article } from '../../../shared/types'
 
 interface ArticleReaderProps {
     article: Article

@@ -1,5 +1,4 @@
-import React from 'react'
-import type { Article } from '@shared/types'
+import type { Article } from '../../../shared/types'
 
 interface ArticleListProps {
     articles: Article[]
@@ -88,7 +87,14 @@ function ArticleCard({ article, onClick }: ArticleCardProps) {
 
             {article.excerpt && (
                 <p className="text-gray-600 dark:text-gray-300 text-sm mb-3 line-clamp-3">
-                    {article.excerpt}
+                    {(() => {
+                        const cleanText = article.excerpt
+                            .replace(/<[^>]*>/g, '') // Remove HTML tags
+                            .replace(/&[^;]+;/g, ' ') // Remove HTML entities
+                            .replace(/\s+/g, ' ') // Normalize whitespace
+                            .trim();
+                        return cleanText.length > 200 ? cleanText.substring(0, 200) + '...' : cleanText;
+                    })()}
                 </p>
             )}
 

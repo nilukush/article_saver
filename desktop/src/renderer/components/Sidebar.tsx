@@ -1,12 +1,12 @@
-import React from 'react'
 
 interface SidebarProps {
     currentView: 'all' | 'unread' | 'archived'
     onViewChange: (view: 'all' | 'unread' | 'archived') => void
     onAddArticle: () => void
+    onOpenSettings: () => void
 }
 
-export function Sidebar({ currentView, onViewChange, onAddArticle }: SidebarProps) {
+export function Sidebar({ currentView, onViewChange, onAddArticle, onOpenSettings }: SidebarProps) {
     const menuItems = [
         { id: 'all', label: 'All Articles', icon: '📚' },
         { id: 'unread', label: 'Unread', icon: '📖' },
@@ -28,8 +28,8 @@ export function Sidebar({ currentView, onViewChange, onAddArticle }: SidebarProp
                             <button
                                 onClick={() => onViewChange(item.id)}
                                 className={`w-full flex items-center px-3 py-2 text-left rounded-lg transition-colors ${currentView === item.id
-                                        ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
-                                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                    ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
+                                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                                     }`}
                             >
                                 <span className="mr-3 text-lg">{item.icon}</span>
@@ -40,13 +40,20 @@ export function Sidebar({ currentView, onViewChange, onAddArticle }: SidebarProp
                 </ul>
             </nav>
 
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
                 <button
                     onClick={onAddArticle}
-                    className="w-full bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
                 >
                     <span className="mr-2">+</span>
                     Add Article
+                </button>
+                <button
+                    onClick={onOpenSettings}
+                    className="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
+                >
+                    <span className="mr-2">👤</span>
+                    Account
                 </button>
             </div>
         </div>

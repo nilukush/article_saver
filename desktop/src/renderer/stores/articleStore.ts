@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Article, ApiResponse } from '@shared/types'
+import type { Article, ApiResponse } from '../../../shared/types'
 
 interface ArticleStore {
     articles: Article[]
@@ -17,6 +17,46 @@ interface ArticleStore {
     setError: (error: string | null) => void
 }
 
+// Get API URL from environment
+const getApiUrl = () => {
+    return (import.meta as any).env?.VITE_API_URL || 'http://localhost:3003'
+}
+
+// Get auth token from localStorage
+const getAuthToken = () => {
+    return localStorage.getItem('authToken')
+}
+
+// Make authenticated API request using Electron's net module
+const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
+    const token = getAuthToken()
+    const apiUrl = getApiUrl()
+
+    if (!token) {
+        throw new Error('Authentication required')
+    }
+
+    const response = await window.electronAPI.netFetch(`${apiUrl}${endpoint}`, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            ...options.headers,
+        },
+    })
+
+    if (!response.success) {
+        if (response.error?.includes('401') || response.error?.includes('Unauthorized')) {
+            // Token expired or invalid
+            localStorage.removeItem('authToken')
+            throw new Error('Authentication expired. Please login again.')
+        }
+        throw new Error(response.error || 'API request failed')
+    }
+
+    return response.data
+}
+
 export const useArticleStore = create<ArticleStore>((set, get) => ({
     articles: [],
     loading: false,
@@ -26,82 +66,113 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
     loadArticles: async () => {
         set({ loading: true, error: null })
         try {
-            const response: ApiResponse<Article[]> = await window.electronAPI.getArticles()
-            if (response.success && response.data) {
-                set({ articles: response.data, loading: false })
+            console.log('Loading articles from backend API...')
+            const data = await apiRequest('/api/articles')
+            console.log('Articles loaded:', data)
+
+            if (data.articles) {
+                set({ articles: data.articles, loading: false })
             } else {
-                set({ error: response.error || 'Failed to load articles', loading: false })
+                set({ articles: [], loading: false })
             }
         } catch (error) {
-            set({ error: 'Failed to load articles', loading: false })
+            console.error('Error loading articles:', error)
+            const errorMessage = error instanceof Error ? error.message : 'Failed to load articles'
+            set({ error: errorMessage, loading: false })
         }
     },
 
     saveArticle: async (url: string, tags?: string[]) => {
         set({ loading: true, error: null })
         try {
-            const response: ApiResponse<Article> = await window.electronAPI.saveArticle(url, tags)
-            if (response.success && response.data) {
+            console.log('Saving article to backend:', url)
+            const article = await apiRequest('/api/articles', {
+                method: 'POST',
+                body: JSON.stringify({
+                    url,
+                    tags: tags || []
+                }),
+            })
+
+            if (article) {
                 const { articles } = get()
                 set({
-                    articles: [response.data, ...articles],
+                    articles: [article, ...articles],
                     loading: false
                 })
+                console.log('Article saved successfully')
             } else {
-                set({ error: response.error || 'Failed to save article', loading: false })
+                throw new Error('Invalid response from server')
             }
         } catch (error) {
-            set({ error: 'Failed to save article', loading: false })
+            console.error('Error saving article:', error)
+            const errorMessage = error instanceof Error ? error.message : 'Failed to save article'
+            set({ error: errorMessage, loading: false })
         }
     },
 
     updateArticle: async (id: string, updates: Partial<Article>) => {
         try {
-            const response: ApiResponse<Article> = await window.electronAPI.updateArticle(id, updates)
-            if (response.success && response.data) {
+            console.log('Updating article:', id, updates)
+            const updatedArticle = await apiRequest(`/api/articles/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify(updates),
+            })
+
+            if (updatedArticle) {
                 const { articles } = get()
                 const updatedArticles = articles.map(article =>
-                    article.id === id ? response.data! : article
+                    article.id === id ? updatedArticle : article
                 )
                 set({ articles: updatedArticles })
+                console.log('Article updated successfully')
             } else {
-                set({ error: response.error || 'Failed to update article' })
+                throw new Error('Invalid response from server')
             }
         } catch (error) {
-            set({ error: 'Failed to update article' })
+            console.error('Error updating article:', error)
+            const errorMessage = error instanceof Error ? error.message : 'Failed to update article'
+            set({ error: errorMessage })
         }
     },
 
     deleteArticle: async (id: string) => {
         try {
-            const response: ApiResponse<void> = await window.electronAPI.deleteArticle(id)
-            if (response.success) {
-                const { articles } = get()
-                const filteredArticles = articles.filter(article => article.id !== id)
-                set({ articles: filteredArticles })
-            } else {
-                set({ error: response.error || 'Failed to delete article' })
-            }
+            console.log('Deleting article:', id)
+            await apiRequest(`/api/articles/${id}`, {
+                method: 'DELETE',
+            })
+
+            const { articles } = get()
+            const filteredArticles = articles.filter(article => article.id !== id)
+            set({ articles: filteredArticles })
+            console.log('Article deleted successfully')
         } catch (error) {
-            set({ error: 'Failed to delete article' })
+            console.error('Error deleting article:', error)
+            const errorMessage = error instanceof Error ? error.message : 'Failed to delete article'
+            set({ error: errorMessage })
         }
     },
 
     searchArticles: async (query: string) => {
         set({ loading: true, error: null })
         try {
-            const response: ApiResponse<Article[]> = await window.electronAPI.searchArticles(query)
-            if (response.success && response.data) {
+            console.log('Searching articles:', query)
+            const data = await apiRequest(`/api/articles?search=${encodeURIComponent(query)}`)
+
+            if (data.articles) {
                 set({
-                    articles: response.data,
-                    searchResults: response.data,
+                    searchResults: data.articles,
                     loading: false
                 })
+                console.log('Search completed:', data.articles.length, 'results')
             } else {
-                set({ error: response.error || 'Failed to search articles', loading: false })
+                set({ searchResults: [], loading: false })
             }
         } catch (error) {
-            set({ error: 'Failed to search articles', loading: false })
+            console.error('Error searching articles:', error)
+            const errorMessage = error instanceof Error ? error.message : 'Failed to search articles'
+            set({ error: errorMessage, loading: false })
         }
     },
 

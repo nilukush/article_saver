@@ -22,6 +22,34 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     searchArticles: (query: string): Promise<ApiResponse<Article[]>> =>
         ipcRenderer.invoke('search-articles', query),
+
+    // OAuth URL opening
+    openOAuthUrl: (url: string): Promise<ApiResponse<void>> =>
+        ipcRenderer.invoke('open-oauth-url', url),
+
+    // Create OAuth server
+    createOAuthServer: (): Promise<ApiResponse<{ port: number }>> =>
+        ipcRenderer.invoke('create-oauth-server'),
+
+    // OAuth callback handlers
+    onOAuthCallback: (callback: (data: { provider: string; code: string }) => void) =>
+        ipcRenderer.on('oauth-callback', (_event, data) => callback(data)),
+
+    onOAuthError: (callback: (data: { provider: string; error: string }) => void) =>
+        ipcRenderer.on('oauth-error', (_event, data) => callback(data)),
+
+    onOAuthSuccess: (callback: (data: { provider: string; token: string; email: string }) => void) =>
+        ipcRenderer.on('oauth-success', (_event, data) => callback(data)),
+
+    removeOAuthListeners: () => {
+        ipcRenderer.removeAllListeners('oauth-callback')
+        ipcRenderer.removeAllListeners('oauth-error')
+        ipcRenderer.removeAllListeners('oauth-success')
+    },
+
+    // Network fetch using Electron's net module (bypasses protocol interception)
+    netFetch: (url: string, options?: any): Promise<ApiResponse<any>> =>
+        ipcRenderer.invoke('net-fetch', url, options),
 })
 
 // Type definitions for the exposed API
@@ -34,6 +62,13 @@ declare global {
             updateArticle: (id: string, updates: UpdateArticleRequest) => Promise<ApiResponse<Article>>
             deleteArticle: (id: string) => Promise<ApiResponse<void>>
             searchArticles: (query: string) => Promise<ApiResponse<Article[]>>
+            openOAuthUrl: (url: string) => Promise<ApiResponse<void>>
+            createOAuthServer: () => Promise<ApiResponse<{ port: number }>>
+            onOAuthCallback: (callback: (data: { provider: string; code: string }) => void) => void
+            onOAuthError: (callback: (data: { provider: string; error: string }) => void) => void
+            onOAuthSuccess: (callback: (data: { provider: string; token: string; email: string }) => void) => void
+            removeOAuthListeners: () => void
+            netFetch: (url: string, options?: any) => Promise<ApiResponse<any>>
         }
     }
 }
