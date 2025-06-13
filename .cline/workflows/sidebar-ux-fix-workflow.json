@@ -1,0 +1,155 @@
+{
+    "name": "Sidebar UX Fix Workflow",
+    "description": "Complete workflow for fixing sidebar CTA visibility issues during infinite scroll operations",
+    "version": "1.0.0",
+    "estimatedTime": "45 minutes",
+    "difficulty": "Medium",
+    "tags": [
+        "UX",
+        "Layout",
+        "Flexbox",
+        "Sidebar",
+        "Infinite Scroll",
+        "Critical Fix"
+    ],
+    "prerequisites": [
+        "Infinite scroll system already implemented",
+        "Sidebar component with bottom CTAs exists",
+        "Layout issues identified (CTAs hidden during scroll)",
+        "Basic understanding of CSS flexbox"
+    ],
+    "steps": [
+        {
+            "step": 1,
+            "title": "Identify Layout Problem",
+            "description": "Analyze sidebar layout issues causing CTA visibility problems",
+            "estimatedTime": "5 minutes",
+            "actions": [
+                "Test infinite scroll functionality",
+                "Identify that Add Article and Account buttons disappear during scrolling",
+                "Screenshot current broken layout for documentation",
+                "Analyze CSS flexbox structure causing the issue"
+            ],
+            "files": [],
+            "validation": "CTAs are confirmed to be hidden during infinite scroll operations"
+        },
+        {
+            "step": 2,
+            "title": "Fix Sidebar Component Layout",
+            "description": "Apply proper flexbox constraints to ensure CTA visibility",
+            "estimatedTime": "15 minutes",
+            "actions": [
+                "Add h-full to sidebar container for proper height constraints",
+                "Apply flex-shrink-0 to header section to prevent compression",
+                "Add overflow-y-auto to navigation for scrollable content",
+                "Apply flex-shrink-0 to bottom CTA section with explicit background",
+                "Test layout with different content volumes"
+            ],
+            "files": [
+                "desktop/src/renderer/components/Sidebar.tsx"
+            ],
+            "validation": "Sidebar CTAs remain visible with proper flex behavior"
+        },
+        {
+            "step": 3,
+            "title": "Fix App Layout Container",
+            "description": "Update main app layout to prevent interference with sidebar",
+            "estimatedTime": "10 minutes",
+            "actions": [
+                "Add min-h-0 to main flex container for proper flex behavior",
+                "Apply min-w-0 to content area to prevent overflow",
+                "Add flex-shrink-0 to header to maintain fixed position",
+                "Update main content with min-h-0 for proper scroll container",
+                "Test layout integration with infinite scroll"
+            ],
+            "files": [
+                "desktop/src/renderer/App.tsx"
+            ],
+            "validation": "Main content layout works seamlessly with fixed sidebar CTAs"
+        },
+        {
+            "step": 4,
+            "title": "Test Cross-Platform Compatibility",
+            "description": "Verify layout works across different operating systems and screen sizes",
+            "estimatedTime": "10 minutes",
+            "actions": [
+                "Test on macOS with different screen sizes",
+                "Verify layout on Windows if available",
+                "Test with different zoom levels",
+                "Verify touch scrolling works properly",
+                "Test with large content volumes (5,000+ articles)"
+            ],
+            "files": [],
+            "validation": "Layout works consistently across all platforms and screen sizes"
+        },
+        {
+            "step": 5,
+            "title": "Document Layout Patterns",
+            "description": "Create comprehensive documentation for the layout fix",
+            "estimatedTime": "5 minutes",
+            "actions": [
+                "Create .clinerules pattern for sidebar layout fixes",
+                "Document broken vs fixed layout patterns",
+                "Add implementation standards and best practices",
+                "Include success metrics and testing checklist",
+                "Update memory bank with layout architecture patterns"
+            ],
+            "files": [
+                ".clinerules/sidebar-layout-fix.md",
+                "memory-bank/systemPatterns.md",
+                "memory-bank/activeContext.md"
+            ],
+            "validation": "Complete documentation created for future reference"
+        }
+    ],
+    "successCriteria": [
+        "Add Article and Account buttons always visible during scrolling",
+        "Infinite scroll works seamlessly with sidebar layout",
+        "Professional appearance maintained across all scroll states",
+        "Cross-platform compatibility verified",
+        "No layout thrashing during scroll events",
+        "Complete documentation created"
+    ],
+    "troubleshooting": [
+        {
+            "issue": "CTAs still hidden after applying flex-shrink-0",
+            "solution": "Ensure h-full is applied to sidebar container and check for conflicting CSS"
+        },
+        {
+            "issue": "Layout breaks on different screen sizes",
+            "solution": "Test min-h-0 and min-w-0 constraints on flex containers"
+        },
+        {
+            "issue": "Scrolling performance degraded",
+            "solution": "Verify overflow-y-auto is only applied to navigation section, not entire sidebar"
+        },
+        {
+            "issue": "Background transparency issues",
+            "solution": "Add explicit background colors to CTA section with dark mode variants"
+        }
+    ],
+    "relatedPatterns": [
+        ".clinerules/infinite-scroll-implementation.md",
+        ".clinerules/ux-problem-solving-methodology.md",
+        ".clinerules/direct-technical-execution.md"
+    ],
+    "keyLearnings": [
+        "flex-shrink-0 is critical for elements that must remain visible",
+        "Proper height constraints (h-full, min-h-0) are essential for complex layouts",
+        "Explicit backgrounds prevent transparency issues during scroll operations",
+        "Testing with real-world data volumes reveals layout issues early",
+        "Cross-platform testing is essential for desktop applications"
+    ],
+    "metrics": {
+        "beforeFix": {
+            "ctaVisibility": "0% during scroll",
+            "userExperience": "Poor - essential actions hidden",
+            "layoutStability": "Unstable during scroll operations"
+        },
+        "afterFix": {
+            "ctaVisibility": "100% always visible",
+            "userExperience": "Professional - consistent access to actions",
+            "layoutStability": "Stable across all scroll states"
+        }
+    }
+}
