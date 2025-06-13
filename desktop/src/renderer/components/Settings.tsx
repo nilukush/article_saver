@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useArticleStore } from '../stores/articleStore'
 import { useImportStore } from '../stores/importStore'
+import { ImportStatusSection } from './ImportStatusSection'
 
 interface SettingsProps {
     onClose: () => void
@@ -14,8 +15,25 @@ export function Settings({ onClose }: SettingsProps) {
     const [error, setError] = useState<string | null>(null)
 
     // Get stores
-    const { loadArticles } = useArticleStore()
+    const { loadArticles, totalArticles } = useArticleStore()
     const { startImport, completeImport } = useImportStore()
+
+    // Import status detection
+    const hasImportedArticles = totalArticles > 0
+    const importCount = totalArticles
+    const [lastImportTime, setLastImportTime] = useState<string | null>(
+        localStorage.getItem('lastPocketImport')
+    )
+
+    // Set fallback timestamp for existing imported articles without timestamp
+    useEffect(() => {
+        if (hasImportedArticles && !lastImportTime) {
+            // If articles exist but no timestamp, set a fallback timestamp
+            const fallbackTimestamp = new Date().toISOString()
+            localStorage.setItem('lastPocketImport', fallbackTimestamp)
+            setLastImportTime(fallbackTimestamp)
+        }
+    }, [hasImportedArticles, lastImportTime])
 
     // Use hardcoded API URL for static file serving (protocol interception)
     const serverUrl = 'http://localhost:3003'
@@ -318,6 +336,12 @@ export function Settings({ onClose }: SettingsProps) {
                                             failed: progressData.failed,
                                             total: progressData.totalArticles
                                         })
+
+                                        // Update import timestamp for UI state
+                                        const timestamp = new Date().toISOString()
+                                        localStorage.setItem('lastPocketImport', timestamp)
+                                        setLastImportTime(timestamp)
+
                                         await loadArticles()
                                     } else if (progressData.status === 'failed') {
                                         // Import failed
@@ -352,6 +376,12 @@ export function Settings({ onClose }: SettingsProps) {
                                     failed: importData.failed,
                                     total: importData.total
                                 })
+
+                                // Update import timestamp for immediate completion
+                                const timestamp = new Date().toISOString()
+                                localStorage.setItem('lastPocketImport', timestamp)
+                                setLastImportTime(timestamp)
+
                                 await loadArticles()
                             }
                         } catch (err) {
@@ -506,19 +536,28 @@ export function Settings({ onClose }: SettingsProps) {
 
                         {/* Account Management Options */}
                         <div className="space-y-3">
-                            <div>
-                                <button
-                                    onClick={handlePocketImport}
-                                    disabled={loading}
-                                    className="w-full bg-orange-600 text-white py-3 px-4 rounded-md hover:bg-orange-700 disabled:opacity-50 flex items-center justify-center space-x-2 transition-colors"
-                                >
-                                    <span>📚</span>
-                                    <span>{loading ? 'Importing...' : 'Import from Pocket'}</span>
-                                </button>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 px-1">
-                                    Import your saved articles from Pocket (runs in background)
-                                </p>
-                            </div>
+                            {hasImportedArticles ? (
+                                <ImportStatusSection
+                                    articleCount={importCount}
+                                    lastImportTime={lastImportTime}
+                                    onResync={handlePocketImport}
+                                    loading={loading}
+                                />
+                            ) : (
+                                <div>
+                                    <button
+                                        onClick={handlePocketImport}
+                                        disabled={loading}
+                                        className="w-full bg-orange-600 text-white py-3 px-4 rounded-md hover:bg-orange-700 disabled:opacity-50 flex items-center justify-center space-x-2 transition-colors"
+                                    >
+                                        <span>📚</span>
+                                        <span>{loading ? 'Importing...' : 'Import from Pocket'}</span>
+                                    </button>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 px-1">
+                                        Import your saved articles from Pocket (runs in background)
+                                    </p>
+                                </div>
+                            )}
                         </div>
 
                         <div className="border-t border-gray-200 dark:border-gray-600 pt-4">

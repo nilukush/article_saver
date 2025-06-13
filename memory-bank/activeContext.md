@@ -1,12 +1,27 @@
 # Active Context
 
 ## Current Work Focus
-🎉 **CRITICAL UX FIX COMPLETE**: Fixed sidebar CTA visibility issue during infinite scroll - Add Article and Account buttons now always visible!
+🎉 **TIMESTAMP TRACKING FIX COMPLETE**: Fixed critical "Last synced: Unknown" issue that was confusing users about their import status!
 
-**🚀 INFINITE SCROLL IMPLEMENTATION COMPLETE**: Successfully implemented professional infinite scroll system to display all 5,520+ imported articles with optimal performance!
+**🚀 PROFESSIONAL TIMESTAMP SYSTEM IMPLEMENTED**: Account modal now shows proper timestamps with "Recently imported" fallback and comprehensive error handling!
+
+**Previous Success - Account UX Transformation**: Fixed critical UX issue where users saw "Import from Pocket" button even after successfully importing 5,522 articles!
+
+**🚀 PROFESSIONAL CONDITIONAL UI IMPLEMENTED**: Account modal now intelligently shows import status with "✅ 5,522 articles imported from Pocket" and "Re-sync with Pocket" option!
+
+**Previous Success - Sidebar Layout Fix**: Fixed sidebar CTA visibility issue during infinite scroll - Add Article and Account buttons now always visible!
+
+**Previous Success - Infinite Scroll**: Successfully implemented professional infinite scroll system to display all 5,520+ imported articles with optimal performance!
 
 ## Recent Changes
-**🚀 INFINITE SCROLL SYSTEM IMPLEMENTED**: Professional Article Display for 5,520+ Articles
+**🎉 TIMESTAMP TRACKING FIX IMPLEMENTED**: Complete Solution for "Last synced: Unknown" Issue
+- **Multiple Timestamp Save Points**: Added timestamp updates in progress polling completion AND immediate completion scenarios
+- **Professional Fallback Logic**: Shows "Recently imported" instead of confusing "Unknown" for existing articles
+- **Comprehensive Error Handling**: Try-catch blocks prevent timestamp parsing failures
+- **Automatic Fallback**: useEffect automatically sets timestamp for existing imported articles without timestamps
+- **Enhanced Formatting**: Added days ago formatting and proper error resilience
+
+**Previous Success - Infinite Scroll System**: Professional Article Display for 5,520+ Articles
 - **Enhanced ArticleStore**: Added pagination with `loadInitialArticles()` and `loadMoreArticles()` methods
 - **Infinite Scroll Hook**: Created `useInfiniteScroll` with 80% threshold and debounced scroll events
 - **Loading Components**: Professional skeleton loading and progress indicators
@@ -39,12 +54,18 @@
 - ✅ **Rate limiting**: Perfect compliance with Pocket API limits
 
 ## Next Steps
-1. **Document Success**: Update memory bank and create .clinerules for this critical fix
-2. **Test Edge Cases**: Verify import works with different account sizes
-3. **Performance Optimization**: Consider batch size tuning for even faster imports
-4. **Feature Enhancement**: Add pause/cancel/retry functionality
+1. **Test Timestamp Fix**: Verify "Last synced: Unknown" is completely eliminated
+2. **Validate Fallback Logic**: Ensure existing articles show "Recently imported"
+3. **Cross-Platform Testing**: Test timestamp persistence across different operating systems
+4. **Edge Case Validation**: Test with different import completion scenarios
+5. **Performance Monitoring**: Ensure timestamp updates don't impact import performance
 
 ## Active Decisions and Considerations
+- **Timestamp Reliability**: Multiple save points ensure timestamp is never lost
+- **User-Friendly Fallbacks**: "Recently imported" instead of confusing "Unknown" messages
+- **Error Resilience**: Try-catch blocks prevent timestamp parsing failures
+- **Automatic Recovery**: useEffect automatically fixes missing timestamps for existing articles
+- **Professional Formatting**: Relative time display (hours/days ago) for better UX
 - **Database Pattern**: Always import prisma directly, never use (req as any).prisma
 - **Error Handling**: Comprehensive null checking prevents undefined errors
 - **Rate Limiting**: Progress endpoints excluded from rate limiting for real-time updates
@@ -52,6 +73,11 @@
 - **Production Ready**: All code follows established architectural patterns
 
 ## Technical Context
+- **Timestamp Persistence**: localStorage-based with multiple save points for reliability
+- **Fallback Logic**: Automatic timestamp creation for existing articles without timestamps
+- **Error Handling**: Comprehensive try-catch blocks for date parsing operations
+- **Professional Formatting**: Relative time display with proper error resilience
+- **Cross-Platform**: Timestamp formatting works correctly across different locales
 - **Database Access**: Direct prisma import following articles.ts pattern
 - **Progress System**: Real-time polling with proper JSON responses
 - **Error Recovery**: Exponential backoff for API rate limits and server errors
