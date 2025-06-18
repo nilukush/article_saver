@@ -506,6 +506,44 @@ router.post('/:id/re-extract', asyncHandler(async (req: Request, res: Response):
     }
 }));
 
+// Get current user info and token validation (for debugging)
+router.get('/user/info', authenticateToken, asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const userId = (req as any).user.userId;
+    const userEmail = (req as any).user.email;
+    
+    try {
+        // Get article count for user
+        const articleCount = await prisma.article.count({
+            where: { userId }
+        });
+        
+        res.json({
+            success: true,
+            user: {
+                id: userId,
+                email: userEmail
+            },
+            stats: {
+                totalArticles: articleCount
+            },
+            message: 'Token is valid and user authenticated'
+        });
+        return;
+        
+    } catch (error) {
+        logger.error('❌ USER INFO: Error getting user info', {
+            userId,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        
+        res.status(500).json({
+            error: 'Failed to get user info',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        });
+        return;
+    }
+}));
+
 // Bulk delete all articles for current user (for testing/cleanup)
 router.delete('/bulk/all', authenticateToken, asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const userId = (req as any).user.userId;
@@ -550,46 +588,166 @@ router.delete('/bulk/all', authenticateToken, asyncHandler(async (req: Request, 
     }
 }));
 
-// Bulk delete articles by source (e.g., 'pocket', 'manual')
-router.delete('/bulk/source/:source', authenticateToken, asyncHandler(async (req: Request, res: Response): Promise<void> => {
+// Enterprise cleanup: Delete articles by date range
+router.delete('/bulk/date-range', authenticateToken, asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const userId = (req as any).user.userId;
-    const source = req.params.source;
+    const { startDate, endDate } = req.query;
     
-    logger.info('🗑️ BULK DELETE BY SOURCE: Starting deletion', { userId, source });
+    logger.info('🗑️ ENTERPRISE CLEANUP: Date range deletion', { userId, startDate, endDate });
     
     try {
-        // Note: This assumes you have a 'source' field. If not, this will delete nothing.
-        const deleteResult = await prisma.article.deleteMany({
-            where: { 
-                userId,
-                // Add source field to your schema if you want to track import source
-                // source: source
-            }
-        });
+        const where: any = { userId };
         
-        logger.info('✅ BULK DELETE BY SOURCE: Successfully deleted articles', {
-            userId,
-            source,
-            articlesDeleted: deleteResult.count
+        if (startDate && endDate) {
+            where.createdAt = {
+                gte: new Date(startDate as string),
+                lte: new Date(endDate as string)
+            };
+        } else if (startDate) {
+            where.createdAt = { gte: new Date(startDate as string) };
+        } else if (endDate) {
+            where.createdAt = { lte: new Date(endDate as string) };
+        }
+        
+        const deleteResult = await prisma.article.deleteMany({ where });
+        
+        logger.info('✅ ENTERPRISE CLEANUP: Date range deletion completed', {
+            userId, articlesDeleted: deleteResult.count, startDate, endDate
         });
         
         res.json({
             success: true,
             deletedCount: deleteResult.count,
-            source,
-            message: `Successfully deleted ${deleteResult.count} articles from source: ${source}`
+            dateRange: { startDate, endDate },
+            message: `Successfully deleted ${deleteResult.count} articles from date range`
         });
         return;
         
     } catch (error) {
-        logger.error('❌ BULK DELETE BY SOURCE: Error during deletion', {
-            userId,
-            source,
-            error: error instanceof Error ? error.message : 'Unknown error'
+        logger.error('❌ ENTERPRISE CLEANUP: Date range deletion failed', {
+            userId, error: error instanceof Error ? error.message : 'Unknown error'
         });
         
         res.status(500).json({
-            error: 'Failed to delete articles by source',
+            error: 'Failed to delete articles by date range',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        });
+        return;
+    }
+}));
+
+// Enterprise cleanup: Smart cleanup based on patterns
+router.delete('/bulk/smart-cleanup', authenticateToken, asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const userId = (req as any).user.userId;
+    const { 
+        removeUnread = false,
+        removeArchived = false,
+        removeDuplicateUrls = false,
+        removeWithoutContent = false,
+        olderThanDays
+    } = req.body;
+    
+    logger.info('🧠 ENTERPRISE SMART CLEANUP: Starting intelligent cleanup', {
+        userId, removeUnread, removeArchived, removeDuplicateUrls, removeWithoutContent, olderThanDays
+    });
+    
+    try {
+        let totalDeleted = 0;
+        const deletionLog: string[] = [];
+        
+        // 1. Remove articles older than specified days
+        if (olderThanDays && olderThanDays > 0) {
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
+            
+            const oldResult = await prisma.article.deleteMany({
+                where: { userId, createdAt: { lt: cutoffDate } }
+            });
+            totalDeleted += oldResult.count;
+            deletionLog.push(`Removed ${oldResult.count} articles older than ${olderThanDays} days`);
+        }
+        
+        // 2. Remove duplicate URLs (keep most recent)
+        if (removeDuplicateUrls) {
+            const duplicates = await prisma.article.groupBy({
+                by: ['url'],
+                where: { userId },
+                having: { url: { _count: { gt: 1 } } }
+            });
+            
+            for (const duplicate of duplicates) {
+                const articles = await prisma.article.findMany({
+                    where: { userId, url: duplicate.url },
+                    orderBy: { createdAt: 'desc' }
+                });
+                
+                // Keep the first (most recent), delete the rest
+                const toDelete = articles.slice(1);
+                const deleteIds = toDelete.map(a => a.id);
+                
+                if (deleteIds.length > 0) {
+                    const dupResult = await prisma.article.deleteMany({
+                        where: { id: { in: deleteIds } }
+                    });
+                    totalDeleted += dupResult.count;
+                }
+            }
+            deletionLog.push(`Removed ${duplicates.length} sets of duplicate URLs`);
+        }
+        
+        // 3. Remove articles without content
+        if (removeWithoutContent) {
+            const emptyResult = await prisma.article.deleteMany({
+                where: {
+                    userId,
+                    OR: [
+                        { content: null },
+                        { content: '' },
+                        { content: 'Content could not be extracted' }
+                    ]
+                }
+            });
+            totalDeleted += emptyResult.count;
+            deletionLog.push(`Removed ${emptyResult.count} articles without content`);
+        }
+        
+        // 4. Remove unread articles
+        if (removeUnread) {
+            const unreadResult = await prisma.article.deleteMany({
+                where: { userId, isRead: false }
+            });
+            totalDeleted += unreadResult.count;
+            deletionLog.push(`Removed ${unreadResult.count} unread articles`);
+        }
+        
+        // 5. Remove archived articles
+        if (removeArchived) {
+            const archivedResult = await prisma.article.deleteMany({
+                where: { userId, isArchived: true }
+            });
+            totalDeleted += archivedResult.count;
+            deletionLog.push(`Removed ${archivedResult.count} archived articles`);
+        }
+        
+        logger.info('✅ ENTERPRISE SMART CLEANUP: Intelligent cleanup completed', {
+            userId, totalDeleted, deletionLog
+        });
+        
+        res.json({
+            success: true,
+            totalDeleted,
+            cleanupActions: deletionLog,
+            message: `Smart cleanup completed: ${totalDeleted} articles removed`
+        });
+        return;
+        
+    } catch (error) {
+        logger.error('❌ ENTERPRISE SMART CLEANUP: Smart cleanup failed', {
+            userId, error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        
+        res.status(500).json({
+            error: 'Smart cleanup failed',
             details: error instanceof Error ? error.message : 'Unknown error'
         });
         return;

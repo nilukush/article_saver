@@ -4,6 +4,8 @@ import { prisma } from '../database';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken } from '../middleware/auth';
 import logger from '../utils/logger';
+import { importStateManager } from '../services/ImportStateManager';
+import { backgroundJobProcessor } from '../services/BackgroundJobProcessor';
 
 const router = Router();
 
@@ -237,7 +239,151 @@ const checkRateLimit = (response: globalThis.Response) => {
     return 2000; // Default 2 second delay
 };
 
-// Import articles from Pocket with rate limiting and proper pagination
+// Enterprise import with background processing
+router.post('/import/enterprise', [
+    body('accessToken').notEmpty().withMessage('Pocket access token is required'),
+    body('batchSize').optional().isInt({ min: 10, max: 200 }).withMessage('Batch size must be between 10 and 200'),
+    body('includeArchived').optional().isBoolean().withMessage('Include archived must be a boolean')
+], authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        throw createError('Validation failed', 400);
+    }
+
+    const { accessToken, batchSize = 100, includeArchived = true } = req.body;
+    const userId = (req as any).user.userId;
+    const consumerKey = process.env.POCKET_CONSUMER_KEY;
+
+    if (!consumerKey || consumerKey === 'your-pocket-consumer-key-here') {
+        throw createError('Pocket integration is not configured. Please add valid POCKET_CONSUMER_KEY to environment variables.', 503);
+    }
+
+    logger.info('🚀 ENTERPRISE IMPORT: Starting background import', { userId, batchSize, includeArchived });
+
+    try {
+        // Create import session
+        const sessionId = await importStateManager.createSession(userId, 'pocket', {
+            accessToken: accessToken.substring(0, 10) + '...', // Don't log full token
+            consumerKey: consumerKey.substring(0, 10) + '...', // Don't log full key
+            settings: { batchSize, includeArchived }
+        });
+
+        // Queue background job
+        await backgroundJobProcessor.queueImportJob(sessionId, userId, 'pocket', {
+            accessToken,
+            consumerKey,
+            batchSize,
+            includeArchived
+        });
+
+        res.json({
+            success: true,
+            sessionId,
+            message: 'Enterprise import started in background',
+            pollUrl: `/api/pocket/progress/${sessionId}`
+        });
+
+    } catch (error) {
+        logger.error('❌ ENTERPRISE IMPORT: Failed to start import', {
+            userId,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        throw createError('Failed to start import', 500);
+    }
+}));
+
+// Get enterprise import progress
+router.get('/progress/:sessionId', authenticateToken, asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const { sessionId } = req.params;
+    const userId = (req as any).user.userId;
+
+    try {
+        const session = await importStateManager.getSession(sessionId);
+        
+        if (!session) {
+            res.status(404).json({
+                error: 'Import session not found'
+            });
+            return;
+        }
+
+        // Verify session belongs to user
+        if (session.userId !== userId) {
+            res.status(403).json({
+                error: 'Access denied'
+            });
+            return;
+        }
+
+        // Get job status from background processor
+        const jobStatus = backgroundJobProcessor.getJobStatus(sessionId);
+
+        res.json({
+            success: true,
+            session: {
+                id: session.id,
+                status: session.status,
+                progress: session.progress,
+                metadata: {
+                    startTime: session.metadata.startTime,
+                    endTime: session.metadata.endTime,
+                    estimatedTimeRemaining: session.metadata.estimatedTimeRemaining,
+                    errorMessage: session.metadata.errorMessage
+                },
+                jobStatus
+            }
+        });
+        return;
+
+    } catch (error) {
+        logger.error('❌ ENTERPRISE IMPORT: Failed to get progress', {
+            sessionId,
+            userId,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        throw createError('Failed to get import progress', 500);
+    }
+}));
+
+// Cancel enterprise import
+router.delete('/import/:sessionId/cancel', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+    const { sessionId } = req.params;
+    const userId = (req as any).user.userId;
+
+    try {
+        const session = await importStateManager.getSession(sessionId);
+        
+        if (!session || session.userId !== userId) {
+            res.status(404).json({
+                error: 'Import session not found'
+            });
+            return;
+        }
+
+        // Try to cancel the job
+        const cancelled = backgroundJobProcessor.cancelJob(sessionId);
+        
+        if (cancelled) {
+            await importStateManager.completeSession(sessionId, 'failed', 'Import cancelled by user');
+        }
+
+        res.json({
+            success: cancelled,
+            message: cancelled ? 'Import cancelled successfully' : 'Import could not be cancelled (may be running)'
+        });
+        return;
+
+    } catch (error) {
+        logger.error('❌ ENTERPRISE IMPORT: Failed to cancel import', {
+            sessionId,
+            userId,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        throw createError('Failed to cancel import', 500);
+    }
+}));
+
+// Legacy import (kept for backwards compatibility)
 router.post('/import', [
     body('accessToken').notEmpty().withMessage('Pocket access token is required')
 ], authenticateToken, asyncHandler(async (req: Request, res: Response) => {
@@ -566,6 +712,17 @@ router.post('/import', [
             failed: failedArticles.length,
             total: totalToProcess
         }
+    });
+}));
+
+// Enterprise job statistics
+router.get('/jobs/stats', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+    const stats = backgroundJobProcessor.getStats();
+    
+    res.json({
+        success: true,
+        stats,
+        message: 'Background job statistics'
     });
 }));
 

@@ -20,6 +20,7 @@ model User {
   // Relations
   articles Article[]
   credentials Credential[]
+  importSessions ImportSession[]
 
   @@map("users")
 }
@@ -69,4 +70,26 @@ model Credential {
   @@index([userId])
   @@index([credentialId])
   @@map("credentials")
+}
+
+model ImportSession {
+  id        String   @id
+  userId    String   @map("user_id")
+  source    String   // 'pocket' or 'manual'
+  status    String   @default("pending") // 'pending', 'running', 'completed', 'failed', 'cancelled'
+  progress  Json     @default("{}")
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Indexes
+  @@index([userId, source])
+  @@index([status])
+  @@index([createdAt])
+  @@index([userId, status])
+  @@index([source, status])
+  @@map("import_sessions")
 }

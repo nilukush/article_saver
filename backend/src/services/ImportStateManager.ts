@@ -69,8 +69,20 @@ export class ImportStateManager {
                 updatedAt: new Date()
             };
             
-            // Store in database for persistence (you'll need to create this table)
-            // For now, we'll use a JSON field or create proper schema
+            // Store in database for persistence using Prisma
+            await prisma.importSession.create({
+                data: {
+                    id: sessionId,
+                    userId,
+                    source,
+                    status: session.status,
+                    progress: session.progress,
+                    metadata: session.metadata,
+                    createdAt: session.createdAt,
+                    updatedAt: session.updatedAt
+                }
+            });
+            
             logger.info('🔄 IMPORT SESSION: Created new session', { sessionId, userId, source });
             
             return sessionId;
@@ -88,8 +100,24 @@ export class ImportStateManager {
             // Update database record
             logger.debug('🔄 IMPORT SESSION: Updating progress', { sessionId, progress });
             
-            // Database update would go here
-            // await prisma.importSession.update({ where: { id: sessionId }, data: { progress } });
+            // Get current session to merge progress
+            const currentSession = await prisma.importSession.findUnique({
+                where: { id: sessionId }
+            });
+            
+            if (!currentSession) {
+                throw new Error('Session not found');
+            }
+            
+            const currentProgress = currentSession.progress as any;
+            const updatedProgress = { ...currentProgress, ...progress };
+            
+            await prisma.importSession.update({
+                where: { id: sessionId },
+                data: {
+                    progress: updatedProgress
+                }
+            });
             
         } catch (error) {
             logger.error('❌ IMPORT SESSION: Failed to update progress', { sessionId, error });
@@ -105,10 +133,24 @@ export class ImportStateManager {
             // Retrieve from database
             logger.debug('🔍 IMPORT SESSION: Retrieving session', { sessionId });
             
-            // Database query would go here
-            // return await prisma.importSession.findUnique({ where: { id: sessionId } });
+            const session = await prisma.importSession.findUnique({
+                where: { id: sessionId }
+            });
             
-            return null; // Placeholder
+            if (!session) {
+                return null;
+            }
+            
+            return {
+                id: session.id,
+                userId: session.userId,
+                source: session.source as 'pocket' | 'manual',
+                status: session.status as 'pending' | 'running' | 'completed' | 'failed' | 'cancelled',
+                progress: session.progress as any,
+                metadata: session.metadata as any,
+                createdAt: session.createdAt,
+                updatedAt: session.updatedAt
+            } as ImportSession;
         } catch (error) {
             logger.error('❌ IMPORT SESSION: Failed to get session', { sessionId, error });
             throw error;
@@ -122,15 +164,29 @@ export class ImportStateManager {
         try {
             logger.info('✅ IMPORT SESSION: Completing session', { sessionId, status });
             
-            // Database update would go here
-            // await prisma.importSession.update({
-            //     where: { id: sessionId },
-            //     data: {
-            //         status,
-            //         metadata: { ...existing.metadata, endTime: new Date(), errorMessage },
-            //         updatedAt: new Date()
-            //     }
-            // });
+            // Get current session to merge metadata
+            const currentSession = await prisma.importSession.findUnique({
+                where: { id: sessionId }
+            });
+            
+            if (!currentSession) {
+                throw new Error('Session not found');
+            }
+            
+            const currentMetadata = currentSession.metadata as any;
+            const updatedMetadata = {
+                ...currentMetadata,
+                endTime: new Date(),
+                ...(errorMessage && { errorMessage })
+            };
+            
+            await prisma.importSession.update({
+                where: { id: sessionId },
+                data: {
+                    status,
+                    metadata: updatedMetadata
+                }
+            });
             
         } catch (error) {
             logger.error('❌ IMPORT SESSION: Failed to complete session', { sessionId, error });
@@ -145,9 +201,14 @@ export class ImportStateManager {
         try {
             logger.info('🧹 IMPORT SESSION: Cleaning up old sessions', { userId, source });
             
-            // Database cleanup would go here
-            // const where = { userId, ...(source && { source }) };
-            // await prisma.importSession.deleteMany({ where });
+            const where: any = { userId };
+            if (source) {
+                where.source = source;
+            }
+            
+            await prisma.importSession.deleteMany({
+                where
+            });
             
         } catch (error) {
             logger.error('❌ IMPORT SESSION: Failed to cleanup sessions', { userId, error });

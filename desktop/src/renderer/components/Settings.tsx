@@ -98,6 +98,48 @@ export function Settings({ onClose }: SettingsProps) {
         }
     }
 
+    const handleDeleteAllArticles = async () => {
+        if (!confirm(`Are you sure you want to delete all ${totalArticles} articles? This cannot be undone.`)) {
+            return
+        }
+
+        setLoading(true)
+        setError(null)
+
+        try {
+            const token = localStorage.getItem('authToken')
+            const response = await window.electronAPI.netFetch(`${serverUrl}/api/articles/bulk/all`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            })
+
+            if (response.success) {
+                const data = response.data
+                setError(`✅ Successfully deleted ${data.deletedCount} articles!`)
+                
+                // Clear import timestamp since we deleted everything
+                localStorage.removeItem('lastPocketImport')
+                setLastImportTime(null)
+                
+                // Reload articles to show empty state
+                await loadArticles()
+                
+                // Close modal after 2 seconds
+                setTimeout(() => {
+                    onClose()
+                }, 2000)
+            } else {
+                setError(response.error || 'Failed to delete articles')
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to delete articles')
+        } finally {
+            setLoading(false)
+        }
+    }
+
     const handleLogout = () => {
         localStorage.removeItem('authToken')
         localStorage.removeItem('serverUrl')
@@ -560,7 +602,19 @@ export function Settings({ onClose }: SettingsProps) {
                             )}
                         </div>
 
-                        <div className="border-t border-gray-200 dark:border-gray-600 pt-4">
+                        <div className="border-t border-gray-200 dark:border-gray-600 pt-4 space-y-3">
+                            {/* Delete All Articles Button */}
+                            {hasImportedArticles && (
+                                <button
+                                    onClick={handleDeleteAllArticles}
+                                    disabled={loading}
+                                    className="w-full bg-yellow-600 text-white py-2 px-4 rounded-md hover:bg-yellow-700 disabled:opacity-50 flex items-center justify-center space-x-2 transition-colors"
+                                >
+                                    <span>🗑️</span>
+                                    <span>{loading ? 'Deleting...' : 'Delete All Articles'}</span>
+                                </button>
+                            )}
+                            
                             <button
                                 onClick={handleLogout}
                                 className="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 flex items-center justify-center space-x-2 transition-colors"
