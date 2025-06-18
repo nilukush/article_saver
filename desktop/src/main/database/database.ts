@@ -1,7 +1,7 @@
 import path from 'path'
 import fs from 'fs/promises'
 import { app } from 'electron'
-import type { Article } from '../../../shared/types'
+import type { Article } from '../../../../shared/types'
 
 export class DatabaseService {
     private dbPath: string

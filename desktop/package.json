@@ -2,12 +2,12 @@
     "name": "article-saver-desktop",
     "version": "1.0.0",
     "description": "Desktop application for Article Saver",
-    "main": "dist/main/src/main/main.js",
+    "main": "./dist/main/desktop/src/main/main.js",
     "scripts": {
         "dev": "concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
         "dev:vite": "vite",
-        "dev:electron": "wait-on http://localhost:19858 && NODE_ENV=development electron .",
-        "build": "npm run build:vite && npm run build:electron",
+        "dev:electron": "wait-on http://localhost:19858 && npx tsc -p tsconfig.main.json && NODE_ENV=development electron .",
+        "build": "npm run clean && tsc -p tsconfig.main.json && vite build",
         "build:vite": "vite build",
         "build:electron": "tsc -p tsconfig.main.json",
         "dist": "npm run build && electron-builder",
@@ -19,9 +19,13 @@
         "clean:cache": "rm -rf node_modules/.cache && rm -rf node_modules/.vite",
         "clean:all": "npm run clean && rm -rf node_modules && npm install",
         "dev:clean": "npm run clean && npm run dev",
-        "build:clean": "npm run clean && npm run build"
+        "build:clean": "npm run clean && npm run build",
+        "restart": "scripts/restart-desktop.sh",
+        "restart:enterprise": "scripts/restart-desktop.sh"
     },
     "dependencies": {
+        "@mozilla/readability": "^0.6.0",
+        "@types/mozilla__readability": "^0.4.2",
         "@types/sqlite3": "^3.1.11",
         "electron-store": "^8.1.0",
         "jsdom": "^23.0.1",

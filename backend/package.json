@@ -25,9 +25,11 @@
     "author": "Article Saver Team",
     "license": "MIT",
     "dependencies": {
+        "@mozilla/readability": "^0.6.0",
         "@prisma/client": "^6.9.0",
         "@simplewebauthn/browser": "^13.1.0",
         "@simplewebauthn/server": "^13.1.1",
+        "@types/jsdom": "^21.1.7",
         "bcryptjs": "^2.4.3",
         "cors": "^2.8.5",
         "dotenv": "^16.3.1",
@@ -35,6 +37,7 @@
         "express-rate-limit": "^7.1.5",
         "express-validator": "^7.0.1",
         "helmet": "^7.1.0",
+        "jsdom": "^23.2.0",
         "jsonwebtoken": "^9.0.2",
         "uuid": "^9.0.1",
         "winston": "^3.17.0"

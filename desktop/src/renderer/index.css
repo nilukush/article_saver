@@ -55,90 +55,386 @@ body {
     background: #718096;
 }
 
-/* Article content styles */
+/* Professional Article Reader Styles - Firefox Reader View / Pocket Standard */
 .article-content {
-    line-height: 1.7;
+    line-height: 1.8;
+    font-size: 18px;
+    color: #1a1a1a;
+    max-width: none;
+    font-family: 'Inter', Georgia, 'Times New Roman', serif;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
+/* Improve reading experience for longer content */
+.article-content {
+    word-spacing: 0.1em;
+    letter-spacing: 0.01em;
+}
+
+/* Better paragraph flow */
+.article-content p + p {
+    margin-top: 1.75em;
+}
+
+/* Typography Hierarchy */
 .article-content h1,
 .article-content h2,
 .article-content h3,
 .article-content h4,
 .article-content h5,
 .article-content h6 {
-    margin-top: 1.5em;
-    margin-bottom: 0.5em;
-    font-weight: 600;
+    margin-top: 2em;
+    margin-bottom: 0.75em;
+    font-weight: 700;
+    line-height: 1.3;
+    color: #111827;
 }
 
+.article-content h1 {
+    font-size: 2.25em;
+    margin-top: 1em;
+}
+
+.article-content h2 {
+    font-size: 1.875em;
+}
+
+.article-content h3 {
+    font-size: 1.5em;
+}
+
+.article-content h4 {
+    font-size: 1.25em;
+}
+
+.article-content h5,
+.article-content h6 {
+    font-size: 1.125em;
+}
+
+/* Paragraphs and Text */
 .article-content p {
-    margin-bottom: 1em;
+    margin-bottom: 1.5em;
+    text-align: left;
 }
 
+.article-content p:last-child {
+    margin-bottom: 0;
+}
+
+/* Lists */
+.article-content ul,
+.article-content ol {
+    margin: 1.5em 0;
+    padding-left: 2em;
+}
+
+.article-content li {
+    margin-bottom: 0.5em;
+    line-height: 1.7;
+}
+
+.article-content li p {
+    margin-bottom: 0.75em;
+}
+
+/* Images */
 .article-content img {
     max-width: 100%;
     height: auto;
-    border-radius: 8px;
-    margin: 1em 0;
+    border-radius: 12px;
+    margin: 2em auto;
+    display: block;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.article-content blockquote {
-    border-left: 4px solid #e2e8f0;
-    padding-left: 1em;
-    margin: 1em 0;
+.article-content figure {
+    margin: 2em 0;
+    text-align: center;
+}
+
+.article-content figcaption {
+    margin-top: 0.75em;
+    font-size: 0.875em;
+    color: #6b7280;
     font-style: italic;
-    color: #64748b;
 }
 
-.article-content code {
-    background-color: #f1f5f9;
-    padding: 0.2em 0.4em;
-    border-radius: 4px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.9em;
-}
-
-.article-content pre {
+/* Blockquotes */
+.article-content blockquote {
+    border-left: 4px solid #3b82f6;
+    padding: 1.5em 2em;
+    margin: 2em 0;
     background-color: #f8fafc;
-    padding: 1em;
     border-radius: 8px;
+    font-style: italic;
+    color: #374151;
+    position: relative;
+}
+
+.article-content blockquote p {
+    margin-bottom: 1em;
+}
+
+.article-content blockquote p:last-child {
+    margin-bottom: 0;
+}
+
+/* Code Blocks */
+.article-content code,
+.article-content .inline-code {
+    background-color: #f3f4f6;
+    color: #1f2937;
+    padding: 0.25em 0.5em;
+    border-radius: 6px;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
+    font-size: 0.875em;
+    font-weight: 500;
+}
+
+.article-content pre,
+.article-content .code-block {
+    background-color: #1f2937;
+    color: #f9fafb;
+    padding: 1.5em;
+    border-radius: 12px;
     overflow-x: auto;
-    margin: 1em 0;
+    margin: 2em 0;
+    border: 1px solid #374151;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .article-content pre code {
     background: none;
+    color: inherit;
     padding: 0;
+    border-radius: 0;
+    font-size: 0.875em;
+    line-height: 1.6;
 }
 
+/* Links */
 .article-content a {
-    color: #3b82f6;
-    text-decoration: underline;
+    color: #2563eb;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: all 0.2s ease;
 }
 
 .article-content a:hover {
     color: #1d4ed8;
+    border-bottom-color: #1d4ed8;
 }
 
-/* Dark mode article content */
+/* Tables */
+.article-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 2em 0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.article-content th,
+.article-content td {
+    padding: 1em;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.article-content th {
+    background-color: #f9fafb;
+    font-weight: 600;
+    color: #374151;
+}
+
+.article-content tr:hover {
+    background-color: #f9fafb;
+}
+
+/* Horizontal Rules */
+.article-content hr {
+    border: none;
+    height: 1px;
+    background: linear-gradient(to right, transparent, #d1d5db, transparent);
+    margin: 3em 0;
+}
+
+/* Technical Content (GitHub-style) */
+.article-content .highlight,
+.article-content .code-block {
+    background-color: #f6f8fa;
+    border: 1px solid #e1e4e8;
+    border-radius: 8px;
+    padding: 1em;
+    margin: 1.5em 0;
+    overflow-x: auto;
+}
+
+/* Function/Method Names in Boxes */
+.article-content kbd,
+.article-content .function-name,
+.article-content .method-name {
+    background-color: #e5e7eb;
+    color: #374151;
+    padding: 0.25em 0.5em;
+    border-radius: 4px;
+    font-family: 'SF Mono', monospace;
+    font-size: 0.875em;
+    font-weight: 500;
+    border: 1px solid #d1d5db;
+    display: inline-block;
+    margin: 0.125em;
+}
+
+/* WCAG AAA Compliant Dark Mode Styles - 7:1 Contrast Ratio */
+.dark .article-content {
+    color: #f8fafc !important;
+    /* High contrast white text - 7:1+ ratio */
+    background-color: #0f172a;
+    /* Deep dark background */
+}
+
+/* Ensure all text elements are visible in dark mode - Aggressive approach */
+.dark .article-content *,
+.dark .article-content *:not(code):not(pre) {
+    color: #f8fafc !important;
+}
+
+.dark .article-content p,
+.dark .article-content div,
+.dark .article-content span,
+.dark .article-content li,
+.dark .article-content strong,
+.dark .article-content em,
+.dark .article-content i,
+.dark .article-content b,
+.dark .article-content small,
+.dark .article-content text {
+    color: #f8fafc !important;
+}
+
+/* Override any inherited dark text */
+.dark .article-content [style*="color"] {
+    color: #f8fafc !important;
+}
+
+/* Catch-all for any text content in dark mode */
+.dark .article-content,
+.dark .article-content * {
+    color: #f8fafc !important;
+    fill: #f8fafc !important; /* For SVG text */
+}
+
+/* Extra specificity for stubborn elements */
+html.dark .article-content *,
+.dark html .article-content * {
+    color: #f8fafc !important;
+}
+
+.dark .article-content h1,
+.dark .article-content h2,
+.dark .article-content h3,
+.dark .article-content h4,
+.dark .article-content h5,
+.dark .article-content h6 {
+    color: #ffffff;
+    /* Pure white headings for maximum contrast */
+}
+
 .dark .article-content blockquote {
-    border-left-color: #475569;
-    color: #94a3b8;
-}
-
-.dark .article-content code {
-    background-color: #334155;
-    color: #e2e8f0;
-}
-
-.dark .article-content pre {
     background-color: #1e293b;
+    border-left-color: #7dd3fc;
+    /* Bright blue for visibility */
+    color: #f1f5f9;
+    /* High contrast text */
+}
+
+.dark .article-content code,
+.dark .article-content .inline-code {
+    background-color: #1e293b !important;
+    color: #f1f5f9 !important;
+    /* High contrast code text */
+    border: 1px solid #475569;
+}
+
+.dark .article-content pre,
+.dark .article-content .code-block {
+    background-color: #0f172a !important;
+    color: #f8fafc !important;
+    /* Maximum contrast for code blocks */
+    border-color: #334155;
 }
 
 .dark .article-content a {
-    color: #60a5fa;
+    color: #7dd3fc;
+    /* Bright blue links - high contrast */
+    text-decoration: underline;
+    /* Always underlined for accessibility */
 }
 
 .dark .article-content a:hover {
-    color: #93c5fd;
+    color: #bae6fd;
+    /* Even brighter on hover */
+    border-bottom-color: #bae6fd;
+}
+
+.dark .article-content th {
+    background-color: #1e293b;
+    color: #ffffff;
+    /* Pure white table headers */
+}
+
+.dark .article-content td {
+    border-bottom-color: #334155;
+    color: #f1f5f9;
+    /* High contrast table text */
+}
+
+.dark .article-content tr:hover {
+    background-color: #1e293b;
+}
+
+.dark .article-content figcaption {
+    color: #cbd5e1;
+    /* Lighter gray for captions but still readable */
+}
+
+.dark .article-content .highlight,
+.dark .article-content .code-block {
+    background-color: #1e293b;
+    border-color: #475569;
+}
+
+.dark .article-content kbd,
+.dark .article-content .function-name,
+.dark .article-content .method-name {
+    background-color: #334155;
+    color: #f1f5f9;
+    /* High contrast function names */
+    border-color: #64748b;
+}
+
+.dark .article-content hr {
+    background: linear-gradient(to right, transparent, #64748b, transparent);
+}
+
+/* Enhanced paragraph spacing for better readability */
+.dark .article-content p {
+    color: #f8fafc;
+    /* Ensure paragraphs have maximum contrast */
+}
+
+/* Enhanced list readability */
+.dark .article-content li {
+    color: #f8fafc;
+}
+
+/* Better image contrast in dark mode */
+.dark .article-content img {
+    border: 1px solid #334155;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }

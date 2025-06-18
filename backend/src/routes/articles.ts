@@ -1,8 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
+import { JSDOM } from 'jsdom';
+import { Readability } from '@mozilla/readability';
 import { prisma } from '../database';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken } from '../middleware/auth';
+import logger from '../utils/logger';
 
 const router = Router();
 
@@ -51,6 +54,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
                 id: true,
                 url: true,
                 title: true,
+                content: true,
                 excerpt: true,
                 author: true,
                 publishedDate: true,
@@ -122,7 +126,7 @@ router.post('/', [
     // If content is not provided, extract it from the URL
     if (!content || !title) {
         try {
-            console.log('Extracting content from URL:', url);
+            logger.info('🚀 CONTENT EXTRACTION: Starting extraction for URL', { url });
 
             // Fetch the webpage
             const response = await fetch(url, {
@@ -136,53 +140,134 @@ router.post('/', [
             }
 
             const html = await response.text();
+            logger.info('🚀 CONTENT EXTRACTION: HTML fetched successfully', {
+                htmlLength: html.length,
+                url
+            });
 
-            // Simple content extraction (basic implementation)
-            // Extract title from <title> tag if not provided
-            if (!title) {
-                const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-                title = titleMatch ? titleMatch[1].trim() : 'Untitled Article';
-            }
+            // Create JSDOM document with industry-standard configuration (Firefox Reader View approach)
+            const dom = new JSDOM(html, {
+                url  // Only URL for relative link resolution - NO resource loading
+            });
+            const document = dom.window.document;
+            logger.info('🚀 CONTENT EXTRACTION: JSDOM document created with optimized config');
 
-            // Extract basic content from meta description if not provided
-            if (!excerpt) {
-                const descMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
-                excerpt = descMatch ? descMatch[1].trim() : '';
-            }
+            // Try Mozilla Readability first
+            try {
+                logger.info('🔍 CONTENT EXTRACTION: Attempting Mozilla Readability');
 
-            // Extract author from meta tags
-            if (!author) {
-                const authorMatch = html.match(/<meta[^>]*name=["']author["'][^>]*content=["']([^"']+)["']/i);
-                author = authorMatch ? authorMatch[1].trim() : undefined;
-            }
+                const documentClone = document.cloneNode(true) as Document;
+                const reader = new Readability(documentClone, {
+                    charThreshold: 500,
+                    classesToPreserve: ['highlight', 'code', 'pre'],
+                    keepClasses: false
+                });
 
-            // Basic content extraction - get text from body
-            if (!content) {
-                // Remove script and style tags
-                const cleanHtml = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-                    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+                const article = reader.parse();
+                logger.info('🔍 CONTENT EXTRACTION: Readability parse completed', {
+                    hasArticle: !!article,
+                    hasContent: !!(article && article.content),
+                    contentLength: article?.content?.length || 0,
+                    title: article?.title || 'No title'
+                });
 
-                // Extract text content from body
-                const bodyMatch = cleanHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-                if (bodyMatch) {
-                    // Simple HTML to text conversion
-                    content = bodyMatch[1]
-                        .replace(/<[^>]+>/g, ' ')  // Remove HTML tags
-                        .replace(/\s+/g, ' ')      // Normalize whitespace
-                        .trim();
+                if (article && article.content) {
+                    logger.info('✅ CONTENT EXTRACTION: Mozilla Readability SUCCESS', {
+                        contentLength: article.content.length,
+                        titleLength: article.title?.length || 0
+                    });
 
-                    // Limit content length for excerpt
-                    if (!excerpt && content.length > 200) {
-                        excerpt = content.substring(0, 200) + '...';
+                    // Use Readability results
+                    if (!title && article.title) {
+                        title = article.title.trim();
+                    }
+                    if (!content) {
+                        content = article.content;
+                    }
+                    if (!excerpt && article.excerpt) {
+                        excerpt = article.excerpt;
+                    }
+                    if (!author && article.byline) {
+                        author = article.byline;
                     }
                 } else {
-                    content = 'Content could not be extracted';
+                    logger.warn('⚠️ CONTENT EXTRACTION: Mozilla Readability failed, falling back to basic extraction');
+                    throw new Error('Readability failed');
+                }
+            } catch (readabilityError) {
+                logger.error('❌ CONTENT EXTRACTION: Mozilla Readability error', {
+                    error: readabilityError instanceof Error ? readabilityError.message : 'Unknown error',
+                    url
+                });
+
+                // Fallback to basic extraction
+                logger.info('🔧 CONTENT EXTRACTION: Using basic fallback extraction');
+
+                // Extract title from <title> tag if not provided
+                if (!title) {
+                    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+                    title = titleMatch ? titleMatch[1].trim() : 'Untitled Article';
+                }
+
+                // Extract basic content from meta description if not provided
+                if (!excerpt) {
+                    const descMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
+                    excerpt = descMatch ? descMatch[1].trim() : '';
+                }
+
+                // Extract author from meta tags
+                if (!author) {
+                    const authorMatch = html.match(/<meta[^>]*name=["']author["'][^>]*content=["']([^"']+)["']/i);
+                    author = authorMatch ? authorMatch[1].trim() : undefined;
+                }
+
+                // Basic content extraction - get text from body
+                if (!content) {
+                    // Remove script and style tags
+                    const cleanHtml = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+                        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+
+                    // Extract text content from body
+                    const bodyMatch = cleanHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+                    if (bodyMatch) {
+                        // Simple HTML to text conversion
+                        content = bodyMatch[1]
+                            .replace(/<[^>]+>/g, ' ')  // Remove HTML tags
+                            .replace(/\s+/g, ' ')      // Normalize whitespace
+                            .trim();
+
+                        logger.info('🔧 CONTENT EXTRACTION: Basic extraction completed', {
+                            contentLength: content.length
+                        });
+                    } else {
+                        content = 'Content could not be extracted';
+                        logger.warn('🔧 CONTENT EXTRACTION: No body content found');
+                    }
                 }
             }
 
-            console.log('Content extraction completed');
+            // Generate excerpt if not provided
+            if (!excerpt && content && content.length > 200) {
+                excerpt = content.replace(/<[^>]*>/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim()
+                    .substring(0, 200) + '...';
+            }
+
+            logger.info('✅ CONTENT EXTRACTION: Extraction completed successfully', {
+                titleLength: title?.length || 0,
+                contentLength: content?.length || 0,
+                excerptLength: excerpt?.length || 0,
+                hasAuthor: !!author
+            });
+
         } catch (error) {
-            console.error('Error extracting content:', error);
+            logger.error('❌ CONTENT EXTRACTION: Fatal error during extraction', {
+                error: error instanceof Error ? error.message : 'Unknown error',
+                stack: error instanceof Error ? error.stack : undefined,
+                url
+            });
+
             // Continue with provided data or defaults
             title = title || 'Article';
             content = content || 'Content could not be extracted';

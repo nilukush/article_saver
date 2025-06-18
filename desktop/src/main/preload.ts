@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { Article, UpdateArticleRequest, ApiResponse } from '../../shared/types'
+import type { Article, UpdateArticleRequest, ApiResponse } from '../../../shared/types'
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object

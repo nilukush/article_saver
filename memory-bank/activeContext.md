@@ -1,7 +1,11 @@
 # Active Context
 
 ## Current Work Focus
-🎉 **TIMESTAMP TRACKING FIX COMPLETE**: Fixed critical "Last synced: Unknown" issue that was confusing users about their import status!
+🎉 **ARTICLE READER DISPLAY FIX COMPLETE**: Fixed critical JSDOM CSS parsing errors that were causing broken article display!
+
+**🚀 PROFESSIONAL ARTICLE READER IMPLEMENTED**: Industry-standard Firefox Reader View quality styling with zero CSS parsing errors!
+
+**Previous Success - Timestamp Tracking Fix**: Fixed critical "Last synced: Unknown" issue that was confusing users about their import status!
 
 **🚀 PROFESSIONAL TIMESTAMP SYSTEM IMPLEMENTED**: Account modal now shows proper timestamps with "Recently imported" fallback and comprehensive error handling!
 
@@ -14,7 +18,16 @@
 **Previous Success - Infinite Scroll**: Successfully implemented professional infinite scroll system to display all 5,520+ imported articles with optimal performance!
 
 ## Recent Changes
-**🎉 TIMESTAMP TRACKING FIX IMPLEMENTED**: Complete Solution for "Last synced: Unknown" Issue
+**🎉 ARTICLE READER DISPLAY FIX IMPLEMENTED**: Complete Solution for JSDOM CSS Parsing Errors
+- **Root Cause Fixed**: Removed `resources: "usable"` from JSDOM configuration that was causing CSS parsing errors
+- **Industry Standard Approach**: Implemented minimal JSDOM configuration (URL only) used by Firefox Reader View
+- **Professional Reader Styling**: Enhanced CSS with 18px font size, 1.8 line height, GitHub-style code blocks
+- **Technical Content Support**: Special styling for function names, method calls, and code blocks
+- **Content Processing**: Added processArticleContent function to enhance extracted content
+- **Zero JSDOM Errors**: Eliminated "Could not parse CSS stylesheet" errors completely
+- **Cross-Platform Quality**: Consistent professional display across all article types
+
+**Previous Success - Timestamp Tracking Fix**: Complete Solution for "Last synced: Unknown" Issue
 - **Multiple Timestamp Save Points**: Added timestamp updates in progress polling completion AND immediate completion scenarios
 - **Professional Fallback Logic**: Shows "Recently imported" instead of confusing "Unknown" for existing articles
 - **Comprehensive Error Handling**: Try-catch blocks prevent timestamp parsing failures
