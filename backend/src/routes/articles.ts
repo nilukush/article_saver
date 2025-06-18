@@ -506,6 +506,96 @@ router.post('/:id/re-extract', asyncHandler(async (req: Request, res: Response):
     }
 }));
 
+// Bulk delete all articles for current user (for testing/cleanup)
+router.delete('/bulk/all', authenticateToken, asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const userId = (req as any).user.userId;
+    
+    logger.info('🗑️ BULK DELETE: Starting bulk deletion for user', { userId });
+    
+    try {
+        // Get count before deletion for logging
+        const countBefore = await prisma.article.count({
+            where: { userId }
+        });
+        
+        // Delete all articles for this user
+        const deleteResult = await prisma.article.deleteMany({
+            where: { userId }
+        });
+        
+        logger.info('✅ BULK DELETE: Successfully deleted articles', {
+            userId,
+            articlesDeleted: deleteResult.count,
+            countBefore
+        });
+        
+        res.json({
+            success: true,
+            deletedCount: deleteResult.count,
+            message: `Successfully deleted ${deleteResult.count} articles`
+        });
+        return;
+        
+    } catch (error) {
+        logger.error('❌ BULK DELETE: Error during bulk deletion', {
+            userId,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        
+        res.status(500).json({
+            error: 'Failed to delete articles',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        });
+        return;
+    }
+}));
+
+// Bulk delete articles by source (e.g., 'pocket', 'manual')
+router.delete('/bulk/source/:source', authenticateToken, asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const userId = (req as any).user.userId;
+    const source = req.params.source;
+    
+    logger.info('🗑️ BULK DELETE BY SOURCE: Starting deletion', { userId, source });
+    
+    try {
+        // Note: This assumes you have a 'source' field. If not, this will delete nothing.
+        const deleteResult = await prisma.article.deleteMany({
+            where: { 
+                userId,
+                // Add source field to your schema if you want to track import source
+                // source: source
+            }
+        });
+        
+        logger.info('✅ BULK DELETE BY SOURCE: Successfully deleted articles', {
+            userId,
+            source,
+            articlesDeleted: deleteResult.count
+        });
+        
+        res.json({
+            success: true,
+            deletedCount: deleteResult.count,
+            source,
+            message: `Successfully deleted ${deleteResult.count} articles from source: ${source}`
+        });
+        return;
+        
+    } catch (error) {
+        logger.error('❌ BULK DELETE BY SOURCE: Error during deletion', {
+            userId,
+            source,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        
+        res.status(500).json({
+            error: 'Failed to delete articles by source',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        });
+        return;
+    }
+}));
+
 // Delete article
 router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
     const userId = (req as any).user.userId;
