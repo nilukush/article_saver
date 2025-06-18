@@ -332,9 +332,8 @@ router.put('/:id', [
     res.json(updatedArticle);
 }));
 
-// Delete article
 // Re-extract content for an existing article
-router.post('/:id/re-extract', asyncHandler(async (req: Request, res: Response) => {
+router.post('/:id/re-extract', asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const userId = (req as any).userId;
     const articleId = req.params.id;
 
@@ -352,7 +351,8 @@ router.post('/:id/re-extract', asyncHandler(async (req: Request, res: Response) 
     });
 
     if (!existingArticle) {
-        return res.status(404).json({ error: 'Article not found' });
+        res.status(404).json({ error: 'Article not found' });
+        return;
     }
 
     try {
@@ -502,9 +502,11 @@ router.post('/:id/re-extract', asyncHandler(async (req: Request, res: Response) 
             error: 'Re-extraction failed',
             details: error instanceof Error ? error.message : 'Unknown error'
         });
+        return;
     }
 }));
 
+// Delete article
 router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
     const userId = (req as any).user.userId;
     const { id } = req.params;
