@@ -1,5 +1,6 @@
 import React from 'react'
 import { useArticleStore } from '../stores/articleStore'
+import { useDarkModeContext } from '../contexts/DarkModeContext'
 import type { Article } from '../../../shared/types'
 
 interface ArticleReaderProps {
@@ -9,6 +10,7 @@ interface ArticleReaderProps {
 
 export function ArticleReader({ article, onBack }: ArticleReaderProps) {
     const { updateArticle } = useArticleStore()
+    const { isDarkMode } = useDarkModeContext()
 
     const handleMarkAsRead = async () => {
         if (!article.isRead) {
@@ -541,60 +543,7 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
         }
     }
 
-    // Dark mode detection - Fixed implementation
-    const [isDarkMode, setIsDarkMode] = React.useState(() => {
-        // Initial dark mode check
-        return window.matchMedia('(prefers-color-scheme: dark)').matches ||
-               document.documentElement.classList.contains('dark') ||
-               document.body.classList.contains('dark')
-    })
-
-    React.useEffect(() => {
-        // Enhanced dark mode detection
-        const checkDarkMode = () => {
-            const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-            const documentDark = document.documentElement.classList.contains('dark')
-            const bodyDark = document.body.classList.contains('dark')
-            const htmlDark = document.querySelector('html')?.classList.contains('dark')
-            
-            const isDark = systemDark || documentDark || bodyDark || htmlDark
-            console.log('🌙 DARK MODE CHECK:', {
-                systemDark,
-                documentDark,
-                bodyDark,
-                htmlDark,
-                finalDark: isDark
-            })
-            setIsDarkMode(isDark)
-        }
-        
-        // Initial check
-        checkDarkMode()
-        
-        // Listen for system changes
-        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-        mediaQuery.addEventListener('change', checkDarkMode)
-        
-        // Listen for class changes on document
-        const observer = new MutationObserver(checkDarkMode)
-        observer.observe(document.documentElement, {
-            attributes: true,
-            attributeFilter: ['class']
-        })
-        observer.observe(document.body, {
-            attributes: true,
-            attributeFilter: ['class']
-        })
-        
-        // Check periodically for dynamic changes
-        const interval = setInterval(checkDarkMode, 1000)
-        
-        return () => {
-            mediaQuery.removeEventListener('change', checkDarkMode)
-            observer.disconnect()
-            clearInterval(interval)
-        }
-    }, [])
+    // Dark mode is now managed by context - no local state needed
 
     // Mark as read when component mounts
     React.useEffect(() => {

@@ -8,6 +8,15 @@
     box-sizing: border-box;
 }
 
+/* Theme transition for smooth dark mode switching */
+.theme-transition,
+.theme-transition *,
+.theme-transition *:before,
+.theme-transition *:after {
+    transition: background-color 200ms ease-in-out, border-color 200ms ease-in-out, color 200ms ease-in-out !important;
+    transition-delay: 0s !important;
+}
+
 html,
 body {
     margin: 0;
