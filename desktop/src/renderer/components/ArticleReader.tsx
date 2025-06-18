@@ -387,34 +387,35 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
             `<code class="inline-code" style="background: ${isDarkMode ? '#1e293b' : '#f1f5f9'}; color: ${isDarkMode ? '#f1f5f9' : '#334155'}; padding: 0.25em 0.5em; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.9em; border: 1px solid ${isDarkMode ? '#475569' : '#e2e8f0'};">$2</code>`
         )
 
-        // Enhance blockquotes with better styling (dark mode adaptive)
+        // Enhance blockquotes with better styling and tighter spacing
         processedContent = processedContent.replace(
             /<blockquote([^>]*)>([\s\S]*?)<\/blockquote>/gi,
-            `<blockquote class="enhanced-quote" style="border-left: 4px solid #3b82f6; padding: 1.5rem 2rem; margin: 2rem 0; background: ${isDarkMode ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.05)'}; border-radius: 0 8px 8px 0; font-style: italic; position: relative; color: inherit;">$2</blockquote>`
+            `<blockquote class="enhanced-quote" style="border-left: 4px solid #3b82f6; padding: 1.25rem 1.75rem; margin: 1.5rem 0; background: ${isDarkMode ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.05)'}; border-radius: 0 8px 8px 0; font-style: italic; position: relative; color: inherit; line-height: 1.6;">$2</blockquote>`
         )
 
-        // Improve list formatting
+        // Improve list formatting with tighter spacing
         processedContent = processedContent.replace(
             /<ul([^>]*)>/gi,
-            '<ul style="margin: 1.5em 0; padding-left: 2em; line-height: 1.7;">'
+            '<ul style="margin: 1.25em 0; padding-left: 1.75em; line-height: 1.6;">'
         )
         
         processedContent = processedContent.replace(
             /<ol([^>]*)>/gi,
-            '<ol style="margin: 1.5em 0; padding-left: 2em; line-height: 1.7;">'
+            '<ol style="margin: 1.25em 0; padding-left: 1.75em; line-height: 1.6;">'
         )
 
         processedContent = processedContent.replace(
             /<li([^>]*)>/gi,
-            '<li style="margin-bottom: 0.5em; line-height: 1.6;">'
+            '<li style="margin-bottom: 0.4em; line-height: 1.6;">'
         )
 
-        // Enhance headings with better hierarchy
+        // Enhance headings with optimal hierarchy and spacing
         for (let i = 1; i <= 6; i++) {
-            const size = Math.max(3 - i * 0.3, 1.1) // Progressive sizing
+            const size = Math.max(2.5 - i * 0.25, 1.1) // More balanced sizing
+            const topMargin = i === 1 ? '1.5em' : `${1.5 + (6-i)*0.2}em` // Reduced top margins
             processedContent = processedContent.replace(
                 new RegExp(`<h${i}([^>]*)>`, 'gi'),
-                `<h${i} style="font-size: ${size}em; font-weight: 700; margin: ${2 + (6-i)*0.3}em 0 1em 0; line-height: 1.3; color: inherit;">`
+                `<h${i} style="font-size: ${size}em; font-weight: 700; margin: ${topMargin} 0 0.75em 0; line-height: 1.3; color: inherit;">`
             )
         }
 
@@ -434,10 +435,10 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
             `<td style="padding: 1em; border-bottom: 1px solid ${isDarkMode ? '#374151' : '#e5e7eb'}; vertical-align: top; color: inherit;">`
         )
 
-        // Add reading enhancements
+        // Add reading enhancements with optimal typography
         processedContent = processedContent.replace(
             /<p([^>]*)>/gi,
-            '<p style="margin-bottom: 1.5em; line-height: 1.8; text-align: left; word-spacing: 0.1em; hyphens: auto;">'
+            '<p style="margin-bottom: 1.25em; line-height: 1.6; text-align: left; word-spacing: 0.05em; hyphens: auto;">'
         )
 
         // Enterprise content validation and enhancement

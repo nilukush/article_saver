@@ -64,9 +64,9 @@ body {
     background: #718096;
 }
 
-/* Professional Article Reader Styles - Firefox Reader View / Pocket Standard */
+/* Professional Article Reader Styles - Optimized Typography */
 .article-content {
-    line-height: 1.8;
+    line-height: 1.6;
     font-size: 18px;
     color: #1a1a1a;
     max-width: none;
@@ -76,25 +76,25 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
-/* Improve reading experience for longer content */
+/* Improve reading experience with optimal spacing */
 .article-content {
-    word-spacing: 0.1em;
+    word-spacing: 0.05em;
     letter-spacing: 0.01em;
 }
 
-/* Better paragraph flow */
+/* Better paragraph flow with tighter spacing */
 .article-content p + p {
-    margin-top: 1.75em;
+    margin-top: 1.25em;
 }
 
-/* Typography Hierarchy */
+/* Typography Hierarchy with optimal spacing */
 .article-content h1,
 .article-content h2,
 .article-content h3,
 .article-content h4,
 .article-content h5,
 .article-content h6 {
-    margin-top: 2em;
+    margin-top: 1.5em;
     margin-bottom: 0.75em;
     font-weight: 700;
     line-height: 1.3;
@@ -123,9 +123,9 @@ body {
     font-size: 1.125em;
 }
 
-/* Paragraphs and Text */
+/* Paragraphs and Text with optimal spacing */
 .article-content p {
-    margin-bottom: 1.5em;
+    margin-bottom: 1.25em;
     text-align: left;
 }
 
@@ -133,16 +133,16 @@ body {
     margin-bottom: 0;
 }
 
-/* Lists */
+/* Lists with tighter spacing */
 .article-content ul,
 .article-content ol {
-    margin: 1.5em 0;
-    padding-left: 2em;
+    margin: 1.25em 0;
+    padding-left: 1.75em;
 }
 
 .article-content li {
-    margin-bottom: 0.5em;
-    line-height: 1.7;
+    margin-bottom: 0.4em;
+    line-height: 1.6;
 }
 
 .article-content li p {
