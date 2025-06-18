@@ -30,6 +30,51 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
         }
     }
 
+    const handleReExtractContent = async () => {
+        try {
+            console.log('🔄 RE-EXTRACTION: Starting content re-extraction for article:', article.id)
+            
+            // Show loading state (you could add a loading state here)
+            const confirmed = confirm(
+                'Re-extract content from the original URL?\n\n' +
+                'This will attempt to fetch and process the article content again using the latest extraction algorithms.\n\n' +
+                'Note: This may take a few seconds and will overwrite the current content.'
+            )
+            
+            if (!confirmed) return
+            
+            // Call the re-extraction API
+            const response = await fetch(`http://localhost:3003/api/articles/${article.id}/re-extract`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+                    'Content-Type': 'application/json'
+                }
+            })
+            
+            if (!response.ok) {
+                throw new Error(`Re-extraction failed: ${response.statusText}`)
+            }
+            
+            const updatedArticle = await response.json()
+            console.log('✅ RE-EXTRACTION: Content re-extracted successfully')
+            
+            // Update the article in the store
+            await updateArticle(article.id, {
+                content: updatedArticle.content,
+                title: updatedArticle.title || article.title,
+                excerpt: updatedArticle.excerpt || article.excerpt
+            })
+            
+            // Refresh the page to show new content
+            window.location.reload()
+            
+        } catch (error) {
+            console.error('❌ RE-EXTRACTION ERROR:', error)
+            alert('Failed to re-extract content. Please try again or use "View Original" to read the article.')
+        }
+    }
+
     const handleViewOriginal = async () => {
         try {
             console.log('🔗 VIEW ORIGINAL: Opening URL:', article.url)
@@ -81,56 +126,181 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
         }
     }
 
+    // Enterprise content processing helper functions
+    const convertPlainTextToHtml = (text: string): string => {
+        console.log('📝 CONVERTING: Plain text to HTML with intelligent paragraph detection')
+        
+        // Split by double newlines first (natural paragraph breaks)
+        let paragraphs = text.split(/\n\s*\n/)
+        
+        // If no double newlines, try single newlines with sentence detection
+        if (paragraphs.length === 1) {
+            // Split by periods followed by space and capital letter (sentence boundaries)
+            const sentences = text.split(/\.\s+(?=[A-Z])/)
+            
+            // Group sentences into paragraphs (3-5 sentences per paragraph)
+            paragraphs = []
+            for (let i = 0; i < sentences.length; i += 4) {
+                const paragraphSentences = sentences.slice(i, i + 4)
+                if (paragraphSentences.length > 0) {
+                    let paragraph = paragraphSentences.join('. ')
+                    if (!paragraph.endsWith('.') && i + 4 < sentences.length) {
+                        paragraph += '.'
+                    }
+                    paragraphs.push(paragraph)
+                }
+            }
+        }
+        
+        // Convert to HTML paragraphs
+        return paragraphs
+            .map(p => p.trim())
+            .filter(p => p.length > 20) // Remove very short paragraphs
+            .map(p => `<p>${p}</p>`)
+            .join('\n\n')
+    }
+
+    const enhanceMinimalHtml = (html: string): string => {
+        console.log('🔧 ENHANCING: Minimal HTML content')
+        
+        let enhanced = html
+        
+        // Fix excessive spacing issues
+        enhanced = enhanced.replace(/(<\/p>\s*){2,}/gi, '</p>\n\n')
+        enhanced = enhanced.replace(/(<br[^>]*>\s*){3,}/gi, '<br><br>')
+        enhanced = enhanced.replace(/(<\/div>\s*){2,}/gi, '</div>\n')
+        
+        // Convert line breaks to paragraphs where appropriate
+        enhanced = enhanced.replace(/([^>])\s*<br[^>]*>\s*<br[^>]*>\s*([^<])/gi, '$1</p>\n\n<p>$2')
+        
+        // Wrap orphaned text in paragraphs
+        enhanced = enhanced.replace(/^([^<][^<]*?)(?=<)/gm, '<p>$1</p>')
+        enhanced = enhanced.replace(/>([^<][^<]*?)$/gm, '><p>$1</p>')
+        
+        return enhanced
+    }
+
+    const processRichHtml = (html: string): string => {
+        console.log('🎨 PROCESSING: Rich HTML content')
+        
+        let processed = html
+        
+        // Remove inline styles that conflict with dark mode
+        processed = processed.replace(/style\s*=\s*["'][^"']*["']/gi, '')
+        processed = processed.replace(/class\s*=\s*["'][^"']*["']/gi, '')
+        
+        // Fix nested div structures that create excessive spacing
+        processed = processed.replace(/<div[^>]*>(\s*<div[^>]*>[^<]*<\/div>\s*)+<\/div>/gi, (match) => {
+            // Extract text content and wrap in single paragraph
+            const textContent = match.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+            return textContent.length > 20 ? `<p>${textContent}</p>` : ''
+        })
+        
+        return processed
+    }
+
+    const universalContentCleanup = (content: string): string => {
+        console.log('🧹 CLEANING: Universal content optimization')
+        
+        let cleaned = content
+        
+        // Remove empty elements
+        cleaned = cleaned.replace(/<(div|span|p|section|article)[^>]*>\s*<\/\1>/gi, '')
+        cleaned = cleaned.replace(/<(div|span)[^>]*>\s*(&nbsp;|\s)*\s*<\/\1>/gi, '')
+        
+        // Normalize whitespace
+        cleaned = cleaned.replace(/&nbsp;/gi, ' ')
+        cleaned = cleaned.replace(/\s{3,}/g, ' ')
+        cleaned = cleaned.replace(/\n{3,}/g, '\n\n')
+        
+        // Fix paragraph spacing
+        cleaned = cleaned.replace(/(<\/p>\s*){2,}/gi, '</p>\n\n')
+        cleaned = cleaned.replace(/(<p[^>]*>\s*){2,}/gi, '<p>')
+        
+        return cleaned
+    }
+
     const processArticleContent = (content: string): string => {
-        if (!content) {
+        if (!content || content.trim().length < 10) {
             return `
-                <div class="flex flex-col items-center justify-center py-16 text-center">
-                    <div class="text-6xl mb-4">📄</div>
-                    <h3 class="text-xl font-medium mb-2">No Content Available</h3>
-                    <p class="text-gray-600 dark:text-gray-400 max-w-md">
-                        This article may not have been fully extracted or the original page requires JavaScript to display content.
-                    </p>
-                    <button 
-                        onclick="window.location.reload()" 
-                        class="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-                    >
-                        Retry Extraction
-                    </button>
+                <div class="border-l-4 border-red-400 bg-red-50 dark:bg-red-900/20 p-6 mb-8 rounded-r-lg">
+                    <div class="flex items-center">
+                        <div class="text-red-400 text-2xl mr-3">⚠️</div>
+                        <div>
+                            <h4 class="text-lg font-medium text-red-800 dark:text-red-200 mb-2">Content Extraction Failed</h4>
+                            <p class="text-red-700 dark:text-red-300 text-sm leading-relaxed mb-3">
+                                This article's content could not be extracted properly. This commonly happens with:
+                            </p>
+                            <ul class="text-red-700 dark:text-red-300 text-sm list-disc list-inside space-y-1 mb-4">
+                                <li>JavaScript-heavy websites</li>
+                                <li>Paywall or login-protected content</li>
+                                <li>Single-page applications (SPAs)</li>
+                                <li>Content delivery networks with delayed loading</li>
+                            </ul>
+                            <div class="flex gap-3">
+                                <button 
+                                    onclick="window.electronAPI?.openOAuthUrl?.('${article.url}') || window.open('${article.url}', '_blank')"
+                                    class="inline-flex items-center px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                                >
+                                    📖 View Original
+                                </button>
+                                <button 
+                                    onclick="handleReExtractContent()"
+                                    class="inline-flex items-center px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                >
+                                    🔄 Re-extract Content
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             `
         }
 
-        // Enterprise-grade content processing based on Firefox Reader View algorithm
+        // Enterprise-grade content processing - handles both old and new articles
         let processedContent = content
+        
+        console.log('🔄 CONTENT PROCESSING: Starting enterprise processing', {
+            originalLength: content.length,
+            hasHtml: /<[^>]+>/.test(content),
+            contentType: typeof content
+        })
 
-        // Security: Remove potentially harmful elements
+        // Step 1: Security cleanup - Remove potentially harmful elements
         processedContent = processedContent.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
         processedContent = processedContent.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
         processedContent = processedContent.replace(/<link[^>]*>/gi, '')
         processedContent = processedContent.replace(/<meta[^>]*>/gi, '')
-        processedContent = processedContent.replace(/on\w+\s*=\s*["'][^"']*["']/gi, '') // Remove event handlers
+        processedContent = processedContent.replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
         
-        // Remove dark mode conflicting styles completely
-        processedContent = processedContent.replace(/style\s*=\s*["'][^"']*["']/gi, '')
-        processedContent = processedContent.replace(/class\s*=\s*["'][^"']*["']/gi, '')
+        // Step 2: Detect and handle different content types
+        const isPlainText = !/<[^>]+>/.test(processedContent.trim())
+        const hasMinimalHtml = /<p>|<div>|<br>/.test(processedContent) && processedContent.split('<').length < 10
+        const isRichHtml = processedContent.split('<').length > 10
         
-        // Aggressive cleanup of empty and low-value elements (Pocket/Instapaper approach)
-        processedContent = processedContent.replace(/<(div|span|p|section|article)[^>]*>\s*<\/\1>/gi, '')
-        processedContent = processedContent.replace(/<(div|span)[^>]*>\s*(&nbsp;|\s)*\s*<\/\1>/gi, '')
-        processedContent = processedContent.replace(/(<br[^>]*>\s*){3,}/gi, '<br><br>')
-        processedContent = processedContent.replace(/&nbsp;/gi, ' ')
-        processedContent = processedContent.replace(/\s{3,}/g, ' ')
-        processedContent = processedContent.replace(/\n{3,}/g, '\n\n')
-        
-        // Remove divs that only contain other divs with minimal content
-        processedContent = processedContent.replace(/<div[^>]*>(\s*<div[^>]*>[^<]{0,50}<\/div>\s*)+<\/div>/gi, '')
-        
-        // Clean up nested empty elements
-        let previousLength = 0
-        while (processedContent.length !== previousLength) {
-            previousLength = processedContent.length
-            processedContent = processedContent.replace(/<(div|span|p)[^>]*>\s*<\/\1>/gi, '')
+        console.log('🔍 CONTENT ANALYSIS:', {
+            isPlainText,
+            hasMinimalHtml,
+            isRichHtml,
+            tagCount: processedContent.split('<').length
+        })
+
+        if (isPlainText) {
+            // Handle plain text content (running text from old extractions)
+            console.log('📝 PROCESSING: Plain text content detected')
+            processedContent = convertPlainTextToHtml(processedContent)
+        } else if (hasMinimalHtml) {
+            // Handle minimally formatted content
+            console.log('🔧 PROCESSING: Minimal HTML content detected')
+            processedContent = enhanceMinimalHtml(processedContent)
+        } else {
+            // Handle rich HTML content
+            console.log('🎨 PROCESSING: Rich HTML content detected')
+            processedContent = processRichHtml(processedContent)
         }
+        
+        // Step 3: Universal cleanup and optimization
+        processedContent = universalContentCleanup(processedContent)
 
         // Enterprise content structure enhancement (Pocket/Instapaper approach)
         
@@ -276,25 +446,36 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
         // Determine content quality level for user feedback
         const qualityLevel = determineContentQuality(textContent, wordCount)
         
-        // Add content quality indicators
+        // Add content quality indicators and re-extraction options
         if (textContent.length < 200) {
             return `
                 <div class="border-l-4 border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 p-6 mb-8 rounded-r-lg">
-                    <div class="flex items-center">
+                    <div class="flex items-start">
                         <div class="text-yellow-400 text-2xl mr-3">⚠️</div>
-                        <div>
+                        <div class="flex-1">
                             <h4 class="text-lg font-medium text-yellow-800 dark:text-yellow-200 mb-2">Limited Content Detected</h4>
-                            <p class="text-yellow-700 dark:text-yellow-300 text-sm leading-relaxed">
+                            <p class="text-yellow-700 dark:text-yellow-300 text-sm leading-relaxed mb-3">
                                 This article appears to have minimal extractable content. This could indicate:
                             </p>
-                            <ul class="text-yellow-700 dark:text-yellow-300 text-sm mt-2 list-disc list-inside space-y-1">
+                            <ul class="text-yellow-700 dark:text-yellow-300 text-sm list-disc list-inside space-y-1 mb-4">
                                 <li>Content is primarily loaded via JavaScript</li>
                                 <li>Article is behind a paywall or login</li>
                                 <li>Page structure is not optimized for content extraction</li>
                                 <li>Content may be primarily multimedia (videos, images)</li>
                             </ul>
-                            <div class="mt-3 text-xs text-yellow-600 dark:text-yellow-400">
-                                💡 Try the "View Original" button for the complete experience
+                            <div class="flex gap-2 flex-wrap">
+                                <button 
+                                    id="reextract-btn"
+                                    class="inline-flex items-center px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
+                                >
+                                    🔄 Re-extract Content
+                                </button>
+                                <button 
+                                    onclick="window.electronAPI?.openOAuthUrl?.('${article.url}') || window.open('${article.url}', '_blank')"
+                                    class="inline-flex items-center px-3 py-2 text-sm bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
+                                >
+                                    📖 View Original
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -360,31 +541,78 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
         }
     }
 
-    // Dark mode detection
-    const [isDarkMode, setIsDarkMode] = React.useState(false)
+    // Dark mode detection - Fixed implementation
+    const [isDarkMode, setIsDarkMode] = React.useState(() => {
+        // Initial dark mode check
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ||
+               document.documentElement.classList.contains('dark') ||
+               document.body.classList.contains('dark')
+    })
 
     React.useEffect(() => {
-        // Check for dark mode
+        // Enhanced dark mode detection
         const checkDarkMode = () => {
-            const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches ||
-                          document.documentElement.classList.contains('dark') ||
-                          document.body.classList.contains('dark')
+            const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+            const documentDark = document.documentElement.classList.contains('dark')
+            const bodyDark = document.body.classList.contains('dark')
+            const htmlDark = document.querySelector('html')?.classList.contains('dark')
+            
+            const isDark = systemDark || documentDark || bodyDark || htmlDark
+            console.log('🌙 DARK MODE CHECK:', {
+                systemDark,
+                documentDark,
+                bodyDark,
+                htmlDark,
+                finalDark: isDark
+            })
             setIsDarkMode(isDark)
         }
         
+        // Initial check
         checkDarkMode()
         
-        // Listen for changes
+        // Listen for system changes
         const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
         mediaQuery.addEventListener('change', checkDarkMode)
         
-        return () => mediaQuery.removeEventListener('change', checkDarkMode)
+        // Listen for class changes on document
+        const observer = new MutationObserver(checkDarkMode)
+        observer.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['class']
+        })
+        observer.observe(document.body, {
+            attributes: true,
+            attributeFilter: ['class']
+        })
+        
+        // Check periodically for dynamic changes
+        const interval = setInterval(checkDarkMode, 1000)
+        
+        return () => {
+            mediaQuery.removeEventListener('change', checkDarkMode)
+            observer.disconnect()
+            clearInterval(interval)
+        }
     }, [])
 
     // Mark as read when component mounts
     React.useEffect(() => {
         handleMarkAsRead()
     }, [])
+
+    // Add event listener for re-extract button
+    React.useEffect(() => {
+        const handleReExtractClick = () => {
+            handleReExtractContent()
+        }
+
+        const reextractBtn = document.getElementById('reextract-btn')
+        if (reextractBtn) {
+            reextractBtn.addEventListener('click', handleReExtractClick)
+            return () => reextractBtn.removeEventListener('click', handleReExtractClick)
+        }
+    }, [article.content]) // Re-run when content changes
 
     return (
         <div className="h-screen bg-white dark:bg-gray-900 flex flex-col">{/* Removed forced dark class */}

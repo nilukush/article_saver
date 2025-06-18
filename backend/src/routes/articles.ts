@@ -333,6 +333,178 @@ router.put('/:id', [
 }));
 
 // Delete article
+// Re-extract content for an existing article
+router.post('/:id/re-extract', asyncHandler(async (req: Request, res: Response) => {
+    const userId = (req as any).userId;
+    const articleId = req.params.id;
+
+    logger.info('🔄 RE-EXTRACTION: Starting re-extraction process', {
+        userId,
+        articleId
+    });
+
+    // Get the existing article
+    const existingArticle = await prisma.article.findFirst({
+        where: {
+            id: articleId,
+            userId: userId
+        }
+    });
+
+    if (!existingArticle) {
+        return res.status(404).json({ error: 'Article not found' });
+    }
+
+    try {
+        logger.info('🔄 RE-EXTRACTION: Fetching fresh content from URL', {
+            url: existingArticle.url
+        });
+
+        // Fetch the webpage again
+        const response = await fetch(existingArticle.url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (compatible; ArticleSaver/1.0)'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch article: ${response.statusText}`);
+        }
+
+        const html = await response.text();
+        logger.info('🔄 RE-EXTRACTION: Fresh HTML fetched successfully', {
+            htmlLength: html.length
+        });
+
+        // Create JSDOM document with enhanced configuration
+        const dom = new JSDOM(html, { url: existingArticle.url });
+        const document = dom.window.document;
+
+        let title = existingArticle.title;
+        let content = '';
+        let excerpt = existingArticle.excerpt;
+        let author = existingArticle.author;
+
+        // Try enhanced Mozilla Readability first
+        try {
+            logger.info('🔄 RE-EXTRACTION: Attempting enhanced Mozilla Readability');
+
+            const documentClone = document.cloneNode(true) as Document;
+            const reader = new Readability(documentClone, {
+                charThreshold: 250,
+                classesToPreserve: ['highlight', 'code', 'pre', 'syntax', 'language-'],
+                keepClasses: true,
+                nbTopCandidates: 15,
+                debug: false
+            });
+
+            const article = reader.parse();
+
+            if (article && article.content && article.content.length > 500) {
+                logger.info('✅ RE-EXTRACTION: Enhanced Readability SUCCESS', {
+                    contentLength: article.content.length,
+                    titleLength: article.title?.length || 0
+                });
+
+                content = article.content;
+                if (article.title && article.title.trim()) {
+                    title = article.title.trim();
+                }
+                if (article.excerpt && article.excerpt.trim()) {
+                    excerpt = article.excerpt.trim();
+                }
+                if (article.byline && article.byline.trim()) {
+                    author = article.byline.trim();
+                }
+            } else {
+                throw new Error('Readability extraction insufficient');
+            }
+        } catch (readabilityError) {
+            logger.warn('⚠️ RE-EXTRACTION: Readability failed, trying fallback methods', {
+                error: readabilityError instanceof Error ? readabilityError.message : 'Unknown error'
+            });
+
+            // Fallback to basic extraction with better selectors
+            const contentSelectors = [
+                'article',
+                '[role="main"]',
+                '.content, .post-content, .entry-content, .article-content',
+                '.post-body, .entry-body, .article-body',
+                'main article, main .content',
+                '#content, #main-content, #post-content'
+            ];
+
+            for (const selector of contentSelectors) {
+                const element = document.querySelector(selector);
+                if (element) {
+                    // Clean up the element
+                    const scripts = element.querySelectorAll('script, style, nav, header, footer, aside');
+                    scripts.forEach(script => script.remove());
+
+                    const extractedContent = element.innerHTML || element.textContent || '';
+                    if (extractedContent.length > 500) {
+                        content = extractedContent;
+                        logger.info(`✅ RE-EXTRACTION: Fallback extraction successful with selector: ${selector}`);
+                        break;
+                    }
+                }
+            }
+
+            if (!content) {
+                // Final fallback - get text from body
+                const body = document.querySelector('body');
+                if (body) {
+                    const scripts = body.querySelectorAll('script, style, nav, header, footer, aside');
+                    scripts.forEach(script => script.remove());
+                    content = body.textContent || 'Re-extraction failed - content could not be retrieved';
+                }
+            }
+        }
+
+        // Generate new excerpt if we have content
+        if (content && content.length > 200) {
+            excerpt = content.replace(/<[^>]*>/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .substring(0, 200) + '...';
+        }
+
+        // Update the article in the database
+        const updatedArticle = await prisma.article.update({
+            where: { id: articleId },
+            data: {
+                title,
+                content,
+                excerpt,
+                author,
+                updatedAt: new Date()
+            }
+        });
+
+        logger.info('✅ RE-EXTRACTION: Article updated successfully', {
+            articleId,
+            contentLength: content.length,
+            titleUpdated: title !== existingArticle.title,
+            excerptUpdated: excerpt !== existingArticle.excerpt
+        });
+
+        res.json(updatedArticle);
+
+    } catch (error) {
+        logger.error('❌ RE-EXTRACTION: Fatal error during re-extraction', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined,
+            articleId,
+            url: existingArticle.url
+        });
+
+        res.status(500).json({
+            error: 'Re-extraction failed',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+}));
+
 router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
     const userId = (req as any).user.userId;
     const { id } = req.params;
