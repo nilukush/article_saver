@@ -23,11 +23,18 @@ export function WelcomeBanner({ onExtractContent, onSync }: WelcomeBannerProps) 
             setIsVisible(true)
         }
 
-        // Calculate stats
+        // Get actual total article count from store
+        const articleStore = useArticleStore.getState()
+        const totalArticles = articleStore.totalArticles || articles.length
+        
+        // Calculate stats - use only loaded articles for read/unread counts
         if (articles.length > 0) {
             const unread = articles.filter(a => !a.isRead && !a.isArchived).length
             const read = articles.filter(a => a.isRead && !a.isArchived).length
-            setStats({ total: articles.length, unread, read })
+            
+            // For accurate unread/read counts, we need the full data
+            // This is a limitation - we're showing counts for loaded articles only
+            setStats({ total: totalArticles, unread, read })
             
             // Check for limited content
             const limited = articles.some(a => a.content && a.content.length < 500)
@@ -55,9 +62,12 @@ export function WelcomeBanner({ onExtractContent, onSync }: WelcomeBannerProps) 
                         </div>
                         
                         <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
-                            You have <span className="font-semibold">{stats.total.toLocaleString()} articles</span> 
-                            {' '}• <span className="text-blue-600 dark:text-blue-400">{stats.unread.toLocaleString()} unread</span>
-                            {' '}• <span className="text-green-600 dark:text-green-400">{stats.read.toLocaleString()} read</span>
+                            Your library contains <span className="font-semibold">{stats.total.toLocaleString()} articles</span>
+                            {hasLimitedContent && (
+                                <span className="ml-2 text-orange-600 dark:text-orange-400">
+                                    • Some articles need content extraction
+                                </span>
+                            )}
                         </p>
 
                         <div className="flex items-center space-x-3">
