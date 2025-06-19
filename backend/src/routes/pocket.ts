@@ -627,6 +627,7 @@ router.post('/import', [
                     excerpt: pocketItem.excerpt || '',
                     author: pocketItem.authors ? (Object.values(pocketItem.authors)[0] as any)?.name : undefined,
                     publishedDate: pocketItem.time_added ? new Date(parseInt(pocketItem.time_added) * 1000) : undefined,
+                    savedAt: pocketItem.time_added ? new Date(parseInt(pocketItem.time_added) * 1000) : new Date(),
                     tags: pocketItem.tags ? Object.keys(pocketItem.tags) : [],
                     isRead: pocketItem.status === '1',
                     isArchived: pocketItem.status === '1',

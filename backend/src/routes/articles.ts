@@ -49,7 +49,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
             where,
             skip,
             take,
-            orderBy: { createdAt: 'desc' },
+            orderBy: { savedAt: 'desc' },
             select: {
                 id: true,
                 url: true,
@@ -61,6 +61,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
                 tags: true,
                 isRead: true,
                 isArchived: true,
+                savedAt: true,
                 createdAt: true,
                 updatedAt: true
             }
@@ -284,6 +285,7 @@ router.post('/', [
             excerpt: excerpt || '',
             author,
             publishedDate: publishedDate ? new Date(publishedDate) : null,
+            savedAt: new Date(), // For manually added articles, savedAt is the current time
             tags
         }
     });

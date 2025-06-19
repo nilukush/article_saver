@@ -37,6 +37,7 @@ model Article {
   tags          String[]  @default([])
   isRead        Boolean   @default(false) @map("is_read")
   isArchived    Boolean   @default(false) @map("is_archived")
+  savedAt       DateTime  @default(now()) @map("saved_at") // When originally saved (in Pocket or Article Saver)
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
@@ -45,6 +46,7 @@ model Article {
 
   // Indexes
   @@index([userId])
+  @@index([savedAt])
   @@index([createdAt])
   @@index([isRead])
   @@index([isArchived])

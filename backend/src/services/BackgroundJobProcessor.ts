@@ -193,6 +193,7 @@ export class BackgroundJobProcessor {
             excerpt: item.excerpt || '',
             author: item.authors && item.authors.length > 0 ? item.authors[0].name : undefined,
             publishedDate: item.time_added ? new Date(parseInt(item.time_added) * 1000) : undefined,
+            savedAt: item.time_added ? new Date(parseInt(item.time_added) * 1000) : new Date(),
             tags: item.tags ? Object.keys(item.tags) : [],
             source: 'pocket' as const,
             sourceId: item.item_id

@@ -11,6 +11,7 @@ export interface Article {
     tags: string[];
     isRead: boolean;
     isArchived: boolean;
+    savedAt: string;  // When the article was originally saved (in Pocket or Article Saver)
     createdAt: string;
     updatedAt: string;
     syncedAt?: string;

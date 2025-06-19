@@ -142,6 +142,7 @@ export class BulkArticleProcessor {
                 excerpt: article.excerpt,
                 author: article.author,
                 publishedDate: article.publishedDate,
+                savedAt: (article as any).savedAt || new Date(),
                 tags: article.tags,
                 isRead: false,
                 isArchived: false,
