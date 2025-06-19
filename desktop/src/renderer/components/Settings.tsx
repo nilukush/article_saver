@@ -245,13 +245,14 @@ export function Settings({ onClose }: SettingsProps) {
                 throw new Error('Failed to get OAuth server port')
             }
 
-            // Get GitHub OAuth URL from backend with server port
-            const response = await fetch(`${serverUrl}/api/auth/github/url?port=${port}`)
-            const data = await response.json()
+            // Get GitHub OAuth URL from backend with server port using Electron's net module
+            const response = await window.electronAPI.netFetch(`${serverUrl}/api/auth/github/url?port=${port}`)
 
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to get OAuth URL')
+            if (!response.success) {
+                throw new Error(response.error || 'Failed to get OAuth URL')
             }
+
+            const data = response.data
 
             // Open OAuth URL in system browser
             const result = await window.electronAPI.openOAuthUrl(data.url)
