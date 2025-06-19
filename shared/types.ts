@@ -11,6 +11,8 @@ export interface Article {
     tags: string[];
     isRead: boolean;
     isArchived: boolean;
+    contentExtracted?: boolean;  // Whether full content has been extracted
+    extractionStatus?: string;    // 'pending' | 'processing' | 'completed' | 'failed'
     savedAt: string;  // When the article was originally saved (in Pocket or Article Saver)
     createdAt: string;
     updatedAt: string;

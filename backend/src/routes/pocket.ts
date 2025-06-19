@@ -6,6 +6,7 @@ import { authenticateToken } from '../middleware/auth';
 import logger from '../utils/logger';
 import { importStateManager } from '../services/ImportStateManager';
 import { backgroundJobProcessor } from '../services/BackgroundJobProcessor';
+import { contentExtractionService } from '../services/ContentExtractionService';
 
 const router = Router();
 
@@ -698,6 +699,14 @@ router.post('/import', [
         finalProgress.currentAction = `Import completed! Added ${importedArticles.length} new articles.`;
         finalProgress.estimatedTimeRemaining = 0;
         importProgressStore.set(userId, finalProgress);
+    }
+    
+    // Start automatic content extraction for imported articles
+    if (importedArticles.length > 0) {
+        logger.info('🔄 POCKET IMPORT: Starting automatic content extraction for imported articles');
+        contentExtractionService.startAutomaticExtraction(userId).catch(err => {
+            logger.error('❌ POCKET IMPORT: Failed to start content extraction', { error: err });
+        });
     }
 
     res.json({

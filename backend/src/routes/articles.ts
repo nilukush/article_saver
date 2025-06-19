@@ -759,7 +759,7 @@ router.delete('/bulk/smart-cleanup', authenticateToken, asyncHandler(async (req:
 // Batch re-extract content for multiple articles
 router.post('/batch/re-extract', asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const userId = (req as any).user.userId;
-    const { limit = 10 } = req.body; // Process up to 10 articles at a time
+    const { limit = 50 } = req.body; // Process up to 50 articles at a time
     
     logger.info('🔄 BATCH RE-EXTRACTION: Starting batch content extraction', {
         userId,
@@ -767,11 +767,21 @@ router.post('/batch/re-extract', asyncHandler(async (req: Request, res: Response
     });
     
     try {
-        // Find articles with limited content (only excerpt, no real content)
+        // Find articles needing content extraction
+        // This includes Pocket imports (which have excerpt as content) and articles without extracted content
         const articlesNeedingContent = await prisma.article.findMany({
             where: {
                 userId,
                 OR: [
+                    { contentExtracted: false },
+                    { contentExtracted: null },
+                    { extractionStatus: { not: 'completed' } },
+                    { 
+                        AND: [
+                            { content: { not: null } },
+                            { content: { equals: prisma.article.fields.excerpt } }
+                        ]
+                    },
                     { content: null },
                     { content: '' }
                 ]
@@ -825,7 +835,9 @@ router.post('/batch/re-extract', asyncHandler(async (req: Request, res: Response
                             content: parsed.content,
                             title: parsed.title || article.title,
                             excerpt: parsed.excerpt || article.excerpt,
-                            author: parsed.byline || article.author
+                            author: parsed.byline || article.author,
+                            contentExtracted: true,
+                            extractionStatus: 'completed'
                         }
                     });
                     
@@ -843,6 +855,15 @@ router.post('/batch/re-extract', asyncHandler(async (req: Request, res: Response
             } catch (error) {
                 results.failed++;
                 results.errors.push(`${article.url}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                
+                // Mark as failed so we can retry later
+                await prisma.article.update({
+                    where: { id: article.id },
+                    data: {
+                        extractionStatus: 'failed'
+                    }
+                });
+                
                 logger.error('❌ BATCH RE-EXTRACTION: Failed to extract content', {
                     articleId: article.id,
                     error: error instanceof Error ? error.message : 'Unknown error'

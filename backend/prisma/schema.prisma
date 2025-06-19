@@ -26,20 +26,22 @@ model User {
 }
 
 model Article {
-  id            String    @id @default(uuid())
-  userId        String    @map("user_id")
-  url           String
-  title         String?
-  content       String?
-  excerpt       String?
-  author        String?
-  publishedDate DateTime? @map("published_date")
-  tags          String[]  @default([])
-  isRead        Boolean   @default(false) @map("is_read")
-  isArchived    Boolean   @default(false) @map("is_archived")
-  savedAt       DateTime  @default(now()) @map("saved_at") // When originally saved (in Pocket or Article Saver)
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  id                String    @id @default(uuid())
+  userId            String    @map("user_id")
+  url               String
+  title             String?
+  content           String?
+  excerpt           String?
+  author            String?
+  publishedDate     DateTime? @map("published_date")
+  tags              String[]  @default([])
+  isRead            Boolean   @default(false) @map("is_read")
+  isArchived        Boolean   @default(false) @map("is_archived")
+  contentExtracted  Boolean   @default(false) @map("content_extracted") // Track if full content was extracted
+  extractionStatus  String?   @map("extraction_status") // 'pending', 'processing', 'completed', 'failed'
+  savedAt           DateTime  @default(now()) @map("saved_at") // When originally saved (in Pocket or Article Saver)
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
