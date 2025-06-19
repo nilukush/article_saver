@@ -336,7 +336,7 @@ router.put('/:id', [
 
 // Re-extract content for an existing article
 router.post('/:id/re-extract', asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const userId = (req as any).userId;
+    const userId = (req as any).user.userId;
     const articleId = req.params.id;
 
     logger.info('🔄 RE-EXTRACTION: Starting re-extraction process', {
@@ -750,6 +750,121 @@ router.delete('/bulk/smart-cleanup', authenticateToken, asyncHandler(async (req:
         
         res.status(500).json({
             error: 'Smart cleanup failed',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        });
+        return;
+    }
+}));
+
+// Batch re-extract content for multiple articles
+router.post('/batch/re-extract', asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const userId = (req as any).user.userId;
+    const { limit = 10 } = req.body; // Process up to 10 articles at a time
+    
+    logger.info('🔄 BATCH RE-EXTRACTION: Starting batch content extraction', {
+        userId,
+        limit
+    });
+    
+    try {
+        // Find articles with limited content (only excerpt, no real content)
+        const articlesNeedingContent = await prisma.article.findMany({
+            where: {
+                userId,
+                OR: [
+                    { content: null },
+                    { content: '' }
+                ]
+            },
+            take: limit,
+            orderBy: { savedAt: 'desc' }
+        });
+        
+        logger.info('🔄 BATCH RE-EXTRACTION: Found articles needing content', {
+            count: articlesNeedingContent.length
+        });
+        
+        const results = {
+            success: 0,
+            failed: 0,
+            errors: [] as string[]
+        };
+        
+        // Process each article
+        for (const article of articlesNeedingContent) {
+            try {
+                logger.info('🔄 BATCH RE-EXTRACTION: Processing article', {
+                    articleId: article.id,
+                    url: article.url
+                });
+                
+                // Fetch the webpage
+                const response = await fetch(article.url, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (compatible; ArticleSaver/1.0)'
+                    },
+                    signal: AbortSignal.timeout(30000) // 30 second timeout
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const html = await response.text();
+                
+                // Extract content using Readability
+                const dom = new JSDOM(html, { url: article.url });
+                const reader = new Readability(dom.window.document as any);
+                const parsed = reader.parse();
+                
+                if (parsed && parsed.content) {
+                    // Update article with extracted content
+                    await prisma.article.update({
+                        where: { id: article.id },
+                        data: {
+                            content: parsed.content,
+                            title: parsed.title || article.title,
+                            excerpt: parsed.excerpt || article.excerpt,
+                            author: parsed.byline || article.author
+                        }
+                    });
+                    
+                    results.success++;
+                    logger.info('✅ BATCH RE-EXTRACTION: Successfully extracted content', {
+                        articleId: article.id
+                    });
+                } else {
+                    throw new Error('Content extraction failed');
+                }
+                
+                // Add delay to avoid rate limiting
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+            } catch (error) {
+                results.failed++;
+                results.errors.push(`${article.url}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                logger.error('❌ BATCH RE-EXTRACTION: Failed to extract content', {
+                    articleId: article.id,
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                });
+            }
+        }
+        
+        res.json({
+            success: true,
+            processed: articlesNeedingContent.length,
+            results,
+            message: `Extracted content for ${results.success} articles, ${results.failed} failed`
+        });
+        return;
+        
+    } catch (error) {
+        logger.error('❌ BATCH RE-EXTRACTION: Fatal error', {
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        
+        res.status(500).json({
+            error: 'Batch re-extraction failed',
             details: error instanceof Error ? error.message : 'Unknown error'
         });
         return;

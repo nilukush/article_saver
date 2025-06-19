@@ -98,6 +98,44 @@ export function Settings({ onClose }: SettingsProps) {
         }
     }
 
+    const handleExtractContent = async () => {
+        setLoading(true)
+        setError(null)
+
+        try {
+            const token = localStorage.getItem('authToken')
+            const response = await window.electronAPI.netFetch(`${serverUrl}/api/articles/batch/re-extract`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    limit: 10 // Process 10 articles at a time
+                })
+            })
+
+            if (response.success) {
+                const data = response.data
+                setError(`✅ Extracted content for ${data.results.success} articles! ${data.results.failed} failed.`)
+                
+                // Reload articles to show updated content
+                await loadArticles()
+                
+                // If there are more articles to process, show a message
+                if (data.processed === 10) {
+                    setError(data.message + '\n\nClick again to process more articles.')
+                }
+            } else {
+                setError(response.error || 'Failed to extract content')
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to extract content')
+        } finally {
+            setLoading(false)
+        }
+    }
+
     const handleDeleteAllArticles = async () => {
         if (!confirm(`Are you sure you want to delete all ${totalArticles} articles? This cannot be undone.`)) {
             return
@@ -603,6 +641,18 @@ export function Settings({ onClose }: SettingsProps) {
                         </div>
 
                         <div className="border-t border-gray-200 dark:border-gray-600 pt-4 space-y-3">
+                            {/* Extract Content Button */}
+                            {hasImportedArticles && (
+                                <button
+                                    onClick={handleExtractContent}
+                                    disabled={loading}
+                                    className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center justify-center space-x-2 transition-colors"
+                                >
+                                    <span>📄</span>
+                                    <span>{loading ? 'Extracting...' : 'Extract Full Content for Limited Articles'}</span>
+                                </button>
+                            )}
+                            
                             {/* Delete All Articles Button */}
                             {hasImportedArticles && (
                                 <button
