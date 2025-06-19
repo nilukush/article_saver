@@ -191,11 +191,27 @@ export function Settings({ onClose }: SettingsProps) {
     }
 
     const handleLogout = () => {
+        // Clear all auth-related items from localStorage
         localStorage.removeItem('authToken')
         localStorage.removeItem('serverUrl')
+        localStorage.removeItem('userEmail')
+        localStorage.removeItem('lastPocketImport')
+        localStorage.removeItem('pocketToken')
+        
+        // Reset component state
         setIsLoggedIn(false)
         setEmail('')
         setPassword('')
+        setLastImportTime(null)
+        
+        // Clear articles from store
+        const { resetArticles } = useArticleStore.getState()
+        resetArticles()
+        
+        // Close settings modal after logout
+        setTimeout(() => {
+            onClose()
+        }, 100)
     }
 
     const handleGoogleLogin = async () => {

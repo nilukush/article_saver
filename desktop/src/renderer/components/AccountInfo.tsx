@@ -21,6 +21,14 @@ export function AccountInfo() {
                 const now = new Date()
                 const diff = now.getTime() - date.getTime()
                 
+                // Validate the timestamp is reasonable (not in the future, not too old)
+                if (isNaN(diff) || diff < 0 || diff > 365 * 24 * 60 * 60 * 1000) {
+                    // Invalid or unreasonable timestamp, clear it
+                    localStorage.removeItem('lastPocketImport')
+                    setLastSync('')
+                    return
+                }
+                
                 if (diff < 60000) { // Less than 1 minute
                     setLastSync('Just now')
                 } else if (diff < 3600000) { // Less than 1 hour
@@ -33,6 +41,8 @@ export function AccountInfo() {
                     const days = Math.floor(diff / 86400000)
                     setLastSync(`${days}d ago`)
                 }
+            } else {
+                setLastSync('')
             }
         }
 

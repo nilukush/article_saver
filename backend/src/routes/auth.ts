@@ -217,6 +217,9 @@ router.get('/google/callback', asyncHandler(async (req: Request, res: Response) 
     }
 
     // Find or create user
+    // NOTE: Each OAuth provider creates a separate user account even if the email is the same
+    // This means articles are not shared between Google and GitHub logins
+    // TODO: Consider implementing account linking to merge accounts with the same email
     let user = await prisma.user.findUnique({
         where: { email: userData.email }
     });
@@ -326,6 +329,9 @@ router.get('/github/callback', asyncHandler(async (req: Request, res: Response) 
     }
 
     // Find or create user
+    // NOTE: Each OAuth provider creates a separate user account even if the email is the same
+    // This means articles are not shared between Google and GitHub logins
+    // TODO: Consider implementing account linking to merge accounts with the same email
     let user = await prisma.user.findUnique({
         where: { email: primaryEmail }
     });
@@ -401,6 +407,9 @@ router.post('/google/callback', asyncHandler(async (req: Request, res: Response)
     }
 
     // Find or create user
+    // NOTE: Each OAuth provider creates a separate user account even if the email is the same
+    // This means articles are not shared between Google and GitHub logins
+    // TODO: Consider implementing account linking to merge accounts with the same email
     let user = await prisma.user.findUnique({
         where: { email: userData.email }
     });
@@ -482,6 +491,9 @@ router.post('/github/callback', asyncHandler(async (req: Request, res: Response)
     }
 
     // Find or create user
+    // NOTE: Each OAuth provider creates a separate user account even if the email is the same
+    // This means articles are not shared between Google and GitHub logins
+    // TODO: Consider implementing account linking to merge accounts with the same email
     let user = await prisma.user.findUnique({
         where: { email: primaryEmail }
     });
