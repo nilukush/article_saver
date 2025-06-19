@@ -624,7 +624,7 @@ router.post('/import', [
                     userId,
                     url: pocketItem.resolved_url || pocketItem.given_url,
                     title: pocketItem.resolved_title || pocketItem.given_title || 'Untitled',
-                    content: pocketItem.excerpt || '',
+                    content: null, // Don't set content to excerpt - let ContentExtractionService handle it
                     excerpt: pocketItem.excerpt || '',
                     author: pocketItem.authors ? (Object.values(pocketItem.authors)[0] as any)?.name : undefined,
                     publishedDate: pocketItem.time_added ? new Date(parseInt(pocketItem.time_added) * 1000) : undefined,
@@ -632,6 +632,8 @@ router.post('/import', [
                     tags: pocketItem.tags ? Object.keys(pocketItem.tags) : [],
                     isRead: pocketItem.status === '1',
                     isArchived: pocketItem.status === '1',
+                    contentExtracted: false, // Explicitly mark as needing extraction
+                    extractionStatus: 'pending' // Set status for extraction service
                 };
 
                 // Check if article already exists

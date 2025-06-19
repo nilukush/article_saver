@@ -4,13 +4,15 @@ import logger from '../utils/logger';
 interface BulkArticleData {
     url: string;
     title: string;
-    content?: string;
+    content?: string | null;
     excerpt?: string;
     author?: string;
     publishedDate?: Date;
     tags: string[];
     source: 'pocket' | 'manual';
     sourceId?: string; // External ID from source
+    contentExtracted?: boolean;
+    extractionStatus?: string;
 }
 
 /**
@@ -138,7 +140,7 @@ export class BulkArticleProcessor {
                 userId,
                 url: article.url,
                 title: article.title,
-                content: article.content || '',
+                content: article.content || null, // Use null instead of empty string for missing content
                 excerpt: article.excerpt,
                 author: article.author,
                 publishedDate: article.publishedDate,
@@ -146,6 +148,8 @@ export class BulkArticleProcessor {
                 tags: article.tags,
                 isRead: false,
                 isArchived: false,
+                contentExtracted: article.contentExtracted || false,
+                extractionStatus: article.extractionStatus || 'pending',
                 createdAt: new Date(),
                 updatedAt: new Date(),
                 syncedAt: new Date()

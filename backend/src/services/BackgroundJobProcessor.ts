@@ -154,6 +154,27 @@ export class BackgroundJobProcessor {
                 );
             } else {
                 await importStateManager.completeSession(sessionId, 'completed');
+                
+                // Start automatic content extraction for imported articles
+                if (result.imported > 0) {
+                    logger.info('🔄 BACKGROUND JOB: Starting content extraction for imported articles', {
+                        sessionId,
+                        userId,
+                        imported: result.imported
+                    });
+                    
+                    // Import ContentExtractionService
+                    const { contentExtractionService } = await import('./ContentExtractionService');
+                    
+                    // Start extraction asynchronously
+                    contentExtractionService.startAutomaticExtraction(userId).catch(err => {
+                        logger.error('❌ BACKGROUND JOB: Failed to start content extraction', { 
+                            sessionId,
+                            userId,
+                            error: err 
+                        });
+                    });
+                }
             }
             
             logger.info('✅ BACKGROUND JOB: Import job completed successfully', {
@@ -189,14 +210,16 @@ export class BackgroundJobProcessor {
         return pocketArticles.map(item => ({
             url: item.resolved_url || item.given_url,
             title: item.resolved_title || item.given_title || 'Untitled',
-            content: item.excerpt || '',
+            content: null, // Don't set content to excerpt - let ContentExtractionService handle it
             excerpt: item.excerpt || '',
             author: item.authors && item.authors.length > 0 ? item.authors[0].name : undefined,
             publishedDate: item.time_added ? new Date(parseInt(item.time_added) * 1000) : undefined,
             savedAt: item.time_added ? new Date(parseInt(item.time_added) * 1000) : new Date(),
             tags: item.tags ? Object.keys(item.tags) : [],
             source: 'pocket' as const,
-            sourceId: item.item_id
+            sourceId: item.item_id,
+            contentExtracted: false, // Explicitly mark as needing extraction
+            extractionStatus: 'pending' // Set status for extraction service
         }));
     }
     

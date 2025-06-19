@@ -104,42 +104,37 @@ export function Settings({ onClose }: SettingsProps) {
 
         try {
             const token = localStorage.getItem('authToken')
-            console.log('🔄 BATCH EXTRACT: Starting batch content extraction')
+            console.log('🔄 FIX LIMITED CONTENT: Starting fix for articles with limited content')
             
-            const response = await window.electronAPI.netFetch(`${serverUrl}/api/articles/batch/re-extract`, {
+            // First, use the new fix endpoint to mark limited content articles
+            const fixResponse = await window.electronAPI.netFetch(`${serverUrl}/api/articles/fix/limited-content`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    limit: 10 // Process 10 articles at a time
-                })
+                }
             })
             
-            console.log('🔄 BATCH EXTRACT: Response received:', response)
+            console.log('🔄 FIX LIMITED CONTENT: Response received:', fixResponse)
 
-            if (response && response.success) {
-                const data = response.data
-                if (data && data.results) {
-                    setError(`✅ Extracted content for ${data.results.success || 0} articles! ${data.results.failed || 0} failed.`)
+            if (fixResponse && fixResponse.success) {
+                const data = fixResponse.data
+                if (data && data.fixed > 0) {
+                    setError(`✅ Fixed ${data.fixed} articles with limited content! Content extraction started in background.`)
                     
-                    // Reload articles to show updated content
-                    await loadArticles()
-                    
-                    // If there are more articles to process, show a message
-                    if (data.processed === 10) {
-                        setError((data.message || 'Extraction completed') + '\n\nClick again to process more articles.')
-                    }
+                    // Wait a moment for extraction to start
+                    setTimeout(async () => {
+                        await loadArticles()
+                    }, 2000)
                 } else {
-                    setError('✅ Content extraction completed')
+                    setError('✅ No articles with limited content found. All articles are properly configured.')
                     await loadArticles()
                 }
             } else {
-                setError(response?.error || 'Failed to extract content')
+                setError(fixResponse?.error || 'Failed to fix limited content articles')
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to extract content')
+            setError(err instanceof Error ? err.message : 'Failed to fix limited content')
         } finally {
             setLoading(false)
         }

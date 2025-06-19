@@ -756,6 +756,178 @@ router.delete('/bulk/smart-cleanup', authenticateToken, asyncHandler(async (req:
     }
 }));
 
+// Get content extraction diagnostic information
+router.get('/diagnostics/extraction-status', asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const userId = (req as any).user.userId;
+    
+    logger.info('🔍 DIAGNOSTICS: Checking content extraction status', { userId });
+    
+    try {
+        // Get overall statistics
+        const [totalArticles, extractedCount, failedCount, pendingCount, noContentCount] = await Promise.all([
+            prisma.article.count({ where: { userId } }),
+            prisma.article.count({ where: { userId, contentExtracted: true } }),
+            prisma.article.count({ where: { userId, extractionStatus: 'failed' } }),
+            prisma.article.count({ where: { userId, extractionStatus: 'pending' } }),
+            prisma.article.count({ 
+                where: { 
+                    userId, 
+                    OR: [
+                        { content: null },
+                        { content: '' },
+                        { content: { lt: '200' } }
+                    ]
+                } 
+            })
+        ]);
+        
+        // Get sample of problematic articles
+        const sampleProblematic = await prisma.article.findMany({
+            where: {
+                userId,
+                OR: [
+                    { contentExtracted: false },
+                    { extractionStatus: 'failed' },
+                    { content: null },
+                    { content: '' }
+                ]
+            },
+            take: 10,
+            select: {
+                id: true,
+                url: true,
+                title: true,
+                contentExtracted: true,
+                extractionStatus: true,
+                content: true,
+                savedAt: true
+            }
+        });
+        
+        // Analyze content lengths
+        const articles = await prisma.article.findMany({
+            where: { userId },
+            select: { content: true }
+        });
+        
+        const contentLengths = articles.map(a => a.content?.length || 0);
+        const avgContentLength = contentLengths.reduce((a, b) => a + b, 0) / contentLengths.length;
+        const shortContentCount = contentLengths.filter(len => len < 200).length;
+        
+        res.json({
+            success: true,
+            statistics: {
+                totalArticles,
+                extractedCount,
+                failedCount,
+                pendingCount,
+                noContentCount,
+                shortContentCount,
+                avgContentLength: Math.round(avgContentLength),
+                extractionRate: totalArticles > 0 ? ((extractedCount / totalArticles) * 100).toFixed(2) + '%' : '0%'
+            },
+            sampleProblematic: sampleProblematic.map(article => ({
+                id: article.id,
+                url: article.url,
+                title: article.title,
+                contentExtracted: article.contentExtracted,
+                extractionStatus: article.extractionStatus,
+                contentLength: article.content?.length || 0,
+                hasContent: !!article.content && article.content.length > 0,
+                savedAt: article.savedAt
+            })),
+            recommendation: shortContentCount > totalArticles * 0.5 
+                ? 'More than 50% of articles have limited content. Consider running batch re-extraction.'
+                : 'Content extraction appears to be working normally.'
+        });
+        
+    } catch (error) {
+        logger.error('❌ DIAGNOSTICS: Error checking extraction status', {
+            userId,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        
+        res.status(500).json({
+            error: 'Failed to get extraction diagnostics',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+}));
+
+// Fix existing articles with limited content
+router.post('/fix/limited-content', asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const userId = (req as any).user.userId;
+    
+    logger.info('🔧 FIX LIMITED CONTENT: Starting fix for articles with limited content', { userId });
+    
+    try {
+        // First, update all articles that have content < 200 chars to mark them for extraction
+        const updateResult = await prisma.article.updateMany({
+            where: {
+                userId,
+                OR: [
+                    { content: null },
+                    { content: '' },
+                    // This won't work directly in Prisma, we need a different approach
+                ]
+            },
+            data: {
+                contentExtracted: false,
+                extractionStatus: 'pending'
+            }
+        });
+        
+        // Get articles with short content
+        const articlesWithShortContent = await prisma.$queryRaw<Array<{id: string, content_length: number}>>`
+            SELECT id, LENGTH(COALESCE(content, '')) as content_length 
+            FROM articles 
+            WHERE user_id = ${userId}::uuid 
+            AND LENGTH(COALESCE(content, '')) < 200
+        `;
+        
+        // Update these articles to mark them for extraction
+        if (articlesWithShortContent.length > 0) {
+            const articleIds = articlesWithShortContent.map(a => a.id);
+            await prisma.article.updateMany({
+                where: {
+                    id: { in: articleIds }
+                },
+                data: {
+                    contentExtracted: false,
+                    extractionStatus: 'pending'
+                }
+            });
+        }
+        
+        logger.info('🔧 FIX LIMITED CONTENT: Updated articles for re-extraction', {
+            count: articlesWithShortContent.length
+        });
+        
+        // Start content extraction
+        const { contentExtractionService } = await import('../services/ContentExtractionService');
+        contentExtractionService.startAutomaticExtraction(userId).catch(err => {
+            logger.error('❌ FIX LIMITED CONTENT: Failed to start content extraction', { error: err });
+        });
+        
+        res.json({
+            success: true,
+            articlesMarkedForExtraction: articlesWithShortContent.length,
+            message: `Marked ${articlesWithShortContent.length} articles for content extraction. Extraction process started in background.`
+        });
+        
+    } catch (error) {
+        logger.error('❌ FIX LIMITED CONTENT: Error fixing limited content', {
+            userId,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        
+        res.status(500).json({
+            error: 'Failed to fix limited content',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+}));
+
 // Batch re-extract content for multiple articles
 router.post('/batch/re-extract', asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const userId = (req as any).user.userId;
@@ -899,6 +1071,120 @@ router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
     }
 
     res.json({ message: 'Article deleted successfully' });
+}));
+
+// Diagnostic endpoint to check extraction status
+router.get('/diagnostics/extraction-status', asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const userId = (req as any).user.userId;
+    
+    try {
+        const stats = await prisma.article.groupBy({
+            by: ['contentExtracted', 'extractionStatus'],
+            where: { userId },
+            _count: true
+        });
+        
+        const total = await prisma.article.count({ where: { userId } });
+        
+        // Count articles with limited content (excerpt as content)
+        const limitedContent = await prisma.article.count({
+            where: {
+                userId,
+                AND: [
+                    { content: { not: null } },
+                    { content: { not: '' } },
+                    { contentExtracted: false }
+                ]
+            }
+        });
+        
+        res.json({
+            success: true,
+            total,
+            limitedContent,
+            statistics: stats,
+            message: `Found ${limitedContent} articles with limited content that need extraction`
+        });
+        return;
+    } catch (error) {
+        logger.error('❌ DIAGNOSTICS: Error getting extraction stats', {
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        
+        res.status(500).json({
+            error: 'Failed to get extraction statistics'
+        });
+        return;
+    }
+}));
+
+// Fix endpoint to mark limited content articles for extraction
+router.post('/fix/limited-content', asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const userId = (req as any).user.userId;
+    
+    logger.info('🔧 FIX: Starting limited content fix', { userId });
+    
+    try {
+        // Find articles where content equals excerpt or is very short
+        const articlesToFix = await prisma.$queryRaw`
+            SELECT id, title, content, excerpt, LENGTH(content) as content_length
+            FROM articles
+            WHERE user_id = ${userId}::uuid
+            AND (
+                (content = excerpt AND excerpt IS NOT NULL)
+                OR (LENGTH(content) < 500 AND excerpt IS NOT NULL AND LENGTH(excerpt) > 0)
+                OR (content_extracted = false AND content IS NOT NULL)
+            )
+        `;
+        
+        const articleIds = (articlesToFix as any[]).map(a => a.id);
+        
+        if (articleIds.length > 0) {
+            // Update these articles to mark them for extraction
+            const updateResult = await prisma.article.updateMany({
+                where: {
+                    id: { in: articleIds },
+                    userId
+                },
+                data: {
+                    content: null,
+                    contentExtracted: false,
+                    extractionStatus: 'pending'
+                }
+            });
+            
+            logger.info('✅ FIX: Fixed limited content articles', {
+                count: updateResult.count,
+                userId
+            });
+            
+            // Trigger content extraction
+            const { contentExtractionService } = await import('../services/ContentExtractionService');
+            contentExtractionService.startAutomaticExtraction(userId);
+            
+            res.json({
+                success: true,
+                fixed: updateResult.count,
+                message: `Fixed ${updateResult.count} articles and started content extraction`
+            });
+        } else {
+            res.json({
+                success: true,
+                fixed: 0,
+                message: 'No articles with limited content found'
+            });
+        }
+        return;
+    } catch (error) {
+        logger.error('❌ FIX: Error fixing limited content', {
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        
+        res.status(500).json({
+            error: 'Failed to fix limited content articles'
+        });
+        return;
+    }
 }));
 
 // Bulk operations
