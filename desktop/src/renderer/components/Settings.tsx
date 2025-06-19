@@ -104,6 +104,8 @@ export function Settings({ onClose }: SettingsProps) {
 
         try {
             const token = localStorage.getItem('authToken')
+            console.log('🔄 BATCH EXTRACT: Starting batch content extraction')
+            
             const response = await window.electronAPI.netFetch(`${serverUrl}/api/articles/batch/re-extract`, {
                 method: 'POST',
                 headers: {
@@ -114,20 +116,27 @@ export function Settings({ onClose }: SettingsProps) {
                     limit: 10 // Process 10 articles at a time
                 })
             })
+            
+            console.log('🔄 BATCH EXTRACT: Response received:', response)
 
-            if (response.success) {
+            if (response && response.success) {
                 const data = response.data
-                setError(`✅ Extracted content for ${data.results.success} articles! ${data.results.failed} failed.`)
-                
-                // Reload articles to show updated content
-                await loadArticles()
-                
-                // If there are more articles to process, show a message
-                if (data.processed === 10) {
-                    setError(data.message + '\n\nClick again to process more articles.')
+                if (data && data.results) {
+                    setError(`✅ Extracted content for ${data.results.success || 0} articles! ${data.results.failed || 0} failed.`)
+                    
+                    // Reload articles to show updated content
+                    await loadArticles()
+                    
+                    // If there are more articles to process, show a message
+                    if (data.processed === 10) {
+                        setError((data.message || 'Extraction completed') + '\n\nClick again to process more articles.')
+                    }
+                } else {
+                    setError('✅ Content extraction completed')
+                    await loadArticles()
                 }
             } else {
-                setError(response.error || 'Failed to extract content')
+                setError(response?.error || 'Failed to extract content')
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to extract content')
