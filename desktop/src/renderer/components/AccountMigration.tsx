@@ -137,7 +137,7 @@ export const AccountMigration: React.FC = () => {
     if (!migrationOptions || migrationOptions.accounts.length < 2) {
         return (
             <div className="p-6">
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-center text-gray-600 dark:text-gray-400">
+                <div className="bg-gray-50 rounded-lg p-4 text-center text-gray-600">
                     <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
                     <p>No linked accounts available for migration</p>
                 </div>

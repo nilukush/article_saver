@@ -6,6 +6,7 @@ import { prisma } from '../database';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken } from '../middleware/auth';
 import logger from '../utils/logger';
+import { getAllLinkedUserIds } from '../utils/authHelpers';
 
 const router = Router();
 
@@ -20,8 +21,11 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     const skip = (Number(page) - 1) * Number(limit);
     const take = Number(limit);
 
+    // Get all linked user IDs
+    const userIds = await getAllLinkedUserIds(userId);
+
     // Build where clause
-    const where: any = { userId };
+    const where: any = { userId: { in: userIds } };
 
     if (search) {
         where.OR = [
@@ -85,8 +89,14 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
     const userId = (req as any).user.userId;
     const { id } = req.params;
 
+    // Get all linked user IDs
+    const userIds = await getAllLinkedUserIds(userId);
+
     const article = await prisma.article.findFirst({
-        where: { id, userId }
+        where: { 
+            id, 
+            userId: { in: userIds }
+        }
     });
 
     if (!article) {

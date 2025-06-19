@@ -41,10 +41,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onOAuthSuccess: (callback: (data: { provider: string; token: string; email: string }) => void) =>
         ipcRenderer.on('oauth-success', (_event, data) => callback(data)),
 
+    onOAuthAccountLinking: (callback: (data: { provider: string; existingProvider: string; linkingToken: string; email: string; action: string }) => void) =>
+        ipcRenderer.on('oauth-account-linking', (_event, data) => callback(data)),
+
     removeOAuthListeners: () => {
         ipcRenderer.removeAllListeners('oauth-callback')
         ipcRenderer.removeAllListeners('oauth-error')
         ipcRenderer.removeAllListeners('oauth-success')
+        ipcRenderer.removeAllListeners('oauth-account-linking')
     },
 
     // Network fetch using Electron's net module (bypasses protocol interception)
@@ -67,6 +71,7 @@ declare global {
             onOAuthCallback: (callback: (data: { provider: string; code: string }) => void) => void
             onOAuthError: (callback: (data: { provider: string; error: string }) => void) => void
             onOAuthSuccess: (callback: (data: { provider: string; token: string; email: string }) => void) => void
+            onOAuthAccountLinking: (callback: (data: { provider: string; existingProvider: string; linkingToken: string; email: string; action: string }) => void) => void
             removeOAuthListeners: () => void
             netFetch: (url: string, options?: any) => Promise<ApiResponse<any>>
         }

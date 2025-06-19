@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useArticleStore } from '../stores/articleStore'
 import { useImportStore } from '../stores/importStore'
 import { ImportStatusSection } from './ImportStatusSection'
+import { AccountLinking } from './AccountLinking'
+import { AccountLinkingPrompt } from './AccountLinkingPrompt'
 
 interface SettingsProps {
     onClose: () => void
@@ -13,6 +15,13 @@ export function Settings({ onClose }: SettingsProps) {
     const [isLoggedIn, setIsLoggedIn] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [showAccountLinking, setShowAccountLinking] = useState(false)
+    const [accountLinkingData, setAccountLinkingData] = useState<{
+        existingProvider: string
+        linkingProvider: string
+        linkingToken: string
+        email: string
+    } | null>(null)
 
     // Get stores
     const { loadArticles, totalArticles } = useArticleStore()
@@ -524,6 +533,25 @@ export function Settings({ onClose }: SettingsProps) {
             })
         }
 
+        // Listen for account linking events
+        if (window.electronAPI?.onOAuthAccountLinking) {
+            window.electronAPI.onOAuthAccountLinking((data: { 
+                provider: string; 
+                existingProvider: string; 
+                linkingToken: string; 
+                email: string; 
+                action: string 
+            }) => {
+                setLoading(false)
+                setAccountLinkingData({
+                    existingProvider: data.existingProvider,
+                    linkingProvider: data.provider,
+                    linkingToken: data.linkingToken,
+                    email: data.email
+                })
+            })
+        }
+
         // Cleanup listeners on unmount
         return () => {
             if (window.electronAPI?.removeOAuthListeners) {
@@ -698,6 +726,15 @@ export function Settings({ onClose }: SettingsProps) {
                                 </button>
                             )}
                             
+                            {/* Linked Accounts Button */}
+                            <button
+                                onClick={() => setShowAccountLinking(true)}
+                                className="w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 flex items-center justify-center space-x-2 transition-colors"
+                            >
+                                <span>🔗</span>
+                                <span>Manage Linked Accounts</span>
+                            </button>
+                            
                             <button
                                 onClick={handleLogout}
                                 className="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 flex items-center justify-center space-x-2 transition-colors"
@@ -709,6 +746,22 @@ export function Settings({ onClose }: SettingsProps) {
                     </div>
                 )}
             </div>
+            
+            {/* Account Linking Modal */}
+            {showAccountLinking && (
+                <AccountLinking onClose={() => setShowAccountLinking(false)} />
+            )}
+            
+            {/* Account Linking Prompt */}
+            {accountLinkingData && (
+                <AccountLinkingPrompt
+                    existingProvider={accountLinkingData.existingProvider}
+                    linkingProvider={accountLinkingData.linkingProvider}
+                    linkingToken={accountLinkingData.linkingToken}
+                    email={accountLinkingData.email}
+                    onClose={() => setAccountLinkingData(null)}
+                />
+            )}
         </div>
     )
 }

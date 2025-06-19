@@ -4,16 +4,13 @@ import jwt, { SignOptions } from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
 import { prisma } from '../database';
 import { asyncHandler, createError } from '../middleware/errorHandler';
+import { signJWT, handleOAuthLogin } from '../utils/authHelpers';
 
 const router = Router();
 
 // JWT configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
-
-const signJWT = (payload: object): string => {
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
-};
 
 const verifyJWT = (token: string): any => {
     return jwt.verify(token, JWT_SECRET);
@@ -47,11 +44,13 @@ router.post('/register', [
     const user = await prisma.user.create({
         data: {
             email,
-            password: hashedPassword
+            password: hashedPassword,
+            provider: 'local'
         },
         select: {
             id: true,
             email: true,
+            provider: true,
             createdAt: true
         }
     });
@@ -216,32 +215,14 @@ router.get('/google/callback', asyncHandler(async (req: Request, res: Response) 
         throw createError('Failed to get user email', 400);
     }
 
-    // Find or create user
-    // NOTE: Each OAuth provider creates a separate user account even if the email is the same
-    // This means articles are not shared between Google and GitHub logins
-    // TODO: Consider implementing account linking to merge accounts with the same email
-    let user = await prisma.user.findUnique({
-        where: { email: userData.email }
-    });
+    // Handle OAuth login with account linking support
+    const result = await handleOAuthLogin({
+        email: userData.email,
+        provider: 'google'
+    }, electronPort);
 
-    if (!user) {
-        user = await prisma.user.create({
-            data: {
-                email: userData.email,
-                password: '', // OAuth users don't have passwords
-            }
-        });
-    }
-
-    // Generate JWT token
-    const token = signJWT({ userId: user.id, email: user.email });
-
-    // Redirect to Electron OAuth server if port available, otherwise fallback to frontend
-    if (electronPort) {
-        res.redirect(`http://localhost:${electronPort}/auth/callback/google?code=${code}&token=${token}&email=${encodeURIComponent(user.email)}`);
-    } else {
-        res.redirect(`http://localhost:19858?token=${token}&email=${encodeURIComponent(user.email)}`);
-    }
+    // Redirect based on result
+    res.redirect(result.redirectUrl);
 }));
 
 // GitHub OAuth URL endpoint
@@ -328,40 +309,20 @@ router.get('/github/callback', asyncHandler(async (req: Request, res: Response) 
         throw createError('Failed to get user email', 400);
     }
 
-    // Find or create user
-    // NOTE: Each OAuth provider creates a separate user account even if the email is the same
-    // This means articles are not shared between Google and GitHub logins
-    // TODO: Consider implementing account linking to merge accounts with the same email
-    let user = await prisma.user.findUnique({
-        where: { email: primaryEmail }
-    });
-
-    if (!user) {
-        user = await prisma.user.create({
-            data: {
-                email: primaryEmail,
-                password: '', // OAuth users don't have passwords
-            }
-        });
-    }
-
-    // Generate JWT token
-    const token = signJWT({ userId: user.id, email: user.email });
-
     // Extract Electron port from state parameter
     const stateStr = state as string;
     const electronPort = stateStr && stateStr.startsWith('electron_') 
         ? stateStr.split('_')[1] 
-        : '19858'; // Default port
+        : null;
 
-    // Redirect to Electron OAuth server with token
-    if (electronPort && electronPort !== '19858') {
-        // Redirect to Electron's OAuth server
-        res.redirect(`http://localhost:${electronPort}/auth/callback/github?token=${token}&email=${encodeURIComponent(user.email)}`);
-    } else {
-        // Fallback to default
-        res.redirect(`http://localhost:19858?token=${token}&email=${encodeURIComponent(user.email)}`);
-    }
+    // Handle OAuth login with account linking support
+    const result = await handleOAuthLogin({
+        email: primaryEmail,
+        provider: 'github'
+    }, electronPort);
+
+    // Redirect based on result
+    res.redirect(result.redirectUrl);
 }));
 
 // Google OAuth callback for Electron (POST endpoint)
@@ -406,35 +367,31 @@ router.post('/google/callback', asyncHandler(async (req: Request, res: Response)
         throw createError('Failed to get user email', 400);
     }
 
-    // Find or create user
-    // NOTE: Each OAuth provider creates a separate user account even if the email is the same
-    // This means articles are not shared between Google and GitHub logins
-    // TODO: Consider implementing account linking to merge accounts with the same email
-    let user = await prisma.user.findUnique({
-        where: { email: userData.email }
-    });
+    // Handle OAuth login with account linking support
+    const result = await handleOAuthLogin({
+        email: userData.email,
+        provider: 'google'
+    }, null);
 
-    if (!user) {
-        user = await prisma.user.create({
-            data: {
-                email: userData.email,
-                password: '', // OAuth users don't have passwords
-            }
+    if (result.type === 'link_account') {
+        res.json({
+            message: 'Account linking required',
+            action: 'link_account',
+            existingProvider: result.existingProvider,
+            linkingProvider: result.linkingProvider,
+            linkingToken: result.linkingToken
+        });
+    } else {
+        res.json({
+            message: 'Google login successful',
+            user: result.user ? {
+                id: result.user.id,
+                email: result.user.email,
+                createdAt: result.user.createdAt
+            } : undefined,
+            token: result.token
         });
     }
-
-    // Generate JWT token
-    const token = signJWT({ userId: user.id, email: user.email });
-
-    res.json({
-        message: 'Google login successful',
-        user: {
-            id: user.id,
-            email: user.email,
-            createdAt: user.createdAt
-        },
-        token
-    });
 }));
 
 // GitHub OAuth callback for Electron (POST endpoint)
@@ -490,35 +447,31 @@ router.post('/github/callback', asyncHandler(async (req: Request, res: Response)
         throw createError('Failed to get user email', 400);
     }
 
-    // Find or create user
-    // NOTE: Each OAuth provider creates a separate user account even if the email is the same
-    // This means articles are not shared between Google and GitHub logins
-    // TODO: Consider implementing account linking to merge accounts with the same email
-    let user = await prisma.user.findUnique({
-        where: { email: primaryEmail }
-    });
+    // Handle OAuth login with account linking support
+    const result = await handleOAuthLogin({
+        email: primaryEmail,
+        provider: 'github'
+    }, null);
 
-    if (!user) {
-        user = await prisma.user.create({
-            data: {
-                email: primaryEmail,
-                password: '', // OAuth users don't have passwords
-            }
+    if (result.type === 'link_account') {
+        res.json({
+            message: 'Account linking required',
+            action: 'link_account',
+            existingProvider: result.existingProvider,
+            linkingProvider: result.linkingProvider,
+            linkingToken: result.linkingToken
+        });
+    } else {
+        res.json({
+            message: 'GitHub login successful',
+            user: result.user ? {
+                id: result.user.id,
+                email: result.user.email,
+                createdAt: result.user.createdAt
+            } : undefined,
+            token: result.token
         });
     }
-
-    // Generate JWT token
-    const token = signJWT({ userId: user.id, email: user.email });
-
-    res.json({
-        message: 'GitHub login successful',
-        user: {
-            id: user.id,
-            email: user.email,
-            createdAt: user.createdAt
-        },
-        token
-    });
 }));
 
 export default router;

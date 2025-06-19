@@ -52,6 +52,9 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
                 const token = url.searchParams.get('token')
                 const email = url.searchParams.get('email')
                 const error = url.searchParams.get('error')
+                const action = url.searchParams.get('action')
+                const existingProvider = url.searchParams.get('existingProvider')
+                const linkingToken = url.searchParams.get('linkingToken')
 
                 // Send success page to browser
                 res.writeHead(200, { 'Content-Type': 'text/html' })
@@ -83,6 +86,15 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
                     if (error) {
                         console.error('OAuth error:', error)
                         mainWindow.webContents.send('oauth-error', { provider, error })
+                    } else if (action === 'link_account' && linkingToken) {
+                        console.log('Account linking required for provider:', provider)
+                        mainWindow.webContents.send('oauth-account-linking', { 
+                            provider, 
+                            existingProvider, 
+                            linkingToken, 
+                            email,
+                            action 
+                        })
                     } else if (token && email) {
                         console.log('OAuth success for provider:', provider, 'with token')
                         mainWindow.webContents.send('oauth-success', { provider, token, email })
