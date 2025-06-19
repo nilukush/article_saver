@@ -774,8 +774,8 @@ router.post('/batch/re-extract', asyncHandler(async (req: Request, res: Response
                 userId,
                 OR: [
                     { contentExtracted: false },
-                    { contentExtracted: { equals: null } },
                     { extractionStatus: { not: 'completed' } },
+                    { extractionStatus: null },
                     { content: null },
                     { content: '' }
                 ]

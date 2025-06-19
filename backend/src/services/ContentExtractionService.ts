@@ -44,7 +44,6 @@ export class ContentExtractionService {
                         userId,
                         OR: [
                             { contentExtracted: false },
-                            { contentExtracted: { equals: null } },
                             { extractionStatus: null },
                             { extractionStatus: 'pending' }
                         ]
