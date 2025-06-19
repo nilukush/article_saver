@@ -58,6 +58,10 @@ export function Settings({ onClose }: SettingsProps) {
                 localStorage.setItem('serverUrl', serverUrl)
                 setIsLoggedIn(true)
                 setError(null)
+                // Close settings modal after successful login
+                setTimeout(() => {
+                    onClose()
+                }, 500) // Small delay for better UX
             } else {
                 setError(response.error || 'Login failed')
             }
@@ -88,6 +92,10 @@ export function Settings({ onClose }: SettingsProps) {
                 localStorage.setItem('serverUrl', serverUrl)
                 setIsLoggedIn(true)
                 setError(null)
+                // Close settings modal after successful login
+                setTimeout(() => {
+                    onClose()
+                }, 500) // Small delay for better UX
             } else {
                 setError(response.error || 'Registration failed')
             }
@@ -485,6 +493,10 @@ export function Settings({ onClose }: SettingsProps) {
                     setIsLoggedIn(true)
                     setError(`Successfully logged in with ${data.provider}!`)
                     setLoading(false)
+                    // Close settings modal after successful OAuth login
+                    setTimeout(() => {
+                        onClose()
+                    }, 1000)
                 }
             })
         }

@@ -6,6 +6,7 @@ import { SearchBar } from './components/SearchBar'
 import { Sidebar } from './components/Sidebar'
 import { Settings } from './components/Settings'
 import { ImportProgressHeader } from './components/ImportProgressHeader'
+import { WelcomeBanner } from './components/WelcomeBanner'
 import { useArticleStore } from './stores/articleStore'
 import type { Article } from '../../shared/types'
 
@@ -108,6 +109,16 @@ function App() {
         setShowSettings(false)
     }
 
+    const handleExtractContent = () => {
+        // Open settings modal with a flag to trigger content extraction
+        setShowSettings(true)
+    }
+
+    const handleSync = () => {
+        // Open settings modal for Pocket sync
+        setShowSettings(true)
+    }
+
     // Use search results if available, otherwise use filtered articles
     const displayArticles = searchResults || articles
     const filteredArticles = displayArticles.filter(article => {
@@ -170,6 +181,12 @@ function App() {
         <div className="flex h-screen bg-gray-50 dark:bg-gray-900 flex-col">
             {/* Import Progress Header - shows at top when imports are active */}
             <ImportProgressHeader />
+            
+            {/* Welcome Banner - shows helpful actions after login */}
+            <WelcomeBanner 
+                onExtractContent={handleExtractContent}
+                onSync={handleSync}
+            />
 
             <div className="flex flex-1 min-h-0">
                 <Sidebar

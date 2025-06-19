@@ -1,5 +1,6 @@
 
 import { DarkModeSimpleToggle } from './DarkModeToggle'
+import { AccountInfo } from './AccountInfo'
 
 interface SidebarProps {
     currentView: 'all' | 'unread' | 'archived'
@@ -42,6 +43,9 @@ export function Sidebar({ currentView, onViewChange, onAddArticle, onOpenSetting
                 </ul>
             </nav>
 
+            {/* Account info - subtle and non-intrusive */}
+            <AccountInfo />
+            
             {/* Fixed bottom CTAs - always visible */}
             <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2 flex-shrink-0 bg-white dark:bg-gray-800">
                 {/* Dark Mode Toggle */}
