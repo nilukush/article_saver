@@ -254,9 +254,11 @@ router.get('/github/url', asyncHandler(async (req: Request, res: Response) => {
         throw createError('OAuth server port not provided', 400);
     }
 
-    const redirectUri = `http://localhost:${port}/auth/callback/github`;
+    // Use the backend's callback URL instead of dynamic port
+    const redirectUri = `http://localhost:3003/api/auth/github/callback`;
     const scope = 'user:email';
-    const state = Math.random().toString(36).substring(2, 15);
+    // Include the Electron port in the state for later redirect
+    const state = `electron_${port}_${Math.random().toString(36).substring(2, 15)}`;
 
     const githubAuthUrl = `https://github.com/login/oauth/authorize?` +
         `client_id=${encodeURIComponent(clientId)}&` +
@@ -340,8 +342,20 @@ router.get('/github/callback', asyncHandler(async (req: Request, res: Response) 
     // Generate JWT token
     const token = signJWT({ userId: user.id, email: user.email });
 
-    // Redirect to frontend with token
-    res.redirect(`http://localhost:19858?token=${token}&email=${encodeURIComponent(user.email)}`);
+    // Extract Electron port from state parameter
+    const stateStr = state as string;
+    const electronPort = stateStr && stateStr.startsWith('electron_') 
+        ? stateStr.split('_')[1] 
+        : '19858'; // Default port
+
+    // Redirect to Electron OAuth server with token
+    if (electronPort && electronPort !== '19858') {
+        // Redirect to Electron's OAuth server
+        res.redirect(`http://localhost:${electronPort}/auth/callback/github?token=${token}&email=${encodeURIComponent(user.email)}`);
+    } else {
+        // Fallback to default
+        res.redirect(`http://localhost:19858?token=${token}&email=${encodeURIComponent(user.email)}`);
+    }
 }));
 
 // Google OAuth callback for Electron (POST endpoint)
