@@ -1,212 +1,377 @@
 # Contributing to Article Saver
 
-Thank you for your interest in contributing to Article Saver! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to Article Saver! We welcome contributions from the community and are grateful for any help you can provide.
 
-## 🤝 How to Contribute
+## 📋 Table of Contents
 
-### Reporting Bugs
+- [Code of Conduct](#code-of-conduct)
+- [Getting Started](#getting-started)
+- [Development Setup](#development-setup)
+- [How to Contribute](#how-to-contribute)
+- [Pull Request Process](#pull-request-process)
+- [Coding Standards](#coding-standards)
+- [Testing Guidelines](#testing-guidelines)
+- [Documentation](#documentation)
+- [Community](#community)
 
-Before creating bug reports, please check the existing issues to avoid duplicates. When creating a bug report, include:
+## 🤝 Code of Conduct
 
-- **Clear description** of the issue
-- **Steps to reproduce** the behavior
-- **Expected behavior** vs actual behavior
-- **Screenshots** if applicable
-- **Environment details**:
-  - Operating System and version
-  - Node.js version
-  - Electron version
-  - Application version
+This project and everyone participating in it is governed by our Code of Conduct. By participating, you are expected to uphold this code. Please report unacceptable behavior to the project maintainers.
 
-### Suggesting Features
+### Our Standards
 
-Feature requests are welcome! Please:
+- Be respectful and inclusive
+- Welcome newcomers and help them get started
+- Focus on what is best for the community
+- Show empathy towards other community members
 
-- Check existing issues to avoid duplicates
-- Clearly describe the feature and its benefits
-- Explain why this feature would be useful to Article Saver users
-- Consider the scope and complexity of the implementation
+## 🚀 Getting Started
 
-### Pull Requests
+1. **Fork the repository** on GitHub
+2. **Clone your fork** locally:
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/article_saver.git
+   cd article_saver
+   ```
+3. **Add upstream remote**:
+   ```bash
+   git remote add upstream https://github.com/nilukush/article_saver.git
+   ```
+4. **Keep your fork updated**:
+   ```bash
+   git fetch upstream
+   git checkout main
+   git merge upstream/main
+   ```
 
-1. **Fork the repository** and create your branch from `main`
-2. **Install dependencies**: `cd desktop && npm install`
-3. **Make your changes** following our coding standards
-4. **Test your changes** thoroughly
-5. **Update documentation** if needed
-6. **Commit your changes** with clear, descriptive messages
-7. **Push to your fork** and submit a pull request
-
-## 🛠️ Development Setup
+## 💻 Development Setup
 
 ### Prerequisites
 
-- Node.js 18 or higher
-- npm or yarn
-- Git
+- Node.js 18+ (20.x recommended)
+- PostgreSQL 14+
+- Git 2.x+
+- Visual Studio Code (recommended)
 
-### Local Development
+### Backend Setup
 
-1. Clone your fork:
 ```bash
-git clone https://github.com/yourusername/article-saver.git
-cd article-saver
-```
-
-2. Install dependencies:
-```bash
-cd desktop
+cd backend
 npm install
-```
-
-3. Start development server:
-```bash
+cp .env.example .env
+# Edit .env with your database credentials
+npm run db:push
 npm run dev
 ```
 
-4. Make your changes and test them
+### Desktop Setup
+
+```bash
+cd desktop
+npm install
+npm run dev
+```
+
+### Running Tests
+
+```bash
+# Backend tests
+cd backend
+npm test
+npm run test:watch  # Watch mode
+npm run test:coverage  # Coverage report
+
+# Desktop tests
+cd desktop
+npm test
+```
+
+## 🎯 How to Contribute
+
+### Reporting Bugs
+
+1. **Check existing issues** to avoid duplicates
+2. **Create a new issue** with:
+   - Clear, descriptive title
+   - Steps to reproduce
+   - Expected behavior
+   - Actual behavior
+   - System information
+   - Screenshots if applicable
+
+### Suggesting Features
+
+1. **Check the roadmap** and existing feature requests
+2. **Create a feature request** with:
+   - Use case description
+   - Proposed solution
+   - Alternative solutions considered
+   - Additional context
+
+### Code Contributions
+
+1. **Find an issue** labeled `good first issue` or `help wanted`
+2. **Comment on the issue** to claim it
+3. **Create a feature branch**:
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+4. **Make your changes** following our coding standards
+5. **Write/update tests** for your changes
+6. **Update documentation** if needed
+7. **Commit your changes** using conventional commits
+
+## 🔄 Pull Request Process
+
+### Before Submitting
+
+1. **Update your branch** with latest main:
+   ```bash
+   git fetch upstream
+   git rebase upstream/main
+   ```
+
+2. **Run all tests**:
+   ```bash
+   npm test
+   npm run lint
+   npm run type-check
+   ```
+
+3. **Build the project**:
+   ```bash
+   npm run build
+   ```
+
+### Submitting a PR
+
+1. **Push your branch** to your fork
+2. **Create a Pull Request** with:
+   - Descriptive title following conventional commits
+   - Reference to related issue(s)
+   - Description of changes
+   - Screenshots for UI changes
+   - Breaking changes noted
+
+3. **PR Title Format**:
+   ```
+   feat: add dark mode toggle
+   fix: resolve article extraction timeout
+   docs: update API documentation
+   chore: upgrade dependencies
+   ```
+
+### Review Process
+
+- All PRs require 2 approvals
+- CI checks must pass
+- Code coverage must not decrease
+- Reviewers may request changes
+- Be responsive to feedback
 
 ### Project Structure
 
 ```
-article-saver/
-├── desktop/                 # Main Electron application
+article_saver/
+├── backend/                    # Express API
 │   ├── src/
-│   │   ├── main/           # Electron main process
-│   │   │   ├── database/   # File-based database logic
-│   │   │   ├── services/   # Article extraction and processing
-│   │   │   ├── main.ts     # Main process entry point
-│   │   │   └── preload.ts  # Secure IPC bridge
-│   │   └── renderer/       # React frontend
-│   │       ├── components/ # React components
-│   │       ├── stores/     # Zustand state management
-│   │       └── App.tsx     # Main React application
-│   ├── package.json        # Dependencies and scripts
-│   └── vite.config.ts      # Vite configuration
-├── shared/                 # Shared TypeScript types
-│   └── types.ts           # Common type definitions
-└── README.md
+│   │   ├── routes/            # API endpoints
+│   │   ├── services/          # Business logic
+│   │   ├── middleware/        # Express middleware
+│   │   ├── database/          # Prisma setup
+│   │   └── utils/             # Helpers
+│   ├── prisma/                # Database schema
+│   └── scripts/               # Management scripts
+├── desktop/                   # Electron app
+│   ├── src/
+│   │   ├── main/             # Main process
+│   │   └── renderer/         # React app
+│   └── release/              # Built packages
+└── shared/                    # Shared types
 ```
 
-## 📝 Coding Standards
+## 📏 Coding Standards
 
 ### TypeScript
 
-- Use TypeScript for all new code
-- Define proper types and interfaces
-- Import types from `shared/types.ts` when applicable
-- Avoid `any` types - use proper typing
+- Enable strict mode
+- Use explicit types (avoid `any`)
+- Prefer interfaces over type aliases
+- Document complex types
+
+```typescript
+// Good
+interface Article {
+  id: string;
+  title: string;
+  content: string;
+  savedAt: Date;
+}
+
+// Bad
+type Article = any;
+```
 
 ### React Components
 
 - Use functional components with hooks
-- Follow React best practices
-- Use Zustand for state management
-- Keep components focused and reusable
+- Implement proper error boundaries
+- Use meaningful component names
+- Keep components focused and small
 
-### Styling
+```typescript
+// Good
+export function ArticleCard({ article }: ArticleCardProps) {
+  // Component logic
+}
 
-- Use Tailwind CSS for styling
-- Follow the existing dark theme design
-- Ensure responsive design principles
-- Maintain consistency with existing UI patterns
+// Bad
+export default function Component({ data }) {
+  // Component logic
+}
+```
 
-### Code Organization
+### Backend Code
 
-- Keep files focused on a single responsibility
-- Use clear, descriptive names for functions and variables
-- Add comments for complex logic
-- Follow existing file and folder structure
+- Use async/await over callbacks
+- Implement proper error handling
+- Add logging for important operations
+- Use dependency injection
 
-### Electron Best Practices
+```typescript
+// Good
+export async function extractContent(url: string): Promise<ExtractedContent> {
+  try {
+    const response = await fetch(url);
+    // Processing logic
+    logger.info('Content extracted successfully', { url });
+    return content;
+  } catch (error) {
+    logger.error('Content extraction failed', { url, error });
+    throw new ContentExtractionError('Failed to extract content', { cause: error });
+  }
+}
+```
 
-- Use secure IPC communication patterns
-- Follow the preload script approach for renderer-main communication
-- Handle errors gracefully in both main and renderer processes
-- Test on multiple platforms when possible
+### Database
 
-## 🧪 Testing
+- Use Prisma migrations
+- Never use raw SQL in application code
+- Add appropriate indexes
+- Document schema changes
 
-### Manual Testing
+### Git Commits
 
-- Test your changes on your development environment
-- Verify the application builds successfully: `npm run build`
-- Test article saving and reading functionality
-- Check search and tag features
-- Ensure UI responsiveness
-
-### Cross-Platform Considerations
-
-- Article Saver supports macOS, Windows, and Linux
-- Test on multiple platforms if possible
-- Consider architecture differences (Intel vs Apple Silicon)
-- Ensure file paths work across operating systems
-
-## 📋 Commit Guidelines
-
-### Commit Messages
-
-Use clear, descriptive commit messages:
+Follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 ```
-feat: add article export functionality
-fix: resolve search not working with special characters
+feat: add user authentication
+fix: resolve memory leak in article parser
 docs: update installation instructions
-style: improve article reader typography
-refactor: simplify database service architecture
+style: format code with prettier
+refactor: extract content service
+test: add integration tests for auth
+chore: update dependencies
 ```
 
-### Commit Types
+## 🧪 Testing Guidelines
 
-- `feat`: New features
-- `fix`: Bug fixes
-- `docs`: Documentation changes
-- `style`: Code style changes (formatting, etc.)
-- `refactor`: Code refactoring
-- `test`: Adding or updating tests
-- `chore`: Maintenance tasks
+### Unit Tests
 
-## 🔍 Code Review Process
+- Test individual functions/components
+- Mock external dependencies
+- Aim for 80%+ coverage
+- Use descriptive test names
 
-1. **Automated checks** must pass (linting, type checking)
-2. **Manual review** by maintainers
-3. **Testing** on different platforms if needed
-4. **Approval** and merge by maintainers
+```typescript
+describe('ArticleExtractor', () => {
+  it('should extract content from valid HTML', async () => {
+    // Test implementation
+  });
 
-### Review Criteria
+  it('should handle missing content gracefully', async () => {
+    // Test implementation
+  });
+});
+```
 
-- Code quality and adherence to standards
-- Functionality and bug fixes
-- Performance considerations
-- Security implications
-- Documentation updates
-- Backward compatibility
+### Integration Tests
 
-## 🚀 Release Process
+- Test API endpoints
+- Test database operations
+- Use test database
+- Clean up after tests
 
-Releases are managed by maintainers and follow semantic versioning:
+### E2E Tests
 
-- **Major** (1.0.0): Breaking changes
-- **Minor** (0.1.0): New features, backward compatible
-- **Patch** (0.0.1): Bug fixes, backward compatible
+- Test critical user flows
+- Run against production build
+- Use realistic data
+- Document test scenarios
 
-## 📞 Getting Help
+## 📚 Documentation
 
-- **GitHub Issues**: For bugs and feature requests
-- **Discussions**: For questions and general discussion
-- **Documentation**: Check README.md and code comments
+### Code Documentation
 
-## 🙏 Recognition
+- Add JSDoc comments for public APIs
+- Document complex algorithms
+- Include examples in comments
+- Keep comments up-to-date
 
-Contributors will be recognized in:
-- GitHub contributors list
-- Release notes for significant contributions
-- Special mentions for major features or fixes
+```typescript
+/**
+ * Extracts article content from a webpage using Mozilla Readability
+ * @param url - The URL to extract content from
+ * @param options - Extraction options
+ * @returns Extracted article content
+ * @throws {ContentExtractionError} If extraction fails
+ * @example
+ * const content = await extractArticle('https://example.com/article');
+ */
+export async function extractArticle(
+  url: string, 
+  options?: ExtractOptions
+): Promise<Article> {
+  // Implementation
+}
+```
 
-## 📄 License
+### README Updates
 
-By contributing to Article Saver, you agree that your contributions will be licensed under the MIT License.
+- Update feature list
+- Keep installation steps current
+- Document new environment variables
+- Add troubleshooting entries
+
+### API Documentation
+
+- Use OpenAPI/Swagger format
+- Include request/response examples
+- Document error responses
+- Version API changes
+
+## 🌟 Community
+
+### Getting Help
+
+- Check [Documentation](https://github.com/nilukush/article_saver/wiki)
+- Search [existing issues](https://github.com/nilukush/article_saver/issues)
+- Ask in [Discussions](https://github.com/nilukush/article_saver/discussions)
+- Contact maintainers
+
+### Recognition
+
+Contributors will be:
+- Listed in our [Contributors](https://github.com/nilukush/article_saver/graphs/contributors) page
+- Mentioned in release notes
+- Given credit in the README
+
+## 🎉 Thank You!
+
+Your contributions make Article Saver better for everyone. We appreciate your time and effort in improving this project!
 
 ---
 
-Thank you for contributing to Article Saver! 🎉
+<div align="center">
+  <p>Happy coding! 🚀</p>
+</div>
