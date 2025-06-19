@@ -774,14 +774,8 @@ router.post('/batch/re-extract', asyncHandler(async (req: Request, res: Response
                 userId,
                 OR: [
                     { contentExtracted: false },
-                    { contentExtracted: null },
+                    { contentExtracted: { equals: null } },
                     { extractionStatus: { not: 'completed' } },
-                    { 
-                        AND: [
-                            { content: { not: null } },
-                            { content: { equals: prisma.article.fields.excerpt } }
-                        ]
-                    },
                     { content: null },
                     { content: '' }
                 ]
@@ -812,8 +806,7 @@ router.post('/batch/re-extract', asyncHandler(async (req: Request, res: Response
                 const response = await fetch(article.url, {
                     headers: {
                         'User-Agent': 'Mozilla/5.0 (compatible; ArticleSaver/1.0)'
-                    },
-                    signal: AbortSignal.timeout(30000) // 30 second timeout
+                    }
                 });
                 
                 if (!response.ok) {

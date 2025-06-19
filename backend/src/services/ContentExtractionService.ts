@@ -44,7 +44,7 @@ export class ContentExtractionService {
                         userId,
                         OR: [
                             { contentExtracted: false },
-                            { contentExtracted: null },
+                            { contentExtracted: { equals: null } },
                             { extractionStatus: null },
                             { extractionStatus: 'pending' }
                         ]
@@ -124,8 +124,7 @@ export class ContentExtractionService {
                     'DNT': '1',
                     'Connection': 'keep-alive',
                     'Upgrade-Insecure-Requests': '1'
-                },
-                signal: AbortSignal.timeout(30000) // 30 second timeout
+                }
             });
             
             if (!response.ok) {
