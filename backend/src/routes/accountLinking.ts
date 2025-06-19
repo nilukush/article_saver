@@ -239,23 +239,44 @@ router.post('/oauth/link', asyncHandler(async (req: any, res: Response) => {
             throw createError('Invalid linking token', 400);
         }
 
-        if (decoded.linkingProvider !== provider) {
+        // The new enterprise implementation uses 'newProvider' instead of 'linkingProvider'
+        if (decoded.newProvider !== provider && decoded.linkingProvider !== provider) {
             throw createError('Provider mismatch', 400);
         }
 
-        // Find users
-        const existingUser = await prisma.user.findUnique({
-            where: { id: decoded.userId }
+        // Find users - support both old and new token formats
+        const primaryUserId = decoded.primaryUserId || decoded.userId;
+        const newUserId = decoded.newUserId;
+
+        const primaryUser = await prisma.user.findUnique({
+            where: { id: primaryUserId }
         });
 
-        const newProviderUser = await prisma.user.findFirst({
-            where: {
+        // Try to find the new provider user by the newUserId from the token
+        let newProviderUser = null;
+        if (newUserId) {
+            newProviderUser = await prisma.user.findUnique({
+                where: { id: newUserId }
+            });
+        }
+        
+        // Fallback to finding by email and provider
+        if (!newProviderUser) {
+            newProviderUser = await prisma.user.findFirst({
+                where: {
+                    email: decoded.email,
+                    provider: provider
+                }
+            });
+        }
+
+        if (!primaryUser || !newProviderUser) {
+            console.error('Account linking failed - users not found', {
+                primaryUserId,
+                newUserId,
                 email: decoded.email,
-                provider: provider
-            }
-        });
-
-        if (!existingUser || !newProviderUser) {
+                provider
+            });
             throw createError('Users not found', 404);
         }
 
@@ -263,14 +284,30 @@ router.post('/oauth/link', asyncHandler(async (req: any, res: Response) => {
         const existingLink = await prisma.linkedAccount.findFirst({
             where: {
                 OR: [
-                    { primaryUserId: existingUser.id, linkedUserId: newProviderUser.id },
-                    { primaryUserId: newProviderUser.id, linkedUserId: existingUser.id }
+                    { primaryUserId: primaryUser.id, linkedUserId: newProviderUser.id },
+                    { primaryUserId: newProviderUser.id, linkedUserId: primaryUser.id }
                 ]
             }
         });
 
         if (existingLink && existingLink.verified) {
-            throw createError('Accounts are already linked', 409);
+            // Accounts already linked - return success with token
+            const token = jwt.sign({
+                userId: primaryUser.id,
+                email: primaryUser.email,
+                linkedUserIds: [newProviderUser.id]
+            }, JWT_SECRET, { expiresIn: '7d' });
+
+            res.json({
+                message: 'Accounts are already linked',
+                token,
+                user: {
+                    id: primaryUser.id,
+                    email: primaryUser.email,
+                    provider: primaryUser.provider
+                }
+            });
+            return;
         }
 
         // Create or update link (auto-verify since user authenticated with both providers)
@@ -279,15 +316,25 @@ router.post('/oauth/link', asyncHandler(async (req: any, res: Response) => {
                 where: { id: existingLink.id },
                 data: {
                     verified: true,
-                    verificationCode: null
+                    verificationCode: null,
+                    metadata: {
+                        ...existingLink.metadata as any,
+                        verifiedAt: new Date(),
+                        method: 'oauth'
+                    }
                 }
             });
         } else {
             await prisma.linkedAccount.create({
                 data: {
-                    primaryUserId: existingUser.id,
+                    primaryUserId: primaryUser.id,
                     linkedUserId: newProviderUser.id,
-                    verified: true
+                    verified: true,
+                    metadata: {
+                        method: 'oauth',
+                        verifiedAt: new Date(),
+                        trustLevel: decoded.trustLevel || 'medium'
+                    }
                 }
             });
         }
@@ -295,22 +342,23 @@ router.post('/oauth/link', asyncHandler(async (req: any, res: Response) => {
         // Create audit log
         await prisma.accountLinkingAudit.create({
             data: {
-                userId: existingUser.id,
+                userId: primaryUser.id,
                 linkedId: newProviderUser.id,
                 action: 'link_verified',
-                performedBy: existingUser.id,
+                performedBy: primaryUser.id,
                 metadata: {
                     method: 'oauth',
                     provider,
-                    existingProvider: decoded.existingProvider
+                    existingProvider: decoded.primaryProvider || decoded.existingProvider || primaryUser.provider,
+                    trustLevel: decoded.trustLevel
                 }
             }
         });
 
         // Generate new token that includes both accounts
         const token = jwt.sign({
-            userId: existingUser.id,
-            email: existingUser.email,
+            userId: primaryUser.id,
+            email: primaryUser.email,
             linkedUserIds: [newProviderUser.id]
         }, JWT_SECRET, { expiresIn: '7d' });
 
@@ -318,13 +366,16 @@ router.post('/oauth/link', asyncHandler(async (req: any, res: Response) => {
             message: 'Accounts successfully linked',
             token,
             user: {
-                id: existingUser.id,
-                email: existingUser.email,
-                provider: existingUser.provider
+                id: primaryUser.id,
+                email: primaryUser.email,
+                provider: primaryUser.provider
             }
         });
     } catch (error) {
-        throw createError('Invalid or expired linking token', 400);
+        if (error instanceof jwt.JsonWebTokenError) {
+            throw createError('Invalid or expired linking token', 400);
+        }
+        throw error;
     }
 }));
 

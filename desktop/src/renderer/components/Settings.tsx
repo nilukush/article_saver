@@ -3,7 +3,7 @@ import { useArticleStore } from '../stores/articleStore'
 import { useImportStore } from '../stores/importStore'
 import { ImportStatusSection } from './ImportStatusSection'
 import { AccountLinking } from './AccountLinking'
-import { AccountLinkingPrompt } from './AccountLinkingPrompt'
+import { EnterpriseAccountLinkingPrompt } from './EnterpriseAccountLinkingPrompt'
 
 interface SettingsProps {
     onClose: () => void
@@ -21,6 +21,8 @@ export function Settings({ onClose }: SettingsProps) {
         linkingProvider: string
         linkingToken: string
         email: string
+        trustLevel?: 'high' | 'medium' | 'low'
+        requiresVerification?: boolean
     } | null>(null)
 
     // Get stores
@@ -33,6 +35,12 @@ export function Settings({ onClose }: SettingsProps) {
     const [lastImportTime, setLastImportTime] = useState<string | null>(
         localStorage.getItem('lastPocketImport')
     )
+    
+    // Pocket authorization states
+    const [pocketAuthorized, setPocketAuthorized] = useState(false)
+    const [pocketUsername, setPocketUsername] = useState<string | null>(null)
+    const [pocketLastSynced, setPocketLastSynced] = useState<Date | null>(null)
+    const [checkingPocketAuth, setCheckingPocketAuth] = useState(false)
 
     // Set fallback timestamp for existing imported articles without timestamp
     useEffect(() => {
@@ -44,8 +52,49 @@ export function Settings({ onClose }: SettingsProps) {
         }
     }, [hasImportedArticles, lastImportTime])
 
+    // Check Pocket auth when user logs in
+    useEffect(() => {
+        if (isLoggedIn) {
+            checkPocketAuth()
+        }
+    }, [isLoggedIn])
+
     // Use hardcoded API URL for static file serving (protocol interception)
     const serverUrl = 'http://localhost:3003' // Backend runs on port 3003
+
+    // Check Pocket authorization status
+    const checkPocketAuth = async () => {
+        if (!isLoggedIn) return
+        
+        setCheckingPocketAuth(true)
+        try {
+            const token = localStorage.getItem('authToken')
+            const response = await window.electronAPI.netFetch(`${serverUrl}/api/pocket/auth/status`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                }
+            })
+
+            if (response.success) {
+                setPocketAuthorized(response.authorized)
+                setPocketUsername(response.username)
+                if (response.lastSynced) {
+                    setPocketLastSynced(new Date(response.lastSynced))
+                }
+            } else {
+                setPocketAuthorized(false)
+                setPocketUsername(null)
+                setPocketLastSynced(null)
+            }
+        } catch (error) {
+            console.error('Failed to check Pocket auth status:', error)
+            setPocketAuthorized(false)
+        } finally {
+            setCheckingPocketAuth(false)
+        }
+    }
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -301,66 +350,132 @@ export function Settings({ onClose }: SettingsProps) {
         }
     }
 
+    // Handle Pocket authorization
+    const handlePocketAuthorize = async () => {
+        setLoading(true)
+        setError(null)
+
+        try {
+            const token = localStorage.getItem('authToken')
+            
+            // Create OAuth server first (same pattern as Google/GitHub)
+            const serverResult = await window.electronAPI.createOAuthServer()
+            if (!serverResult.success) {
+                throw new Error(serverResult.error || 'Failed to create OAuth server')
+            }
+
+            const port = serverResult.data?.port
+            if (!port) {
+                throw new Error('Failed to get OAuth server port')
+            }
+
+            // Get Pocket OAuth URL from backend with server port
+            const response = await window.electronAPI.netFetch(`${serverUrl}/api/pocket/auth/url?port=${port}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            })
+
+            if (response.success) {
+                const data = response.data
+                // Open OAuth URL in system browser using Electron IPC
+                await window.electronAPI.openOAuthUrl(data.url)
+                setError('Please authorize Pocket access in your browser. The app will automatically detect when you complete authorization.')
+            } else {
+                setError(response.error || 'Failed to get Pocket authorization URL')
+            }
+        } catch (err) {
+            setError('Failed to connect to Pocket')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    // Handle Pocket import using stored authorization
     const handlePocketImport = async () => {
         setLoading(true)
         setError(null)
 
         try {
             const token = localStorage.getItem('authToken')
-            const pocketToken = localStorage.getItem('pocketToken')
-
-            if (!pocketToken) {
-                // Create OAuth server first (same pattern as Google/GitHub)
-                const serverResult = await window.electronAPI.createOAuthServer()
-                if (!serverResult.success) {
-                    throw new Error(serverResult.error || 'Failed to create OAuth server')
-                }
-
-                const port = serverResult.data?.port
-                if (!port) {
-                    throw new Error('Failed to get OAuth server port')
-                }
-
-                // Get Pocket OAuth URL from backend with server port
-                const response = await window.electronAPI.netFetch(`${serverUrl}/api/pocket/auth/url?port=${port}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                })
-
-                if (response.success) {
-                    const data = response.data
-                    // Open OAuth URL in system browser using Electron IPC
-                    await window.electronAPI.openOAuthUrl(data.url)
-                    setError('Please authorize Pocket access in your browser. The app will automatically detect when you complete authorization.')
-                } else {
-                    setError(response.error || 'Failed to get Pocket authorization URL')
-                }
+            
+            if (!pocketAuthorized) {
+                setError('Please authorize Pocket access first')
                 return
             }
 
-            // Import articles using stored Pocket token
-            const response = await window.electronAPI.netFetch(`${serverUrl}/api/pocket/import`, {
+            // Import articles using stored authorization
+            const response = await window.electronAPI.netFetch(`${serverUrl}/api/pocket/import/stored`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    accessToken: pocketToken
+                    batchSize: 100,
+                    includeArchived: true
                 }),
             })
 
             if (response.success) {
                 const data = response.data
-                setError(`Successfully imported ${data.imported} articles from Pocket!`)
-                // Clear the pocket token after successful import
-                localStorage.removeItem('pocketToken')
+                setError(`Import started successfully! Session ID: ${data.sessionId}. Check progress in the Import Status section.`)
+                
+                // Start background import using the new import store
+                const userId = localStorage.getItem('userEmail') || 'unknown'
+                startImport({
+                    userId,
+                    provider: 'pocket',
+                    status: 'running',
+                    progress: {
+                        total: 0,
+                        current: 0,
+                        percentage: 0,
+                        currentAction: 'Import started using stored authorization...',
+                        timeRemaining: 0
+                    }
+                })
+                
+                // Update last import time
+                const importTimestamp = new Date().toISOString()
+                localStorage.setItem('lastPocketImport', importTimestamp)
+                setLastImportTime(importTimestamp)
             } else {
-                setError(response.error || 'Failed to import from Pocket')
+                setError(response.error || 'Failed to start import')
             }
         } catch (err) {
-            setError('Failed to connect to Pocket')
+            setError('Failed to connect to server')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    // Handle revoking Pocket authorization
+    const handlePocketRevoke = async () => {
+        setLoading(true)
+        setError(null)
+
+        try {
+            const token = localStorage.getItem('authToken')
+            
+            const response = await window.electronAPI.netFetch(`${serverUrl}/api/pocket/auth/revoke`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            })
+
+            if (response.success) {
+                setPocketAuthorized(false)
+                setPocketUsername(null)
+                setPocketLastSynced(null)
+                setError('Pocket authorization has been revoked')
+            } else {
+                setError(response.error || 'Failed to revoke authorization')
+            }
+        } catch (err) {
+            setError('Failed to connect to server')
         } finally {
             setLoading(false)
         }
@@ -374,143 +489,12 @@ export function Settings({ onClose }: SettingsProps) {
 
         // Listen for OAuth success events (direct token from backend)
         if (window.electronAPI?.onOAuthSuccess) {
-            window.electronAPI.onOAuthSuccess(async (data: { provider: string; token: string; email: string }) => {
+            window.electronAPI.onOAuthSuccess(async (data: { provider: string; token: string; email: string; pocket_authorized?: boolean }) => {
                 if (data.provider === 'pocket') {
-                    // Start background import using the new import store
-                    const userId = localStorage.getItem('userEmail') || 'unknown'
-                    const jobId = startImport({
-                        userId,
-                        provider: 'pocket',
-                        status: 'running',
-                        progress: {
-                            total: 0,
-                            current: 0,
-                            percentage: 0,
-                            currentAction: 'Pocket authorization successful! Starting import...',
-                            timeRemaining: 0
-                        }
-                    })
-
-                    // Close the settings modal immediately - import continues in background
-                    setError('Import started! You can close this dialog and continue using the app.')
-                    setTimeout(() => {
-                        onClose()
-                    }, 2000)
-
-                    try {
-                        const authToken = localStorage.getItem('authToken')
-                        if (!authToken) {
-                            completeImport(jobId, { imported: 0, skipped: 0, failed: 0, total: 0 }, 'Please log in first before importing from Pocket')
-                            return
-                        }
-
-                        // Start the import (this will timeout but backend continues)
-                        const importPromise = window.electronAPI.netFetch(`${serverUrl}/api/pocket/import`, {
-                            method: 'POST',
-                            headers: {
-                                'Authorization': `Bearer ${authToken}`,
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                accessToken: data.token
-                            }),
-                        })
-
-                        // Start polling for progress immediately
-                        const pollProgress = async () => {
-                            try {
-                                const progressResponse = await window.electronAPI.netFetch(`${serverUrl}/api/pocket/progress`, {
-                                    headers: {
-                                        'Authorization': `Bearer ${authToken}`,
-                                    },
-                                })
-
-                                if (progressResponse.success) {
-                                    const progressData = progressResponse.data
-
-                                    if (progressData.status === 'not_found') {
-                                        // Import hasn't started yet, keep polling
-                                        setTimeout(pollProgress, 2000)
-                                        return
-                                    }
-
-                                    // Update the import store with real backend progress
-                                    const currentJob = useImportStore.getState().activeImports.find(j => j.id === jobId)
-                                    if (currentJob) {
-                                        useImportStore.getState().updateProgress(jobId, {
-                                            total: progressData.totalArticles,
-                                            current: progressData.articlesProcessed,
-                                            percentage: progressData.percentage,
-                                            currentAction: progressData.currentAction,
-                                            timeRemaining: progressData.estimatedTimeRemaining
-                                        })
-                                    }
-
-                                    if (progressData.status === 'completed') {
-                                        // Import completed successfully
-                                        completeImport(jobId, {
-                                            imported: progressData.imported,
-                                            skipped: progressData.skipped,
-                                            failed: progressData.failed,
-                                            total: progressData.totalArticles
-                                        })
-
-                                        // Update import timestamp for UI state
-                                        const timestamp = new Date().toISOString()
-                                        localStorage.setItem('lastPocketImport', timestamp)
-                                        setLastImportTime(timestamp)
-
-                                        await loadArticles()
-                                    } else if (progressData.status === 'failed') {
-                                        // Import failed
-                                        completeImport(jobId, { imported: 0, skipped: 0, failed: 0, total: 0 }, 'Import failed on backend')
-                                    } else {
-                                        // Still running, continue polling
-                                        setTimeout(pollProgress, 3000) // Poll every 3 seconds
-                                    }
-                                } else {
-                                    // Error getting progress, continue polling
-                                    setTimeout(pollProgress, 5000)
-                                }
-                            } catch (err) {
-                                console.error('Progress polling error:', err)
-                                // Continue polling even on error
-                                setTimeout(pollProgress, 5000)
-                            }
-                        }
-
-                        // Start polling immediately
-                        setTimeout(pollProgress, 1000)
-
-                        // Handle the import response (will likely timeout)
-                        try {
-                            const response = await importPromise
-                            if (response.success) {
-                                // Import completed within timeout - update with final results
-                                const importData = response.data
-                                completeImport(jobId, {
-                                    imported: importData.imported,
-                                    skipped: importData.skipped,
-                                    failed: importData.failed,
-                                    total: importData.total
-                                })
-
-                                // Update import timestamp for immediate completion
-                                const timestamp = new Date().toISOString()
-                                localStorage.setItem('lastPocketImport', timestamp)
-                                setLastImportTime(timestamp)
-
-                                await loadArticles()
-                            }
-                        } catch (err) {
-                            // Import timed out - this is expected for large imports
-                            // Progress polling will handle the real status
-                            console.log('Import request timed out (expected for large imports) - progress polling will continue')
-                        }
-                    } catch (err) {
-                        completeImport(jobId, { imported: 0, skipped: 0, failed: 0, total: 0 }, 'Failed to start import')
-                        console.error('Pocket import error:', err)
-                    }
+                    // OAuth completed successfully - refresh auth status
+                    setError('Pocket authorization successful! Refreshing status...')
+                    await checkPocketAuth()
+                    setError('Pocket has been authorized successfully! You can now import your articles.')
                 } else {
                     // For Google/GitHub, handle normal login
                     localStorage.setItem('authToken', data.token)
@@ -518,10 +502,8 @@ export function Settings({ onClose }: SettingsProps) {
                     setIsLoggedIn(true)
                     setError(`Successfully logged in with ${data.provider}!`)
                     setLoading(false)
-                    // Close settings modal after successful OAuth login
-                    setTimeout(() => {
-                        onClose()
-                    }, 1000)
+                    // Don't close modal if we're expecting account linking
+                    // The linking prompt will handle closing
                 }
             })
         }
@@ -556,7 +538,9 @@ export function Settings({ onClose }: SettingsProps) {
                     existingProvider: data.existingProvider,
                     linkingProvider: data.provider,
                     linkingToken: data.linkingToken,
-                    email: data.email
+                    email: data.email,
+                    trustLevel: data.trustLevel,
+                    requiresVerification: data.requiresVerification === 'true'
                 })
             })
         }
@@ -684,7 +668,63 @@ export function Settings({ onClose }: SettingsProps) {
                             </div>
                         </div>
 
-                        {/* Account Management Options */}
+                        {/* Pocket Authorization Status */}
+                        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                Pocket Integration
+                            </div>
+                            {checkingPocketAuth ? (
+                                <div className="text-gray-500 dark:text-gray-400">
+                                    Checking authorization status...
+                                </div>
+                            ) : pocketAuthorized ? (
+                                <div className="space-y-2">
+                                    <div className="flex items-center space-x-2">
+                                        <span className="text-green-500">✓</span>
+                                        <span className="text-green-700 dark:text-green-400 font-medium">
+                                            Authorized
+                                        </span>
+                                        {pocketUsername && (
+                                            <span className="text-gray-600 dark:text-gray-400">
+                                                ({pocketUsername})
+                                            </span>
+                                        )}
+                                    </div>
+                                    {pocketLastSynced && (
+                                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                                            Last synced: {pocketLastSynced.toLocaleDateString()}
+                                        </div>
+                                    )}
+                                    <div className="flex space-x-2">
+                                        <button
+                                            onClick={handlePocketRevoke}
+                                            disabled={loading}
+                                            className="text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 px-2 py-1 rounded hover:bg-red-200 dark:hover:bg-red-800 disabled:opacity-50"
+                                        >
+                                            Revoke Access
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    <div className="flex items-center space-x-2">
+                                        <span className="text-gray-400">○</span>
+                                        <span className="text-gray-600 dark:text-gray-400">
+                                            Not authorized
+                                        </span>
+                                    </div>
+                                    <button
+                                        onClick={handlePocketAuthorize}
+                                        disabled={loading}
+                                        className="text-xs bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 px-2 py-1 rounded hover:bg-orange-200 dark:hover:bg-orange-800 disabled:opacity-50"
+                                    >
+                                        Authorize Pocket
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Import Options */}
                         <div className="space-y-3">
                             {hasImportedArticles ? (
                                 <ImportStatusSection
@@ -696,15 +736,20 @@ export function Settings({ onClose }: SettingsProps) {
                             ) : (
                                 <div>
                                     <button
-                                        onClick={handlePocketImport}
+                                        onClick={pocketAuthorized ? handlePocketImport : handlePocketAuthorize}
                                         disabled={loading}
                                         className="w-full bg-orange-600 text-white py-3 px-4 rounded-md hover:bg-orange-700 disabled:opacity-50 flex items-center justify-center space-x-2 transition-colors"
                                     >
                                         <span>📚</span>
-                                        <span>{loading ? 'Importing...' : 'Import from Pocket'}</span>
+                                        <span>
+                                            {loading ? 'Processing...' : 
+                                             pocketAuthorized ? 'Import from Pocket' : 'Authorize & Import from Pocket'}
+                                        </span>
                                     </button>
                                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 px-1">
-                                        Import your saved articles from Pocket (runs in background)
+                                        {pocketAuthorized ? 
+                                         'Import your saved articles from Pocket (runs in background)' :
+                                         'First authorize Pocket access, then import your articles'}
                                     </p>
                                 </div>
                             )}
@@ -761,13 +806,15 @@ export function Settings({ onClose }: SettingsProps) {
                 <AccountLinking onClose={() => setShowAccountLinking(false)} />
             )}
             
-            {/* Account Linking Prompt */}
+            {/* Enterprise Account Linking Prompt */}
             {accountLinkingData && (
-                <AccountLinkingPrompt
+                <EnterpriseAccountLinkingPrompt
                     existingProvider={accountLinkingData.existingProvider}
                     linkingProvider={accountLinkingData.linkingProvider}
                     linkingToken={accountLinkingData.linkingToken}
                     email={accountLinkingData.email}
+                    trustLevel={accountLinkingData.trustLevel}
+                    requiresVerification={accountLinkingData.requiresVerification}
                     onClose={() => setAccountLinkingData(null)}
                 />
             )}

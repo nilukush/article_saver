@@ -10,6 +10,80 @@ import { contentExtractionService } from '../services/ContentExtractionService';
 
 const router = Router();
 
+// Check if user has valid Pocket authorization
+router.get('/auth/status', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+    const userId = (req as any).user.userId;
+    
+    try {
+        // Check if user has a Pocket token stored
+        const oauthToken = await prisma.oAuthToken.findUnique({
+            where: {
+                userId_provider: {
+                    userId,
+                    provider: 'pocket'
+                }
+            }
+        });
+
+        if (!oauthToken) {
+            return res.json({
+                success: true,
+                authorized: false,
+                message: 'No Pocket authorization found'
+            });
+        }
+
+        // Check if token is expired
+        if (oauthToken.expiresAt && oauthToken.expiresAt < new Date()) {
+            // Delete expired token
+            await prisma.oAuthToken.delete({
+                where: { id: oauthToken.id }
+            });
+            
+            return res.json({
+                success: true,
+                authorized: false,
+                message: 'Pocket authorization has expired'
+            });
+        }
+
+        // Token exists and is valid
+        const metadata = oauthToken.metadata as { username?: string } | null;
+        return res.json({
+            success: true,
+            authorized: true,
+            username: metadata?.username || null,
+            lastSynced: oauthToken.updatedAt
+        });
+    } catch (error) {
+        logger.error('Error checking Pocket auth status:', error);
+        throw createError('Failed to check authorization status', 500);
+    }
+}));
+
+// Revoke Pocket authorization
+router.delete('/auth/revoke', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+    const userId = (req as any).user.userId;
+    
+    try {
+        const result = await prisma.oAuthToken.deleteMany({
+            where: {
+                userId,
+                provider: 'pocket'
+            }
+        });
+
+        return res.json({
+            success: true,
+            message: 'Pocket authorization revoked',
+            deleted: result.count
+        });
+    } catch (error) {
+        logger.error('Error revoking Pocket auth:', error);
+        throw createError('Failed to revoke authorization', 500);
+    }
+}));
+
 // Temporary storage for request tokens (in production, use Redis or database)
 const requestTokenStore = new Map<string, { token: string, userId: string, timestamp: number }>();
 
@@ -132,6 +206,7 @@ router.get('/callback', asyncHandler(async (req: Request, res: Response) => {
     const request_token = currentRequestToken.token;
     logger.info('🔍 POCKET CALLBACK: Using request token:', request_token);
 
+    const userRequestToken = currentRequestToken; // Store reference before cleanup
     // Clean up the stored token
     currentRequestToken = null;
 
@@ -179,10 +254,47 @@ router.get('/callback', asyncHandler(async (req: Request, res: Response) => {
         throw createError('Failed to get Pocket access token', 400);
     }
 
+    // Store the OAuth token in database
+    if (userRequestToken) {
+        const userId = userRequestToken.userId;
+        try {
+            await prisma.oAuthToken.upsert({
+                where: {
+                    userId_provider: {
+                        userId,
+                        provider: 'pocket'
+                    }
+                },
+                update: {
+                    accessToken: accessTokenData.access_token,
+                    metadata: {
+                        username: accessTokenData.username || null
+                    },
+                    updatedAt: new Date()
+                },
+                create: {
+                    userId,
+                    provider: 'pocket',
+                    accessToken: accessTokenData.access_token,
+                    tokenType: 'bearer',
+                    metadata: {
+                        username: accessTokenData.username || null
+                    }
+                }
+            });
+            logger.info('✅ POCKET CALLBACK: Stored OAuth token in database for user:', userId);
+        } catch (error) {
+            logger.error('❌ POCKET CALLBACK: Failed to store OAuth token:', error);
+            // Continue with redirect even if storage fails
+        }
+    } else {
+        logger.warn('⚠️ POCKET CALLBACK: No user context available for token storage');
+    }
+
     logger.info('✅ POCKET CALLBACK: Successfully got access token, redirecting to Vite server');
 
-    // Redirect to frontend with access token
-    res.redirect(`http://localhost:19858?pocket_token=${accessTokenData.access_token}&pocket_username=${encodeURIComponent(accessTokenData.username || '')}`);
+    // Redirect to frontend with access token and success flag
+    res.redirect(`http://localhost:19858?pocket_token=${accessTokenData.access_token}&pocket_username=${encodeURIComponent(accessTokenData.username || '')}&pocket_authorized=true`);
 }));
 
 // Get import progress endpoint
@@ -242,7 +354,7 @@ const checkRateLimit = (response: globalThis.Response) => {
 
 // Enterprise import with background processing
 router.post('/import/enterprise', [
-    body('accessToken').notEmpty().withMessage('Pocket access token is required'),
+    body('accessToken').optional(),  // Make optional since we can use stored token
     body('batchSize').optional().isInt({ min: 10, max: 200 }).withMessage('Batch size must be between 10 and 200'),
     body('includeArchived').optional().isBoolean().withMessage('Include archived must be a boolean')
 ], authenticateToken, asyncHandler(async (req: Request, res: Response) => {
@@ -251,9 +363,59 @@ router.post('/import/enterprise', [
         throw createError('Validation failed', 400);
     }
 
-    const { accessToken, batchSize = 100, includeArchived = true } = req.body;
+    let { accessToken, batchSize = 100, includeArchived = true } = req.body;
     const userId = (req as any).user.userId;
     const consumerKey = process.env.POCKET_CONSUMER_KEY;
+    
+    // If no access token provided, try to get from database
+    if (!accessToken) {
+        const storedToken = await prisma.oAuthToken.findUnique({
+            where: {
+                userId_provider: {
+                    userId,
+                    provider: 'pocket'
+                }
+            }
+        });
+        
+        if (!storedToken) {
+            throw createError('No Pocket access token provided and no stored authorization found', 400);
+        }
+        
+        // Check if token is expired
+        if (storedToken.expiresAt && storedToken.expiresAt < new Date()) {
+            throw createError('Stored Pocket authorization has expired. Please re-authorize.', 401);
+        }
+        
+        accessToken = storedToken.accessToken;
+        logger.info('✅ Using stored Pocket OAuth token');
+    } else {
+        // Store the new token for future use
+        try {
+            await prisma.oAuthToken.upsert({
+                where: {
+                    userId_provider: {
+                        userId,
+                        provider: 'pocket'
+                    }
+                },
+                update: {
+                    accessToken,
+                    updatedAt: new Date()
+                },
+                create: {
+                    userId,
+                    provider: 'pocket',
+                    accessToken,
+                    tokenType: 'bearer',
+                    metadata: {}
+                }
+            });
+            logger.info('✅ Updated stored Pocket OAuth token');
+        } catch (error) {
+            logger.error('Failed to store OAuth token:', error);
+        }
+    }
 
     if (!consumerKey || consumerKey === 'your-pocket-consumer-key-here') {
         throw createError('Pocket integration is not configured. Please add valid POCKET_CONSUMER_KEY to environment variables.', 503);
@@ -287,6 +449,87 @@ router.post('/import/enterprise', [
     } catch (error) {
         logger.error('❌ ENTERPRISE IMPORT: Failed to start import', {
             userId,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        throw createError('Failed to start import', 500);
+    }
+}));
+
+// Start import using stored Pocket authorization
+router.post('/import/stored', [
+    body('batchSize').optional().isInt({ min: 10, max: 200 }).withMessage('Batch size must be between 10 and 200'),
+    body('includeArchived').optional().isBoolean().withMessage('Include archived must be a boolean')
+], authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        throw createError('Validation failed', 400);
+    }
+
+    const { batchSize = 100, includeArchived = true } = req.body;
+    const userId = (req as any).user.userId;
+    const consumerKey = process.env.POCKET_CONSUMER_KEY;
+
+    if (!consumerKey || consumerKey === 'your-pocket-consumer-key-here') {
+        throw createError('Pocket integration is not configured. Please add valid POCKET_CONSUMER_KEY to environment variables.', 503);
+    }
+
+    // Get stored token
+    const storedToken = await prisma.oAuthToken.findUnique({
+        where: {
+            userId_provider: {
+                userId,
+                provider: 'pocket'
+            }
+        }
+    });
+    
+    if (!storedToken) {
+        throw createError('No Pocket authorization found. Please authorize Pocket first.', 401);
+    }
+    
+    // Check if token is expired
+    if (storedToken.expiresAt && storedToken.expiresAt < new Date()) {
+        // Delete expired token
+        await prisma.oAuthToken.delete({
+            where: { id: storedToken.id }
+        });
+        throw createError('Pocket authorization has expired. Please re-authorize.', 401);
+    }
+
+    const accessToken = storedToken.accessToken;
+    logger.info('🚀 STORED TOKEN IMPORT: Starting background import', { userId, batchSize, includeArchived });
+
+    try {
+        // Create import session
+        const sessionId = await importStateManager.createSession(userId, 'pocket', {
+            consumerKey: consumerKey.substring(0, 10) + '...', // Don't log full key
+            settings: { batchSize, includeArchived },
+            usingStoredToken: true
+        });
+
+        // Queue background job
+        await backgroundJobProcessor.queueImportJob(sessionId, userId, 'pocket', {
+            accessToken,
+            consumerKey,
+            batchSize,
+            includeArchived
+        });
+
+        res.json({
+            success: true,
+            sessionId,
+            message: 'Import started successfully using stored authorization',
+            checkProgressAt: `/api/pocket/progress/${sessionId}`
+        });
+        return;
+
+    } catch (error) {
+        logger.error('❌ STORED TOKEN IMPORT: Failed to start import', {
+            userId,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        res.status(500).json({
+            success: false,
             error: error instanceof Error ? error.message : 'Unknown error'
         });
         throw createError('Failed to start import', 500);
@@ -386,22 +629,73 @@ router.delete('/import/:sessionId/cancel', authenticateToken, asyncHandler(async
 
 // Legacy import (kept for backwards compatibility)
 router.post('/import', [
-    body('accessToken').notEmpty().withMessage('Pocket access token is required')
+    body('accessToken').optional()  // Make optional since we can use stored token
 ], authenticateToken, asyncHandler(async (req: Request, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         throw createError('Validation failed', 400);
     }
 
-    const { accessToken } = req.body;
+    let { accessToken } = req.body;
     const userId = (req as any).user.userId;
     const consumerKey = process.env.POCKET_CONSUMER_KEY;
+    
+    // If no access token provided, try to get from database
+    if (!accessToken) {
+        const storedToken = await prisma.oAuthToken.findUnique({
+            where: {
+                userId_provider: {
+                    userId,
+                    provider: 'pocket'
+                }
+            }
+        });
+        
+        if (!storedToken) {
+            throw createError('No Pocket access token provided and no stored authorization found', 400);
+        }
+        
+        // Check if token is expired
+        if (storedToken.expiresAt && storedToken.expiresAt < new Date()) {
+            throw createError('Stored Pocket authorization has expired. Please re-authorize.', 401);
+        }
+        
+        accessToken = storedToken.accessToken;
+        logger.info('✅ Using stored Pocket OAuth token');
+    }
 
     if (!consumerKey || consumerKey === 'your-pocket-consumer-key-here') {
         throw createError('Pocket integration is not configured. Please add valid POCKET_CONSUMER_KEY to environment variables.', 503);
     }
 
     logger.info('🔍 POCKET IMPORT: Starting rate-limited import for user:', userId);
+    
+    // Store the OAuth token for future use
+    try {
+        await prisma.oAuthToken.upsert({
+            where: {
+                userId_provider: {
+                    userId,
+                    provider: 'pocket'
+                }
+            },
+            update: {
+                accessToken,
+                updatedAt: new Date()
+            },
+            create: {
+                userId,
+                provider: 'pocket',
+                accessToken,
+                tokenType: 'bearer',
+                metadata: {}
+            }
+        });
+        logger.info('✅ Stored Pocket OAuth token for future use');
+    } catch (error) {
+        logger.error('Failed to store OAuth token:', error);
+        // Continue with import even if token storage fails
+    }
 
     // Initialize progress tracking
     const progress: ImportProgress = {

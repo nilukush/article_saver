@@ -15,7 +15,7 @@ export const useAuth = () => {
 
     useEffect(() => {
         // Check localStorage for auth token
-        const token = localStorage.getItem('token')
+        const token = localStorage.getItem('authToken') // Fixed: was looking for 'token' instead of 'authToken'
         const email = localStorage.getItem('userEmail')
         
         if (token && email) {
@@ -28,7 +28,7 @@ export const useAuth = () => {
     }, [])
 
     const login = (token: string, email: string) => {
-        localStorage.setItem('token', token)
+        localStorage.setItem('authToken', token) // Fixed: save as 'authToken' to match
         localStorage.setItem('userEmail', email)
         setAuthState({
             token,
@@ -38,7 +38,7 @@ export const useAuth = () => {
     }
 
     const logout = () => {
-        localStorage.removeItem('token')
+        localStorage.removeItem('authToken') // Fixed: remove 'authToken' to match
         localStorage.removeItem('userEmail')
         setAuthState({
             token: null,

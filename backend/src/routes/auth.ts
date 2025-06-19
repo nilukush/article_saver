@@ -5,6 +5,7 @@ import { body, validationResult } from 'express-validator';
 import { prisma } from '../database';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { signJWT, handleOAuthLogin } from '../utils/authHelpers';
+import { handleEnterpriseOAuthLogin } from '../utils/enterpriseAccountLinking';
 
 const router = Router();
 
@@ -215,10 +216,14 @@ router.get('/google/callback', asyncHandler(async (req: Request, res: Response) 
         throw createError('Failed to get user email', 400);
     }
 
-    // Handle OAuth login with account linking support
-    const result = await handleOAuthLogin({
+    // Handle OAuth login with enterprise-grade account linking
+    const result = await handleEnterpriseOAuthLogin({
         email: userData.email,
-        provider: 'google'
+        provider: 'google',
+        metadata: {
+            emailVerified: userData.verified_email || true,
+            googleId: userData.id
+        }
     }, electronPort);
 
     // Redirect based on result
@@ -315,10 +320,15 @@ router.get('/github/callback', asyncHandler(async (req: Request, res: Response) 
         ? stateStr.split('_')[1] 
         : null;
 
-    // Handle OAuth login with account linking support
-    const result = await handleOAuthLogin({
+    // Handle OAuth login with enterprise-grade account linking
+    const result = await handleEnterpriseOAuthLogin({
         email: primaryEmail,
-        provider: 'github'
+        provider: 'github',
+        metadata: {
+            emailVerified: emailData.find((email: any) => email.primary)?.verified || false,
+            githubId: userData.id,
+            githubLogin: userData.login
+        }
     }, electronPort);
 
     // Redirect based on result

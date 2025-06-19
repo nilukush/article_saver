@@ -100,7 +100,9 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
                             linkingToken, 
                             email,
                             action,
-                            token // Pass token along
+                            token, // Pass token along
+                            trustLevel: url.searchParams.get('trustLevel'),
+                            requiresVerification: url.searchParams.get('requiresVerification')
                         })
                     } else if (token && email) {
                         console.log('OAuth success for provider:', provider, 'with token')
