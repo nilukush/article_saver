@@ -41,7 +41,12 @@ export const useAccountLinkingStore = create<AccountLinkingState>((set, get) => 
         
         try {
             const token = localStorage.getItem('authToken')
-            const serverUrl = 'http://localhost:3001' // Backend runs on port 3001
+            const serverUrl = 'http://localhost:3003' // Backend runs on port 3003
+            
+            if (!token) {
+                set({ error: 'Not authenticated. Please log in.', loading: false })
+                return
+            }
             
             const response = await window.electronAPI.netFetch(`${serverUrl}/api/account-linking/linked`, {
                 headers: {
@@ -56,7 +61,8 @@ export const useAccountLinkingStore = create<AccountLinkingState>((set, get) => 
                     loading: false
                 })
             } else {
-                set({ error: response.error || 'Failed to load linked accounts', loading: false })
+                const errorMessage = response.error || response.data?.error || response.data?.message || 'Failed to load linked accounts'
+                set({ error: errorMessage, loading: false })
             }
         } catch (err) {
             set({ 
@@ -70,7 +76,7 @@ export const useAccountLinkingStore = create<AccountLinkingState>((set, get) => 
         set({ loading: true, error: null })
         
         try {
-            const serverUrl = 'http://localhost:3001' // Backend runs on port 3001
+            const serverUrl = 'http://localhost:3003' // Backend runs on port 3003
             
             const response = await window.electronAPI.netFetch(`${serverUrl}/api/account-linking/oauth/link`, {
                 method: 'POST',
@@ -113,7 +119,7 @@ export const useAccountLinkingStore = create<AccountLinkingState>((set, get) => 
         
         try {
             const token = localStorage.getItem('authToken')
-            const serverUrl = 'http://localhost:3001' // Backend runs on port 3001
+            const serverUrl = 'http://localhost:3003' // Backend runs on port 3003
             
             const response = await window.electronAPI.netFetch(`${serverUrl}/api/account-linking/unlink/${linkId}`, {
                 method: 'DELETE',

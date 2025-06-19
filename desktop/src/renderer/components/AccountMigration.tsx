@@ -31,7 +31,7 @@ export const AccountMigration: React.FC = () => {
 
     const fetchMigrationOptions = async () => {
         try {
-            const response = await fetch('http://localhost:3001/api/account-migration/options', {
+            const response = await fetch('http://localhost:3003/api/account-migration/options', {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -66,7 +66,7 @@ export const AccountMigration: React.FC = () => {
         setError('')
         
         try {
-            const response = await fetch('http://localhost:3001/api/account-migration/migrate', {
+            const response = await fetch('http://localhost:3003/api/account-migration/migrate', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -100,7 +100,7 @@ export const AccountMigration: React.FC = () => {
 
     const handleSetPrimary = async (accountId: string) => {
         try {
-            const response = await fetch('http://localhost:3001/api/account-migration/set-primary', {
+            const response = await fetch('http://localhost:3003/api/account-migration/set-primary', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
