@@ -394,6 +394,52 @@ router.post('/google/callback', asyncHandler(async (req: Request, res: Response)
     }
 }));
 
+// Create separate OAuth account
+router.post('/oauth/create-separate', asyncHandler(async (req: Request, res: Response) => {
+    const { email, provider, linkingToken } = req.body;
+    
+    if (!email || !provider || !linkingToken) {
+        throw createError('Email, provider, and linking token are required', 400);
+    }
+    
+    try {
+        // Verify the linking token to ensure this is a legitimate request
+        const decoded = jwt.verify(linkingToken, JWT_SECRET) as any;
+        
+        if (decoded.action !== 'link_account' || decoded.email !== email) {
+            throw createError('Invalid linking token', 400);
+        }
+        
+        // Create new user with the OAuth provider
+        const newUser = await prisma.user.create({
+            data: {
+                email: `${email}_${provider}`, // Use a modified email to avoid unique constraint
+                password: '', // OAuth users don't have passwords
+                provider
+            }
+        });
+        
+        // Generate JWT token for the new user
+        const token = jwt.sign({ userId: newUser.id, email }, JWT_SECRET, { expiresIn: '7d' });
+        
+        res.json({
+            message: 'Separate account created successfully',
+            user: {
+                id: newUser.id,
+                email,
+                provider,
+                createdAt: newUser.createdAt
+            },
+            token
+        });
+    } catch (error) {
+        if (error instanceof jwt.JsonWebTokenError) {
+            throw createError('Invalid linking token', 400);
+        }
+        throw error;
+    }
+}));
+
 // GitHub OAuth callback for Electron (POST endpoint)
 router.post('/github/callback', asyncHandler(async (req: Request, res: Response) => {
     const { code } = req.body;

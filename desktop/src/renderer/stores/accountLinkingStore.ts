@@ -54,15 +54,24 @@ export const useAccountLinkingStore = create<AccountLinkingState>((set, get) => 
                 }
             })
             
-            if (response.success) {
+            console.log('Account linking response:', response)
+            
+            if (response.success && response.data) {
                 set({
                     currentUser: response.data.currentUser,
-                    linkedAccounts: response.data.linkedAccounts,
+                    linkedAccounts: response.data.linkedAccounts || [],
                     loading: false
                 })
             } else {
                 const errorMessage = response.error || response.data?.error || response.data?.message || 'Failed to load linked accounts'
-                set({ error: errorMessage, loading: false })
+                console.error('Account linking error:', errorMessage, 'Status:', response.status)
+                
+                // If token is invalid/expired, prompt to re-login
+                if (response.status === 403 || response.status === 401) {
+                    set({ error: 'Session expired. Please log in again.', loading: false })
+                } else {
+                    set({ error: errorMessage, loading: false })
+                }
             }
         } catch (err) {
             set({ 

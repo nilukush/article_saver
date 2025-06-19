@@ -540,9 +540,18 @@ export function Settings({ onClose }: SettingsProps) {
                 existingProvider: string; 
                 linkingToken: string; 
                 email: string; 
-                action: string 
+                action: string;
+                token?: string;
             }) => {
                 setLoading(false)
+                
+                // If we have a token, save it first so user is authenticated
+                if (data.token) {
+                    localStorage.setItem('authToken', data.token)
+                    localStorage.setItem('userEmail', data.email)
+                    setIsLoggedIn(true)
+                }
+                
                 setAccountLinkingData({
                     existingProvider: data.existingProvider,
                     linkingProvider: data.provider,

@@ -88,12 +88,19 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
                         mainWindow.webContents.send('oauth-error', { provider, error })
                     } else if (action === 'link_account' && linkingToken) {
                         console.log('Account linking required for provider:', provider)
+                        // If we also have a token, save it first
+                        if (token && email) {
+                            console.log('Saving auth token before showing link prompt')
+                            mainWindow.webContents.send('oauth-success', { provider, token, email })
+                        }
+                        // Then show the linking prompt
                         mainWindow.webContents.send('oauth-account-linking', { 
                             provider, 
                             existingProvider, 
                             linkingToken, 
                             email,
-                            action 
+                            action,
+                            token // Pass token along
                         })
                     } else if (token && email) {
                         console.log('OAuth success for provider:', provider, 'with token')

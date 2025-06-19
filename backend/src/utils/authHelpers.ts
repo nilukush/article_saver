@@ -66,10 +66,24 @@ export async function handleOAuthLogin(userData: OAuthUserData, electronPort?: s
         };
     }
 
-    // Different provider, offer account linking
+    // Different provider - create a new user with this provider
+    // This allows multiple accounts with same email but different providers
+    const newProviderUser = await prisma.user.create({
+        data: {
+            email,
+            password: '', // OAuth users don't have passwords
+            provider
+        }
+    });
+    
+    // Generate token for the new account
+    const token = signJWT({ userId: newProviderUser.id, email: newProviderUser.email });
+    
+    // Also generate a linking token in case they want to link later
     const linkingToken = signJWT({ 
         userId: user.id, 
         email: user.email,
+        newUserId: newProviderUser.id,
         existingProvider: user.provider,
         linkingProvider: provider,
         action: 'link_account'
@@ -77,12 +91,14 @@ export async function handleOAuthLogin(userData: OAuthUserData, electronPort?: s
     
     return {
         type: 'link_account',
+        user: newProviderUser,
+        token,
         existingProvider: user.provider || 'unknown',
         linkingProvider: provider,
         linkingToken,
         redirectUrl: electronPort 
-            ? `http://localhost:${electronPort}/auth/callback/${provider}?action=link_account&existingProvider=${user.provider || 'unknown'}&linkingToken=${linkingToken}&email=${encodeURIComponent(email)}`
-            : `http://localhost:19858?action=link_account&existingProvider=${user.provider || 'unknown'}&linkingToken=${linkingToken}&email=${encodeURIComponent(email)}`
+            ? `http://localhost:${electronPort}/auth/callback/${provider}?action=link_account&token=${token}&existingProvider=${user.provider || 'unknown'}&linkingToken=${linkingToken}&email=${encodeURIComponent(email)}`
+            : `http://localhost:19858?action=link_account&token=${token}&existingProvider=${user.provider || 'unknown'}&linkingToken=${linkingToken}&email=${encodeURIComponent(email)}`
     };
 }
 
