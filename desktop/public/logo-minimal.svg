@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Simple, minimal design optimized for small sizes -->
+  <defs>
+    <linearGradient id="mainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8B5CF6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background Circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#mainGradient)"/>
+  
+  <!-- Stylized "A" for Article with save indicator -->
+  <g transform="translate(256, 256)">
+    <!-- Letter A shape -->
+    <path d="M -80 80 L -40 -80 L 0 60 L 40 -80 L 80 80 L 50 80 L 35 20 L 20 20 L 0 -40 L -20 20 L -35 20 L -50 80 Z" 
+          fill="white" 
+          stroke="none"/>
+    
+    <!-- Save/Download indicator -->
+    <g transform="translate(0, 50)">
+      <circle cx="0" cy="20" r="30" fill="white" opacity="0.3"/>
+      <path d="M 0 5 L 0 25 M -10 15 L 0 25 L 10 15 M -15 35 L 15 35" 
+            stroke="white" 
+            stroke-width="6" 
+            stroke-linecap="round" 
+            stroke-linejoin="round"
+            fill="none"/>
+    </g>
+  </g>
+</svg>

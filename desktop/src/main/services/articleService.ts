@@ -54,7 +54,8 @@ export class ArticleService {
                 tags,
                 isRead: false,
                 isArchived: false,
-                syncedAt: undefined
+                syncedAt: undefined,
+                savedAt: new Date().toISOString()
             }
 
             // Save to database

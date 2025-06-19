@@ -63,20 +63,30 @@
         "appId": "com.articlesaver.app",
         "productName": "Article Saver",
         "directories": {
-            "output": "release"
+            "output": "release",
+            "buildResources": "resources"
         },
         "files": [
             "dist/**/*",
-            "node_modules/**/*"
+            "node_modules/**/*",
+            "public/**/*"
         ],
         "mac": {
-            "category": "public.app-category.productivity"
+            "category": "public.app-category.productivity",
+            "icon": "resources/icons/icon.icns",
+            "hardenedRuntime": true,
+            "gatekeeperAssess": false,
+            "entitlements": "resources/entitlements.mac.plist",
+            "entitlementsInherit": "resources/entitlements.mac.plist"
         },
         "win": {
-            "target": "nsis"
+            "target": "nsis",
+            "icon": "resources/icons/icon.ico"
         },
         "linux": {
-            "target": "AppImage"
+            "target": "AppImage",
+            "icon": "resources/icons",
+            "category": "Office"
         }
     }
 }
