@@ -14,6 +14,8 @@ model User {
   id        String   @id @default(uuid())
   email     String   @unique
   password  String
+  provider  String?  @default("local") // 'local', 'google', 'github'
+  primaryAccountId String? @map("primary_account_id") // If set, this user defers to another as primary
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -21,6 +23,8 @@ model User {
   articles Article[]
   credentials Credential[]
   importSessions ImportSession[]
+  linkedAccountsOwned LinkedAccount[] @relation("LinkedAccountOwner")
+  linkedAccountsLinked LinkedAccount[] @relation("LinkedAccountLinked")
 
   @@map("users")
 }
@@ -96,4 +100,43 @@ model ImportSession {
   @@index([userId, status])
   @@index([source, status])
   @@map("import_sessions")
+}
+
+model LinkedAccount {
+  id              String   @id @default(uuid())
+  primaryUserId   String   @map("primary_user_id")
+  linkedUserId    String   @map("linked_user_id")
+  verificationCode String?  @map("verification_code") // For email verification
+  verified        Boolean  @default(false)
+  linkedAt        DateTime @default(now()) @map("linked_at")
+  
+  // Relations
+  primaryUser User @relation("LinkedAccountOwner", fields: [primaryUserId], references: [id], onDelete: Cascade)
+  linkedUser  User @relation("LinkedAccountLinked", fields: [linkedUserId], references: [id], onDelete: Cascade)
+  
+  // Ensure unique linking (can't link same accounts multiple times)
+  @@unique([primaryUserId, linkedUserId])
+  
+  // Indexes
+  @@index([primaryUserId])
+  @@index([linkedUserId])
+  @@index([verified])
+  @@map("linked_accounts")
+}
+
+model AccountLinkingAudit {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  linkedId    String?  @map("linked_id")
+  action      String   // 'link_initiated', 'link_verified', 'link_rejected', 'unlinked', 'articles_migrated', 'articles_moved', 'primary_set'
+  performedBy String   @map("performed_by") // User ID who performed the action
+  metadata    Json     @default("{}") // Additional data about the action
+  createdAt   DateTime @default(now()) @map("created_at")
+  
+  // Indexes
+  @@index([userId])
+  @@index([linkedId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("account_linking_audits")
 }

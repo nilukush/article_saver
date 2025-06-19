@@ -12,6 +12,8 @@ import articlesRoutes from './routes/articles';
 import syncRoutes from './routes/sync';
 import pocketRoutes from './routes/pocket';
 import passkeyRoutes from './routes/passkey';
+import accountLinkingRoutes from './routes/accountLinking';
+import accountMigrationRoutes from './routes/account-migration';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -87,6 +89,8 @@ app.use('/api/articles', articlesRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/pocket', pocketRoutes);
 app.use('/api/passkey', passkeyRoutes);
+app.use('/api/account-linking', accountLinkingRoutes);
+app.use('/api/account-migration', accountMigrationRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
