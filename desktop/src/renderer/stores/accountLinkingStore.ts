@@ -41,7 +41,7 @@ export const useAccountLinkingStore = create<AccountLinkingState>((set, get) => 
         
         try {
             const token = localStorage.getItem('authToken')
-            const serverUrl = localStorage.getItem('serverUrl') || 'http://localhost:3003'
+            const serverUrl = 'http://localhost:3001' // Backend runs on port 3001
             
             const response = await window.electronAPI.netFetch(`${serverUrl}/api/account-linking/linked`, {
                 headers: {
@@ -70,7 +70,7 @@ export const useAccountLinkingStore = create<AccountLinkingState>((set, get) => 
         set({ loading: true, error: null })
         
         try {
-            const serverUrl = localStorage.getItem('serverUrl') || 'http://localhost:3003'
+            const serverUrl = 'http://localhost:3001' // Backend runs on port 3001
             
             const response = await window.electronAPI.netFetch(`${serverUrl}/api/account-linking/oauth/link`, {
                 method: 'POST',
@@ -113,7 +113,7 @@ export const useAccountLinkingStore = create<AccountLinkingState>((set, get) => 
         
         try {
             const token = localStorage.getItem('authToken')
-            const serverUrl = localStorage.getItem('serverUrl') || 'http://localhost:3003'
+            const serverUrl = 'http://localhost:3001' // Backend runs on port 3001
             
             const response = await window.electronAPI.netFetch(`${serverUrl}/api/account-linking/unlink/${linkId}`, {
                 method: 'DELETE',

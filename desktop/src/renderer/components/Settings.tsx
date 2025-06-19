@@ -45,7 +45,7 @@ export function Settings({ onClose }: SettingsProps) {
     }, [hasImportedArticles, lastImportTime])
 
     // Use hardcoded API URL for static file serving (protocol interception)
-    const serverUrl = 'http://localhost:3003'
+    const serverUrl = 'http://localhost:3001' // Backend runs on port 3001
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
