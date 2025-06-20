@@ -21,7 +21,8 @@
       "Bash(rm:*)",
       "Bash(rg:*)",
       "Bash(npx prisma:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npx ts-node:*)"
     ],
     "deny": []
   }

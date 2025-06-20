@@ -114,12 +114,11 @@ export function Settings({ onClose }: SettingsProps) {
                 const data = response.data
                 localStorage.setItem('authToken', data.token)
                 localStorage.setItem('serverUrl', serverUrl)
+                localStorage.setItem('userEmail', email)
                 setIsLoggedIn(true)
                 setError(null)
-                // Close settings modal after successful login
-                setTimeout(() => {
-                    onClose()
-                }, 500) // Small delay for better UX
+                // Close settings modal immediately after successful login
+                onClose()
             } else {
                 setError(response.error || 'Login failed')
             }
@@ -148,12 +147,11 @@ export function Settings({ onClose }: SettingsProps) {
                 const data = response.data
                 localStorage.setItem('authToken', data.token)
                 localStorage.setItem('serverUrl', serverUrl)
+                localStorage.setItem('userEmail', email)
                 setIsLoggedIn(true)
                 setError(null)
-                // Close settings modal after successful login
-                setTimeout(() => {
-                    onClose()
-                }, 500) // Small delay for better UX
+                // Close settings modal immediately after successful registration
+                onClose()
             } else {
                 setError(response.error || 'Registration failed')
             }

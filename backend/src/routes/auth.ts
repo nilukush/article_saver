@@ -106,7 +106,20 @@ router.post('/login', [
     }
 
     // Check password
+    logger.info('[AUTH] Password check:', {
+        email,
+        hasPassword: !!user.password,
+        passwordLength: user.password?.length || 0,
+        inputPasswordLength: password.length
+    });
+    
     const isPasswordValid = await bcrypt.compare(password, user.password);
+    
+    logger.info('[AUTH] Password validation result:', {
+        isPasswordValid,
+        userId: user.id
+    });
+    
     if (!isPasswordValid) {
         throw createError('Invalid credentials', 401);
     }

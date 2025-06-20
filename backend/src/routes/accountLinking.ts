@@ -31,12 +31,12 @@ router.get('/linked', authenticateEnterpriseToken, resolveLinkedAccounts, asyncH
     }
 
     // Find the primary identity
-    const primaryIdentity = identities.find(id => id.isPrimary) || identities[0];
+    const primaryIdentity = identities.find((id: any) => id.isPrimary) || identities[0];
     
     // Format the response with all linked identities
     const linkedIdentities = identities
-        .filter(id => !id.isPrimary)
-        .map(identity => ({
+        .filter((id: any) => !id.isPrimary)
+        .map((identity: any) => ({
             id: identity.id,
             user: {
                 id: identity.id,
@@ -87,7 +87,7 @@ router.get('/linked', authenticateEnterpriseToken, resolveLinkedAccounts, asyncH
         };
     });
 
-    res.json({
+    return res.json({
         currentUser: {
             id: primaryIdentity.id,
             email: primaryIdentity.actualEmail || primaryIdentity.email,
