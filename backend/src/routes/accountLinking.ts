@@ -298,6 +298,14 @@ router.post('/oauth/link', asyncHandler(async (req: any, res: Response) => {
                 linkedUserIds: [newProviderUser.id]
             }, JWT_SECRET, { expiresIn: '7d' });
 
+            console.log('[ACCOUNT LINKING] Accounts already linked:', {
+                primaryUserId: primaryUser.id,
+                primaryEmail: primaryUser.email,
+                primaryProvider: primaryUser.provider,
+                linkedUserId: newProviderUser.id,
+                linkedProvider: newProviderUser.provider
+            });
+
             res.json({
                 message: 'Accounts are already linked',
                 token,

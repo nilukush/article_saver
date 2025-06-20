@@ -18,7 +18,8 @@
       "Bash(# Create iconset directory for macOS\nmkdir -p resources/icon.iconset\n\n# Copy and rename files according to Apple's requirements\ncp resources/icons/16x16.png resources/icon.iconset/icon_16x16.png\ncp resources/icons/32x32.png resources/icon.iconset/icon_16x16@2x.png\ncp resources/icons/32x32.png resources/icon.iconset/icon_32x32.png\ncp resources/icons/64x64.png resources/icon.iconset/icon_32x32@2x.png\ncp resources/icons/128x128.png resources/icon.iconset/icon_128x128.png\ncp resources/icons/256x256.png resources/icon.iconset/icon_128x128@2x.png\ncp resources/icons/256x256.png resources/icon.iconset/icon_256x256.png\ncp resources/icons/512x512.png resources/icon.iconset/icon_256x256@2x.png\ncp resources/icons/512x512.png resources/icon.iconset/icon_512x512.png\ncp resources/icons/1024x1024.png resources/icon.iconset/icon_512x512@2x.png\n\n# Create the icns file\niconutil -c icns resources/icon.iconset -o resources/icon.icns\n\n# Clean up\nrm -rf resources/icon.iconset)",
       "Bash(# Create a 512x512 PNG for GitHub OAuth\ncp resources/icons/512x512.png resources/github-oauth-logo.png\n\n# Also create one in public directory for easy access\ncp resources/icons/512x512.png public/logo-512.png\n\necho \"✅ Icons generated successfully!\"\necho \"📁 Icon locations:\"\necho \"  - Windows: resources/icon.ico\"\necho \"  - macOS: resources/icon.icns\"\necho \"  - Linux: resources/icons/256x256.png\"\necho \"  - GitHub OAuth: resources/github-oauth-logo.png\")",
       "Bash(npm install:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(rg:*)"
     ],
     "deny": []
   }

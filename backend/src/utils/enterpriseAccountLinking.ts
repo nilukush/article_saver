@@ -59,6 +59,8 @@ export async function handleEnterpriseOAuthLogin(
 ): Promise<EnterpriseOAuthResult> {
     const { email, provider, metadata } = userData;
     
+    console.log('[ENTERPRISE AUTH] OAuth login attempt:', { email, provider, electronPort });
+    
     // Evaluate provider trust level
     const trustLevel = evaluateProviderTrust(provider, email, metadata);
     
@@ -73,6 +75,12 @@ export async function handleEnterpriseOAuthLogin(
     
     if (existingProviderAccount) {
         // Same email+provider exists - just log them in
+        console.log('[ENTERPRISE AUTH] Found exact email+provider match:', { 
+            userId: existingProviderAccount.id, 
+            email, 
+            provider 
+        });
+        
         const token = jwt.sign(
             { userId: existingProviderAccount.id, email: existingProviderAccount.email },
             JWT_SECRET,
@@ -103,8 +111,16 @@ export async function handleEnterpriseOAuthLogin(
         where: { email }
     });
     
+    console.log('[ENTERPRISE AUTH] Found existing accounts with email:', { 
+        email, 
+        count: existingAccounts.length,
+        providers: existingAccounts.map(a => a.provider)
+    });
+    
     if (existingAccounts.length === 0) {
         // No existing account with this email - create new user
+        console.log('[ENTERPRISE AUTH] Creating new user account:', { email, provider });
+        
         const user = await prisma.user.create({
             data: {
                 email,
@@ -149,8 +165,120 @@ export async function handleEnterpriseOAuthLogin(
     }
     
     // At this point: Email exists but with a different provider
-    // This triggers the account linking flow
+    // Check if accounts are already linked before creating a new one
     const primaryAccount = existingAccounts[0]; // For now, use first account as primary
+    
+    // Check if there's already a linked account for this provider
+    console.log('[ENTERPRISE AUTH] Checking for existing linked accounts:', {
+        primaryAccountId: primaryAccount.id,
+        primaryProvider: primaryAccount.provider,
+        searchingForProvider: provider,
+        email
+    });
+    
+    // First, let's check all linked accounts for debugging
+    const allLinkedAccounts = await prisma.linkedAccount.findMany({
+        where: {
+            OR: [
+                { primaryUserId: primaryAccount.id },
+                { linkedUserId: primaryAccount.id }
+            ]
+        },
+        include: {
+            primaryUser: true,
+            linkedUser: true
+        }
+    });
+    
+    console.log('[ENTERPRISE AUTH] All linked accounts for primary user:', {
+        count: allLinkedAccounts.length,
+        accounts: allLinkedAccounts.map(la => ({
+            id: la.id,
+            verified: la.verified,
+            primaryUser: { id: la.primaryUser.id, email: la.primaryUser.email, provider: la.primaryUser.provider },
+            linkedUser: { id: la.linkedUser.id, email: la.linkedUser.email, provider: la.linkedUser.provider, metadata: la.linkedUser.metadata }
+        }))
+    });
+    
+    // Now check for a linked account with the specific provider
+    // We need to check if any of the linked accounts are for the requested provider
+    let existingLinkedAccount = null;
+    
+    for (const linkedAccount of allLinkedAccounts) {
+        if (!linkedAccount.verified) continue;
+        
+        // Check if the linked user is the provider we're looking for
+        if (linkedAccount.primaryUserId === primaryAccount.id && 
+            linkedAccount.linkedUser.provider === provider) {
+            // Check if it's the same email (either direct match or in metadata)
+            const linkedUserEmail = linkedAccount.linkedUser.email;
+            const linkedUserActualEmail = (linkedAccount.linkedUser.metadata as any)?.actualEmail;
+            
+            if (linkedUserEmail === email || linkedUserActualEmail === email) {
+                existingLinkedAccount = linkedAccount;
+                break;
+            }
+        }
+        
+        // Check if the primary user is the provider we're looking for (reverse link)
+        if (linkedAccount.linkedUserId === primaryAccount.id && 
+            linkedAccount.primaryUser.provider === provider) {
+            // Check if it's the same email (either direct match or in metadata)
+            const primaryUserEmail = linkedAccount.primaryUser.email;
+            const primaryUserActualEmail = (linkedAccount.primaryUser.metadata as any)?.actualEmail;
+            
+            if (primaryUserEmail === email || primaryUserActualEmail === email) {
+                existingLinkedAccount = linkedAccount;
+                break;
+            }
+        }
+    }
+    
+    console.log('[ENTERPRISE AUTH] Existing linked account search result:', {
+        found: !!existingLinkedAccount,
+        account: existingLinkedAccount ? {
+            id: existingLinkedAccount.id,
+            verified: existingLinkedAccount.verified,
+            primaryUser: { id: existingLinkedAccount.primaryUser.id, email: existingLinkedAccount.primaryUser.email, provider: existingLinkedAccount.primaryUser.provider },
+            linkedUser: { id: existingLinkedAccount.linkedUser.id, email: existingLinkedAccount.linkedUser.email, provider: existingLinkedAccount.linkedUser.provider }
+        } : null
+    });
+    
+    if (existingLinkedAccount) {
+        // Accounts are already linked - just log them in
+        const linkedProviderAccount = existingLinkedAccount.primaryUserId === primaryAccount.id 
+            ? existingLinkedAccount.linkedUser 
+            : existingLinkedAccount.primaryUser;
+            
+        // Update last login for the linked account
+        await prisma.user.update({
+            where: { id: linkedProviderAccount.id },
+            data: {
+                metadata: {
+                    ...linkedProviderAccount.metadata as any,
+                    lastLoginAt: new Date()
+                }
+            }
+        });
+        
+        // Generate token using the primary account (for consistency)
+        const token = jwt.sign(
+            { userId: primaryAccount.id, email: primaryAccount.email },
+            JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+        
+        console.log('[ENTERPRISE AUTH] Using existing linked account for', email, 'with provider', provider);
+        
+        return {
+            type: 'success',
+            user: primaryAccount,
+            token,
+            redirectUrl: buildRedirectUrl(electronPort, provider, { token, email })
+        };
+    }
+    
+    // No existing linked account found - proceed with creating new account
     const primaryTrust = evaluateProviderTrust(
         primaryAccount.provider || 'unknown',
         primaryAccount.email,
