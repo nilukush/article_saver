@@ -76,9 +76,7 @@ router.get('/linked', authenticateEnterpriseToken, resolveLinkedAccounts, asyncH
             id: la.id,
             user: {
                 id: linkedUser.id,
-                email: actualEmail.includes('.') && actualEmail.includes('@') 
-                    ? actualEmail.split('.')[0] + '@' + actualEmail.split('@')[1] 
-                    : actualEmail,
+                email: actualEmail,
                 provider: linkedUser.provider || 'local',
                 createdAt: linkedUser.createdAt
             },

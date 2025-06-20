@@ -114,7 +114,7 @@ export function Settings({ onClose }: SettingsProps) {
                 const data = response.data
                 localStorage.setItem('authToken', data.token)
                 localStorage.setItem('serverUrl', serverUrl)
-                localStorage.setItem('userEmail', email)
+                localStorage.setItem('userEmail', data.user?.email || email)
                 setIsLoggedIn(true)
                 setError(null)
                 // Close settings modal immediately after successful login
@@ -147,7 +147,7 @@ export function Settings({ onClose }: SettingsProps) {
                 const data = response.data
                 localStorage.setItem('authToken', data.token)
                 localStorage.setItem('serverUrl', serverUrl)
-                localStorage.setItem('userEmail', email)
+                localStorage.setItem('userEmail', data.user?.email || email)
                 setIsLoggedIn(true)
                 setError(null)
                 // Close settings modal immediately after successful registration

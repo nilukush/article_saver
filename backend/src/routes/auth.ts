@@ -157,8 +157,8 @@ router.post('/login', [
     res.json({
         message: 'Login successful',
         user: {
-            id: user.id,
-            email: user.email,
+            id: primaryUserId,
+            email: tokenEmail, // Use the resolved email
             createdAt: user.createdAt
         },
         token
