@@ -8,7 +8,9 @@ import { Settings } from './components/Settings'
 import { ImportProgressHeader } from './components/ImportProgressHeader'
 import { WelcomeBanner } from './components/WelcomeBanner'
 import { useArticleStore } from './stores/articleStore'
+import { useImportStore } from './stores/importStore'
 import type { Article } from '../../shared/types'
+// Simplified enterprise-grade progress tracking system
 
 function App() {
     const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
@@ -28,6 +30,8 @@ function App() {
         clearSearch
     } = useArticleStore()
 
+    const { discoverAndRecoverSessions } = useImportStore()
+
     useEffect(() => {
         // Check authentication status
         const token = localStorage.getItem('authToken')
@@ -36,8 +40,10 @@ function App() {
         // Only load articles if authenticated
         if (token) {
             loadInitialArticles()
+            // Discover and recover any active import sessions on app startup
+            discoverAndRecoverSessions()
         }
-    }, [loadInitialArticles])
+    }, [loadInitialArticles, discoverAndRecoverSessions])
 
     // Check for authentication changes
     useEffect(() => {
@@ -46,6 +52,8 @@ function App() {
             setIsAuthenticated(!!token)
             if (token) {
                 loadInitialArticles()
+                // Also discover sessions when auth changes
+                discoverAndRecoverSessions()
             }
         }
 

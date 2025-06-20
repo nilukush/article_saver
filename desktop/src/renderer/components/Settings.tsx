@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useArticleStore } from '../stores/articleStore'
 import { useImportStore } from '../stores/importStore'
 import { ImportStatusSection } from './ImportStatusSection'
 import { AccountLinking } from './AccountLinking'
 import { EnterpriseAccountLinkingPrompt } from './EnterpriseAccountLinkingPrompt'
+// Simplified imports - removed unused hooks
 
 interface SettingsProps {
     onClose: () => void
@@ -27,7 +28,16 @@ export function Settings({ onClose }: SettingsProps) {
 
     // Get stores
     const { loadArticles, totalArticles } = useArticleStore()
-    const { startImport, completeImport } = useImportStore()
+    const { startImport, activeImports, removeImport, discoverAndRecoverSessions } = useImportStore()
+    
+    // Check if Pocket import is currently active
+    const isPocketImportActive = activeImports.some(imp => 
+        imp.provider === 'pocket' && imp.status === 'running'
+    )
+    
+    // Active import tracking removed - now handled by ImportProgressHeader
+    
+    // Real-time progress updates now handled by ImportProgressHeader component
 
     // Import status detection
     const hasImportedArticles = totalArticles > 0
@@ -41,6 +51,7 @@ export function Settings({ onClose }: SettingsProps) {
     const [pocketUsername, setPocketUsername] = useState<string | null>(null)
     const [pocketLastSynced, setPocketLastSynced] = useState<Date | null>(null)
     const [checkingPocketAuth, setCheckingPocketAuth] = useState(false)
+    // Removed unused state variables - simplified import flow
 
     // Set fallback timestamp for existing imported articles without timestamp
     useEffect(() => {
@@ -52,18 +63,36 @@ export function Settings({ onClose }: SettingsProps) {
         }
     }, [hasImportedArticles, lastImportTime])
 
-    // Check Pocket auth when user logs in
+    // Check Pocket auth and discover sessions when user logs in
     useEffect(() => {
         if (isLoggedIn) {
             checkPocketAuth()
+            discoverAndRecoverSessions()
         }
-    }, [isLoggedIn])
+    }, [isLoggedIn, discoverAndRecoverSessions])
+    
+    // Debug: Log active imports
+    useEffect(() => {
+        console.log('🔍 Active imports:', activeImports)
+        // Clear any stuck imports that are older than 10 minutes
+        const now = Date.now()
+        activeImports.forEach(imp => {
+            const importTime = new Date(imp.startTime).getTime()
+            const age = now - importTime
+            if (age > 10 * 60 * 1000 && imp.status === 'running') {
+                console.log('🧹 Clearing stuck import:', imp.id)
+                removeImport(imp.id)
+            }
+        })
+    }, [activeImports.length]) // Only when count changes
+    
+    // Progress polling is now handled by useProgressPolling hook in ImportProgressHeader
 
     // Use hardcoded API URL for static file serving (protocol interception)
     const serverUrl = 'http://localhost:3003' // Backend runs on port 3003
 
-    // Check Pocket authorization status
-    const checkPocketAuth = async () => {
+    // Check Pocket authorization status - memoized to prevent infinite loops
+    const checkPocketAuth = useCallback(async () => {
         if (!isLoggedIn) return
         
         setCheckingPocketAuth(true)
@@ -77,24 +106,141 @@ export function Settings({ onClose }: SettingsProps) {
                 }
             })
 
-            if (response.success) {
-                setPocketAuthorized(response.authorized)
-                setPocketUsername(response.username)
-                if (response.lastSynced) {
-                    setPocketLastSynced(new Date(response.lastSynced))
+            if (response.success && response.data) {
+                setPocketAuthorized(response.data.authorized)
+                setPocketUsername(response.data.username)
+                if (response.data.lastSynced) {
+                    setPocketLastSynced(new Date(response.data.lastSynced))
                 }
+                return response.data.authorized
             } else {
                 setPocketAuthorized(false)
                 setPocketUsername(null)
                 setPocketLastSynced(null)
+                return false
             }
         } catch (error) {
             console.error('Failed to check Pocket auth status:', error)
             setPocketAuthorized(false)
+            return false
         } finally {
             setCheckingPocketAuth(false)
         }
+    }, [isLoggedIn, serverUrl])
+
+    // Poll for Pocket authorization completion
+    const startPocketAuthPolling = (importAfterAuth: boolean) => {
+        let pollCount = 0
+        const maxPolls = 60 // Poll for up to 2 minutes (60 * 2 seconds)
+        
+        setError('Waiting for Pocket authorization... Please complete authorization in your browser.')
+        
+        const pollInterval = setInterval(async () => {
+            pollCount++
+            
+            // Update status message every 10 seconds
+            if (pollCount % 5 === 0) {
+                setError(`Still waiting for Pocket authorization... (${Math.floor(pollCount * 2)} seconds elapsed)`)
+            }
+            
+            const isAuthorized = await checkPocketAuth()
+            console.log(`[POCKET POLL ${pollCount}] Authorization status:`, isAuthorized)
+            
+            if (isAuthorized) {
+                clearInterval(pollInterval)
+                setError('Pocket has been authorized successfully!')
+                
+                // If user wanted to import after auth, start the import
+                const shouldImportFlag = localStorage.getItem('pocketImportAfterAuth') === 'true'
+                if (importAfterAuth || shouldImportFlag) {
+                    localStorage.removeItem('pocketImportAfterAuth')
+                    setError('Starting Pocket import...')
+                    setTimeout(() => {
+                        handlePocketImport()
+                        // Close the settings modal after 2 seconds to show import progress
+                        setTimeout(() => {
+                            onClose()
+                        }, 2000)
+                    }, 1000)
+                }
+            } else if (pollCount >= maxPolls) {
+                clearInterval(pollInterval)
+                setError('Pocket authorization timed out. Please try again.')
+                localStorage.removeItem('pocketImportAfterAuth')
+            }
+        }, 2000) // Check every 2 seconds
     }
+
+    // Check for Pocket authorization callback in URL
+    useEffect(() => {
+        if (!isLoggedIn) return
+
+        const checkUrlForPocketAuth = () => {
+            const urlParams = new URLSearchParams(window.location.search)
+            const pocketAuthorizedParam = urlParams.get('pocket_authorized')
+            const shouldImportFlag = localStorage.getItem('pocketImportAfterAuth') === 'true'
+            
+            const debugMsg = `URL: ${window.location.href}, pocket_authorized: ${pocketAuthorizedParam}, shouldImport: ${shouldImportFlag}`
+            console.log('[POCKET AUTH DEBUG]', debugMsg)
+            
+            console.log('[POCKET AUTH CHECK] URL:', window.location.href)
+            console.log('[POCKET AUTH CHECK] pocket_authorized param:', pocketAuthorizedParam)
+            console.log('[POCKET AUTH CHECK] isLoggedIn:', isLoggedIn)
+            console.log('[POCKET AUTH CHECK] shouldImportFlag from localStorage:', shouldImportFlag)
+            
+            if (pocketAuthorizedParam === 'true') {
+                // Pocket authorization completed - refresh auth status
+                setError('Pocket authorization successful! Refreshing status...')
+                
+                // Clean up URL parameters immediately
+                window.history.replaceState({}, document.title, window.location.pathname)
+                
+                checkPocketAuth().then((authSuccessful) => {
+                    console.log('[POCKET AUTH CHECK] After checkPocketAuth, authSuccessful:', authSuccessful)
+                    console.log('[POCKET AUTH CHECK] pocketAuthorized state:', pocketAuthorized)
+                    
+                    // Check the flag from localStorage since state might have been reset
+                    if (shouldImportFlag) {
+                        localStorage.removeItem('pocketImportAfterAuth')
+                        setError('Starting Pocket import...')
+                        console.log('[POCKET AUTH CHECK] Starting import after auth...')
+                        // Give a slight delay to ensure Pocket auth state is updated
+                        setTimeout(() => {
+                            // Check if we're actually authorized before importing
+                            checkPocketAuth().then(() => {
+                                handlePocketImport()
+                            })
+                        }, 1000)
+                    } else {
+                        setError('Pocket has been authorized successfully! You can now import your articles.')
+                    }
+                })
+            }
+        }
+
+        // Check on mount
+        checkUrlForPocketAuth()
+
+        // Also check when URL changes (for SPA navigation)
+        const handlePopState = () => checkUrlForPocketAuth()
+        window.addEventListener('popstate', handlePopState)
+
+        // Check periodically for a short time in case the URL changed without navigation
+        let checkCount = 0
+        const interval = setInterval(() => {
+            checkUrlForPocketAuth()
+            checkCount++
+            // Stop checking after 10 seconds
+            if (checkCount > 10) {
+                clearInterval(interval)
+            }
+        }, 1000)
+
+        return () => {
+            window.removeEventListener('popstate', handlePopState)
+            clearInterval(interval)
+        }
+    }, [isLoggedIn])
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -349,9 +495,16 @@ export function Settings({ onClose }: SettingsProps) {
     }
 
     // Handle Pocket authorization
-    const handlePocketAuthorize = async () => {
+    const handlePocketAuthorize = async (importAfterAuth = false) => {
         setLoading(true)
         setError(null)
+        
+        // Persist the flag to localStorage
+        if (importAfterAuth) {
+            localStorage.setItem('pocketImportAfterAuth', 'true')
+        } else {
+            localStorage.removeItem('pocketImportAfterAuth')
+        }
 
         try {
             const token = localStorage.getItem('authToken')
@@ -374,35 +527,51 @@ export function Settings({ onClose }: SettingsProps) {
                 },
             })
 
+            console.log('Pocket auth URL response:', response)
+            
             if (response.success) {
                 const data = response.data
                 // Open OAuth URL in system browser using Electron IPC
                 await window.electronAPI.openOAuthUrl(data.url)
                 setError('Please authorize Pocket access in your browser. The app will automatically detect when you complete authorization.')
+                
+                // Start polling for authorization completion
+                startPocketAuthPolling(importAfterAuth)
             } else {
                 setError(response.error || 'Failed to get Pocket authorization URL')
             }
         } catch (err) {
-            setError('Failed to connect to Pocket')
+            console.error('Pocket authorization error:', err)
+            setError(err instanceof Error ? err.message : 'Failed to connect to Pocket')
         } finally {
             setLoading(false)
         }
     }
 
-    // Handle Pocket import using stored authorization
-    const handlePocketImport = async () => {
+    // Handle Pocket import using stored authorization - memoized
+    const handlePocketImport = useCallback(async () => {
+        console.log('🚀 handlePocketImport: Starting import process')
         setLoading(true)
         setError(null)
 
         try {
             const token = localStorage.getItem('authToken')
+            console.log('🔑 handlePocketImport: Token exists:', !!token)
             
-            if (!pocketAuthorized) {
+            // Verify Pocket authorization
+            console.log('🔍 handlePocketImport: Checking Pocket authorization...')
+            const isAuthorized = await checkPocketAuth()
+            console.log('✅ handlePocketImport: Pocket authorized:', isAuthorized)
+            
+            if (!isAuthorized) {
+                console.log('❌ handlePocketImport: Not authorized, stopping')
                 setError('Please authorize Pocket access first')
+                setLoading(false)
                 return
             }
 
-            // Import articles using stored authorization
+            // Start import with backend
+            console.log('📡 handlePocketImport: Making import request to backend...')
             const response = await window.electronAPI.netFetch(`${serverUrl}/api/pocket/import/stored`, {
                 method: 'POST',
                 headers: {
@@ -414,14 +583,22 @@ export function Settings({ onClose }: SettingsProps) {
                     includeArchived: true
                 }),
             })
+            
+            console.log('📡 handlePocketImport: Backend response received:', response)
 
             if (response.success) {
                 const data = response.data
-                setError(`Import started successfully! Session ID: ${data.sessionId}. Check progress in the Import Status section.`)
+                console.log('📦 handlePocketImport: Response data:', data)
+                console.log('🆔 handlePocketImport: Session ID:', data?.sessionId)
                 
-                // Start background import using the new import store
+                setError(`Import started successfully! Session ID: ${data.sessionId}`)
+                
+                // Create import job in store with session tracking
                 const userId = localStorage.getItem('userEmail') || 'unknown'
-                startImport({
+                console.log('🏪 handlePocketImport: Creating import job with sessionId:', data.sessionId)
+                
+                const importJobId = startImport({
+                    sessionId: data.sessionId,
                     userId,
                     provider: 'pocket',
                     status: 'running',
@@ -434,10 +611,17 @@ export function Settings({ onClose }: SettingsProps) {
                     }
                 })
                 
+                console.log('✨ handlePocketImport: Import job created with ID:', importJobId)
+                
                 // Update last import time
                 const importTimestamp = new Date().toISOString()
                 localStorage.setItem('lastPocketImport', importTimestamp)
                 setLastImportTime(importTimestamp)
+                
+                // Close modal after 1.5 seconds so user can see the import progress
+                setTimeout(() => {
+                    onClose()
+                }, 1500)
             } else {
                 setError(response.error || 'Failed to start import')
             }
@@ -446,7 +630,7 @@ export function Settings({ onClose }: SettingsProps) {
         } finally {
             setLoading(false)
         }
-    }
+    }, [checkPocketAuth, startImport, loadArticles, serverUrl])
 
     // Handle revoking Pocket authorization
     const handlePocketRevoke = async () => {
@@ -479,12 +663,21 @@ export function Settings({ onClose }: SettingsProps) {
         }
     }
 
+    // Initialize authentication state
     useEffect(() => {
         const token = localStorage.getItem('authToken')
         if (token) {
             setIsLoggedIn(true)
+            // Initial setup - stale import clearing now handled by new progress system
         }
+    }, []) // Only run on mount
+    
+    // Force update mechanism removed - using new progress tracking system
+    
+    // Legacy polling mechanism removed - progress tracking now handled by ImportProgressHeader
 
+    // OAuth event listeners - separate effect to avoid nesting
+    useEffect(() => {
         // Listen for OAuth success events (direct token from backend)
         if (window.electronAPI?.onOAuthSuccess) {
             window.electronAPI.onOAuthSuccess(async (data: { provider: string; token: string; email: string; pocket_authorized?: boolean }) => {
@@ -549,11 +742,11 @@ export function Settings({ onClose }: SettingsProps) {
                 window.electronAPI.removeOAuthListeners()
             }
         }
-    }, [startImport, completeImport, loadArticles, onClose])
+    }, []) // Only run on mount
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-96 max-w-full">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-96 max-w-full max-h-[90vh] overflow-y-auto">
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                         Account
@@ -574,6 +767,34 @@ export function Settings({ onClose }: SettingsProps) {
                         {error}
                     </div>
                 )}
+                
+                {/* Debug info */}
+                <div className="mb-2 text-xs text-gray-500">
+                    Active imports: {activeImports.length}
+                </div>
+                
+                {/* Debug: Clear stuck imports button */}
+                {activeImports.length > 0 && (
+                    <button
+                        onClick={() => {
+                            console.log('🧹 Clearing all imports')
+                            activeImports.forEach(imp => {
+                                console.log('Removing import:', imp.id, 'with session:', imp.sessionId)
+                                removeImport(imp.id)
+                            })
+                            // Also clear localStorage
+                            localStorage.removeItem('import-store')
+                            // Force reload to clear everything
+                            setTimeout(() => {
+                                window.location.reload()
+                            }, 500)
+                        }}
+                        className="mb-4 text-xs text-red-600 hover:text-red-700 underline"
+                    >
+                        Clear {activeImports.length} stuck import(s)
+                    </button>
+                )}
+                
 
                 {!isLoggedIn ? (
                     <div className="space-y-4">
@@ -712,7 +933,7 @@ export function Settings({ onClose }: SettingsProps) {
                                         </span>
                                     </div>
                                     <button
-                                        onClick={handlePocketAuthorize}
+                                        onClick={() => handlePocketAuthorize(false)}
                                         disabled={loading}
                                         className="text-xs bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 px-2 py-1 rounded hover:bg-orange-200 dark:hover:bg-orange-800 disabled:opacity-50"
                                     >
@@ -734,18 +955,30 @@ export function Settings({ onClose }: SettingsProps) {
                             ) : (
                                 <div>
                                     <button
-                                        onClick={pocketAuthorized ? handlePocketImport : handlePocketAuthorize}
-                                        disabled={loading}
+                                        onClick={() => {
+                                            console.log('🔘 Import button clicked! pocketAuthorized:', pocketAuthorized, 'loading:', loading, 'isPocketImportActive:', isPocketImportActive)
+                                            if (pocketAuthorized) {
+                                                console.log('🎯 Calling handlePocketImport')
+                                                handlePocketImport()
+                                            } else {
+                                                console.log('🎯 Calling handlePocketAuthorize(true)')
+                                                handlePocketAuthorize(true)
+                                            }
+                                        }}
+                                        disabled={loading || isPocketImportActive}
                                         className="w-full bg-orange-600 text-white py-3 px-4 rounded-md hover:bg-orange-700 disabled:opacity-50 flex items-center justify-center space-x-2 transition-colors"
                                     >
                                         <span>📚</span>
                                         <span>
-                                            {loading ? 'Processing...' : 
+                                            {isPocketImportActive ? 'Import in progress...' :
+                                             loading ? 'Processing...' : 
                                              pocketAuthorized ? 'Import from Pocket' : 'Authorize & Import from Pocket'}
                                         </span>
                                     </button>
                                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 px-1">
-                                        {pocketAuthorized ? 
+                                        {isPocketImportActive ? 
+                                         'Pocket import is currently running. Check the banner above for progress.' :
+                                         pocketAuthorized ? 
                                          'Import your saved articles from Pocket (runs in background)' :
                                          'First authorize Pocket access, then import your articles'}
                                     </p>
@@ -786,6 +1019,8 @@ export function Settings({ onClose }: SettingsProps) {
                                 <span>🔗</span>
                                 <span>Manage Linked Accounts</span>
                             </button>
+                            
+                            {/* Stale import clearing removed - handled automatically by new progress system */}
                             
                             <button
                                 onClick={handleLogout}

@@ -1,6 +1,7 @@
 import { bulkArticleProcessor } from './BulkArticleProcessor';
 import { importStateManager } from './ImportStateManager';
 import logger from '../utils/logger';
+import { prisma } from '../database';
 
 interface ImportJob {
     sessionId: string;
@@ -101,16 +102,31 @@ export class BackgroundJobProcessor {
                 currentAction: 'Processing import data...'
             });
             
+            // Also update session status to running
+            await prisma.importSession.update({
+                where: { id: sessionId },
+                data: { status: 'running' }
+            });
+            
             let articles: any[] = [];
             
             if (source === 'pocket') {
-                // Transform Pocket data to our format
-                articles = this.transformPocketData(data.articles || []);
+                if (data.articles) {
+                    // Transform Pocket data to our format (for legacy calls)
+                    articles = this.transformPocketData(data.articles);
+                } else if (data.accessToken && data.consumerKey) {
+                    // Fetch articles from Pocket API directly
+                    logger.info('🔍 BACKGROUND JOB: Fetching articles from Pocket API', { sessionId });
+                    articles = await this.fetchPocketArticles(sessionId, data);
+                } else {
+                    throw new Error('Invalid Pocket import data: missing articles or API credentials');
+                }
             } else if (source === 'manual') {
                 articles = data.articles || [];
             }
             
             if (articles.length === 0) {
+                logger.info('✅ BACKGROUND JOB: No articles to import', { sessionId });
                 await importStateManager.completeSession(sessionId, 'completed');
                 return;
             }
@@ -201,6 +217,176 @@ export class BackgroundJobProcessor {
                 logger.error('❌ BACKGROUND JOB: Failed to mark session as failed', { sessionId, err });
             });
         }
+    }
+    
+    /**
+     * Fetch articles from Pocket API
+     */
+    private async fetchPocketArticles(sessionId: string, data: any): Promise<any[]> {
+        const { accessToken, consumerKey, batchSize = 100, includeArchived = true } = data;
+        
+        // Update progress
+        await importStateManager.updateProgress(sessionId, {
+            currentAction: 'Fetching articles from Pocket API...'
+        });
+        
+        const POCKET_PAGE_SIZE = 30;
+        const RATE_LIMIT_DELAY = 2000; // 2 seconds between requests
+        const MAX_RETRIES = 3;
+        
+        let allArticles: any = {};
+        let offset = 0;
+        let hasMoreResults = true;
+        let totalFetched = 0;
+        let pageNumber = 1;
+        
+        logger.info('🔍 POCKET IMPORT: Starting rate-limited paginated fetch from Pocket API...', { sessionId });
+        
+        // Fetch all articles using pagination with rate limiting
+        while (hasMoreResults) {
+            // Update progress with current state
+            await importStateManager.updateProgress(sessionId, {
+                currentPage: pageNumber,
+                currentAction: `Fetching page ${pageNumber} from Pocket API...`,
+                totalArticles: totalFetched > 0 ? totalFetched : 0, // Show current fetch count
+                articlesProcessed: totalFetched, // Show fetched count as progress during fetch phase
+                totalPages: pageNumber
+            });
+            
+            logger.info(`🔍 POCKET IMPORT: Fetching page ${pageNumber} at offset ${offset}...`, { sessionId });
+            
+            let retryCount = 0;
+            let pageSuccess = false;
+            let pocketData: any = null;
+            
+            // Retry logic for rate limiting
+            while (!pageSuccess && retryCount < MAX_RETRIES) {
+                try {
+                    // Add delay before each request to respect rate limits
+                    if (pageNumber > 1) {
+                        logger.info(`🔍 POCKET IMPORT: Waiting ${RATE_LIMIT_DELAY}ms to respect rate limits...`, { sessionId });
+                        await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY));
+                    }
+                    
+                    const retrieveResponse = await fetch('https://getpocket.com/v3/get', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json; charset=UTF-8',
+                            'X-Accept': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            consumer_key: consumerKey,
+                            access_token: accessToken,
+                            detailType: 'complete',
+                            state: includeArchived ? 'all' : 'unread',
+                            sort: 'newest',
+                            count: POCKET_PAGE_SIZE,
+                            offset: offset
+                        }),
+                    });
+                    
+                    // Check for rate limiting or server errors
+                    if (retrieveResponse.status === 429 || retrieveResponse.status === 502 || retrieveResponse.status === 503) {
+                        retryCount++;
+                        const backoffDelay = Math.pow(2, retryCount) * 1000; // Exponential backoff
+                        logger.warn(`⚠️ POCKET IMPORT: Rate limited or server error (${retrieveResponse.status}), retry ${retryCount}/${MAX_RETRIES} in ${backoffDelay}ms`, { sessionId });
+                        
+                        if (retryCount < MAX_RETRIES) {
+                            await new Promise(resolve => setTimeout(resolve, backoffDelay));
+                            continue;
+                        } else {
+                            throw new Error(`Pocket API rate limited after ${MAX_RETRIES} retries`);
+                        }
+                    }
+                    
+                    if (!retrieveResponse.ok) {
+                        const errorText = await retrieveResponse.text();
+                        logger.error('❌ POCKET IMPORT: API Error Response:', { sessionId, errorText });
+                        throw new Error(`Pocket API error: ${retrieveResponse.status} ${retrieveResponse.statusText}`);
+                    }
+                    
+                    const contentType = retrieveResponse.headers.get('content-type');
+                    if (!contentType?.includes('application/json')) {
+                        throw new Error('Pocket API returned invalid response. Check your access token.');
+                    }
+                    
+                    pocketData = await retrieveResponse.json();
+                    
+                    if (pocketData.status !== 1) {
+                        logger.error('❌ POCKET IMPORT: Invalid Pocket response status:', { sessionId, status: pocketData.status });
+                        throw new Error('Failed to retrieve articles from Pocket');
+                    }
+                    
+                    pageSuccess = true;
+                    
+                } catch (error) {
+                    retryCount++;
+                    if (retryCount >= MAX_RETRIES) {
+                        throw error;
+                    }
+                    
+                    const backoffDelay = Math.pow(2, retryCount) * 1000;
+                    logger.warn(`⚠️ POCKET IMPORT: Error on page ${pageNumber}, retry ${retryCount}/${MAX_RETRIES} in ${backoffDelay}ms:`, { sessionId, error });
+                    await new Promise(resolve => setTimeout(resolve, backoffDelay));
+                }
+            }
+            
+            const pageArticles = pocketData.list || {};
+            const pageCount = Object.keys(pageArticles).length;
+            
+            logger.info(`🔍 POCKET IMPORT: Page ${pageNumber} fetched - ${pageCount} articles`, { sessionId });
+            
+            // Check if we have any articles on this page
+            if (pageCount === 0) {
+                hasMoreResults = false;
+                logger.info('🔍 POCKET IMPORT: No more articles found, ending pagination', { sessionId });
+                break;
+            }
+            
+            // Merge articles from this page
+            allArticles = { ...allArticles, ...pageArticles };
+            totalFetched += pageCount;
+            
+            // Update progress after each successful page fetch
+            await importStateManager.updateProgress(sessionId, {
+                currentPage: pageNumber,
+                currentAction: `Fetched ${totalFetched} articles so far...`,
+                totalArticles: totalFetched,
+                articlesProcessed: totalFetched, // Show fetched count as progress
+                totalPages: pageCount < POCKET_PAGE_SIZE ? pageNumber : pageNumber + 1
+            });
+            
+            // Check if we have fewer articles than requested (end of data)
+            if (pageCount < POCKET_PAGE_SIZE) {
+                hasMoreResults = false;
+                logger.info('🔍 POCKET IMPORT: Received fewer articles than requested, reached end of data', { sessionId });
+            } else {
+                offset += POCKET_PAGE_SIZE;
+                pageNumber++;
+                logger.info(`🔍 POCKET IMPORT: More results available, continuing with offset ${offset}`, { sessionId });
+            }
+            
+            // Safety check to prevent infinite loops - allow much larger imports
+            if (pageNumber > 500) { // Max 15,000 articles (500 pages * 30 articles)
+                logger.warn('🔍 POCKET IMPORT: Safety limit reached (500 pages), stopping pagination', { sessionId });
+                hasMoreResults = false;
+            }
+        }
+        
+        const articleEntries = Object.entries(allArticles);
+        const totalArticleCount = articleEntries.length;
+        
+        logger.info(`🔍 POCKET IMPORT: Pagination complete! Retrieved ${totalArticleCount} articles from Pocket API`, { sessionId });
+        
+        // Update final fetch count
+        await importStateManager.updateProgress(sessionId, {
+            currentAction: `Fetched ${totalArticleCount} articles, preparing for import...`,
+            totalArticles: totalArticleCount,
+            articlesProcessed: 0 // Reset for actual processing phase
+        });
+        
+        // Transform to our format
+        return this.transformPocketData(articleEntries.map(([itemId, item]) => ({ ...(item as any), item_id: itemId })));
     }
     
     /**

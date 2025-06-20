@@ -18,6 +18,7 @@
         "clean:dist": "rm -rf dist",
         "clean:cache": "rm -rf node_modules/.cache && rm -rf node_modules/.vite",
         "clean:all": "npm run clean && rm -rf node_modules && npm install",
+        "clean:data": "npx ts-node scripts/clean-local-data.ts",
         "dev:clean": "npm run clean && npm run dev",
         "build:clean": "npm run clean && npm run build",
         "restart": "scripts/restart-desktop.sh",

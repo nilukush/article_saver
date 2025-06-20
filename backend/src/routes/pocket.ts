@@ -131,10 +131,9 @@ router.get('/auth/url', authenticateToken, asyncHandler(async (req: Request, res
     const consumerKey = process.env.POCKET_CONSUMER_KEY;
     const port = req.query.port as string;
 
-    // Use dynamic OAuth server port if provided, otherwise fallback to backend callback
-    const redirectUri = port
-        ? `http://localhost:${port}/auth/callback/pocket`
-        : process.env.POCKET_REDIRECT_URI || 'http://localhost:3003/api/pocket/callback';
+    // Always use backend callback for Pocket OAuth
+    // Pocket doesn't support dynamic redirect URIs like Google/GitHub
+    const redirectUri = process.env.POCKET_REDIRECT_URI || 'http://localhost:3003/api/pocket/callback';
 
     if (!consumerKey || consumerKey === 'your-pocket-consumer-key-here') {
         throw createError('Pocket integration is not configured. Please add valid POCKET_CONSUMER_KEY to environment variables.', 503);
@@ -291,10 +290,186 @@ router.get('/callback', asyncHandler(async (req: Request, res: Response) => {
         logger.warn('⚠️ POCKET CALLBACK: No user context available for token storage');
     }
 
-    logger.info('✅ POCKET CALLBACK: Successfully got access token, redirecting to Vite server');
+    logger.info('✅ POCKET CALLBACK: Successfully got access token, showing success page');
 
-    // Redirect to frontend with access token and success flag
-    res.redirect(`http://localhost:19858?pocket_token=${accessTokenData.access_token}&pocket_username=${encodeURIComponent(accessTokenData.username || '')}&pocket_authorized=true`);
+    // Show a success page instead of redirecting to the app
+    // The desktop app will detect the authorization through polling
+    res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Pocket Authorization Successful</title>
+            <style>
+                body {
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    margin: 0;
+                    background-color: #1a1a1a;
+                    color: #ffffff;
+                }
+                .container {
+                    text-align: center;
+                    padding: 2rem;
+                    background-color: #2a2a2a;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+                }
+                h1 {
+                    color: #4CAF50;
+                    margin-bottom: 1rem;
+                }
+                p {
+                    color: #cccccc;
+                    margin-bottom: 1.5rem;
+                }
+                .close-btn {
+                    background-color: #4CAF50;
+                    color: white;
+                    border: none;
+                    padding: 10px 20px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 16px;
+                }
+                .close-btn:hover {
+                    background-color: #45a049;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>✅ Pocket Authorization Successful!</h1>
+                <p>You have successfully authorized Article Saver to access your Pocket account.</p>
+                <p>You can now close this window and return to the Article Saver app.</p>
+                <button class="close-btn" onclick="closeWindow()">Close Window</button>
+                <p style="font-size: 14px; margin-top: 20px; color: #999;">
+                    Window will close automatically in <span id="countdown">5</span> seconds
+                </p>
+            </div>
+            <script>
+                let countdown = 5;
+                const countdownEl = document.getElementById('countdown');
+                
+                function closeWindow() {
+                    // Try multiple aggressive methods to close the window
+                    
+                    // Method 1: Standard window.close()
+                    try {
+                        window.close();
+                    } catch (e) {
+                        console.log('Standard close failed:', e);
+                    }
+                    
+                    // Method 2: Replace current page and close
+                    try {
+                        window.open('', '_self');
+                        window.close();
+                    } catch (e) {
+                        console.log('Replace and close failed:', e);
+                    }
+                    
+                    // Method 3: Try to close parent/opener
+                    try {
+                        if (window.opener) {
+                            window.opener = null;
+                            window.close();
+                        }
+                    } catch (e) {
+                        console.log('Opener close failed:', e);
+                    }
+                    
+                    // Method 4: Set location to about:blank then close
+                    try {
+                        window.location.href = 'about:blank';
+                        setTimeout(() => window.close(), 100);
+                    } catch (e) {
+                        console.log('About blank close failed:', e);
+                    }
+                    
+                    // Method 5: Use history.back() if available
+                    try {
+                        if (window.history.length > 1) {
+                            window.history.back();
+                        }
+                    } catch (e) {
+                        console.log('History back failed:', e);
+                    }
+                    
+                    // Method 6: Open empty window and focus it (to replace current)
+                    try {
+                        const newWindow = window.open('about:blank', '_blank');
+                        if (newWindow) {
+                            newWindow.focus();
+                            window.close();
+                        }
+                    } catch (e) {
+                        console.log('New window replacement failed:', e);
+                    }
+                    
+                    // If all methods fail, show the fallback message after a short delay
+                    setTimeout(() => {
+                        const container = document.querySelector('.container');
+                        if (container && container.innerHTML.includes('Pocket Authorization Successful')) {
+                            container.innerHTML = 
+                                '<h1 style="color: #4CAF50;">✅ Authorization Complete!</h1>' +
+                                '<p>Please close this browser window manually and return to the Article Saver app.</p>' +
+                                '<p style="font-size: 14px; color: #999; margin-top: 20px;">You can now import your Pocket articles.</p>';
+                        }
+                    }, 1000);
+                }
+                
+                // Countdown timer
+                const timer = setInterval(() => {
+                    countdown--;
+                    if (countdownEl) countdownEl.textContent = countdown;
+                    if (countdown <= 0) {
+                        clearInterval(timer);
+                        closeWindow();
+                    }
+                }, 1000);
+                
+                // Also try to close when page loads (immediate attempt)
+                setTimeout(() => {
+                    // First immediate attempt
+                    try {
+                        window.close();
+                    } catch (e) {
+                        console.log('Immediate close failed, will wait for countdown');
+                    }
+                }, 500);
+                
+                // Listen for various events that might allow closing
+                window.addEventListener('beforeunload', (e) => {
+                    // Don't prevent unload
+                    return undefined;
+                });
+                
+                window.addEventListener('unload', () => {
+                    try {
+                        window.close();
+                    } catch (e) {
+                        // Silent fail
+                    }
+                });
+                
+                // Keyboard shortcut to close (Ctrl+W or Cmd+W)
+                document.addEventListener('keydown', (e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'w') {
+                        e.preventDefault();
+                        closeWindow();
+                    }
+                    // Also try Escape key
+                    if (e.key === 'Escape') {
+                        closeWindow();
+                    }
+                });
+            </script>
+        </body>
+        </html>
+    `);
 }));
 
 // Get import progress endpoint
@@ -562,12 +737,20 @@ router.get('/progress/:sessionId', authenticateToken, asyncHandler(async (req: R
         // Get job status from background processor
         const jobStatus = backgroundJobProcessor.getJobStatus(sessionId);
 
+        // Calculate percentage if not already present
+        const progressData = {
+            ...session.progress,
+            percentage: session.progress.totalArticles > 0 
+                ? Math.round((session.progress.articlesProcessed / session.progress.totalArticles) * 100)
+                : 0
+        };
+
         res.json({
             success: true,
             session: {
                 id: session.id,
                 status: session.status,
-                progress: session.progress,
+                progress: progressData,
                 metadata: {
                     startTime: session.metadata.startTime,
                     endTime: session.metadata.endTime,
@@ -624,6 +807,80 @@ router.delete('/import/:sessionId/cancel', authenticateToken, asyncHandler(async
             error: error instanceof Error ? error.message : 'Unknown error'
         });
         throw createError('Failed to cancel import', 500);
+    }
+}));
+
+// Enterprise session discovery endpoint - Find running imports for user
+router.get('/sessions/discover', authenticateToken, asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const userId = (req as any).user.userId;
+
+    try {
+        logger.info('🔍 SESSION DISCOVERY: Looking for active sessions', { userId });
+
+        // Find all active sessions for this user
+        const activeSessions = await prisma.importSession.findMany({
+            where: {
+                userId,
+                status: {
+                    in: ['pending', 'running']
+                }
+            },
+            orderBy: {
+                createdAt: 'desc'
+            },
+            take: 5 // Limit to 5 most recent active sessions
+        });
+
+        logger.info('📊 SESSION DISCOVERY: Found sessions', { 
+            userId, 
+            sessionCount: activeSessions.length,
+            sessionIds: activeSessions.map(s => s.id)
+        });
+
+        const sessionDetails = activeSessions.map(session => {
+            const progress = session.progress as any;
+            const metadata = session.metadata as any;
+            const jobStatus = backgroundJobProcessor.getJobStatus(session.id);
+
+            return {
+                id: session.id,
+                source: session.source,
+                status: session.status,
+                jobStatus,
+                progress: {
+                    currentPage: progress?.currentPage || 0,
+                    totalPages: progress?.totalPages || 0,
+                    articlesProcessed: progress?.articlesProcessed || 0,
+                    totalArticles: progress?.totalArticles || 0,
+                    imported: progress?.imported || 0,
+                    skipped: progress?.skipped || 0,
+                    failed: progress?.failed || 0,
+                    currentAction: progress?.currentAction || 'Processing...',
+                    percentage: progress?.totalArticles > 0 
+                        ? Math.round((progress?.articlesProcessed / progress?.totalArticles) * 100) 
+                        : 0
+                },
+                metadata: {
+                    startTime: metadata?.startTime,
+                    estimatedTimeRemaining: metadata?.estimatedTimeRemaining || 0
+                },
+                createdAt: session.createdAt,
+                updatedAt: session.updatedAt
+            };
+        });
+
+        res.json({
+            success: true,
+            activeSessions: sessionDetails,
+            message: `Found ${activeSessions.length} active import session(s)`
+        });
+
+    } catch (error) {
+        logger.error('❌ SESSION DISCOVERY: Failed to discover sessions', {
+            userId,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        throw createError('Failed to discover active sessions', 500);
     }
 }));
 
@@ -914,9 +1171,20 @@ router.post('/import', [
                     return { type: 'skipped', reason: 'No URL' };
                 }
 
+                // Skip items without a valid URL
+                const itemUrl = pocketItem.resolved_url || pocketItem.given_url;
+                if (!itemUrl) {
+                    logger.warn('⚠️ POCKET IMPORT: Skipping item without URL', {
+                        item_id: pocketItem.item_id,
+                        resolved_url: pocketItem.resolved_url,
+                        given_url: pocketItem.given_url
+                    });
+                    return { type: 'skipped', reason: 'No URL found' };
+                }
+
                 const articleData = {
                     userId,
-                    url: pocketItem.resolved_url || pocketItem.given_url,
+                    url: itemUrl,
                     title: pocketItem.resolved_title || pocketItem.given_title || 'Untitled',
                     content: null, // Don't set content to excerpt - let ContentExtractionService handle it
                     excerpt: pocketItem.excerpt || '',
@@ -1030,6 +1298,67 @@ router.get('/jobs/stats', authenticateToken, asyncHandler(async (req: Request, r
         stats,
         message: 'Background job statistics'
     });
+}));
+
+// Cancel active import session
+router.post('/sessions/cancel', authenticateToken, asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const userId = (req as any).user.userId;
+    
+    logger.info('🛑 CANCEL IMPORT: Request received', { userId });
+    
+    try {
+        // Find active sessions
+        const activeSessions = await prisma.importSession.findMany({
+            where: {
+                userId,
+                status: 'running',
+                source: 'pocket'
+            }
+        });
+        
+        if (activeSessions.length === 0) {
+            res.json({
+                success: true,
+                message: 'No active import sessions to cancel'
+            });
+            return;
+        }
+        
+        // Cancel all active sessions
+        const cancelPromises = activeSessions.map(async (session) => {
+            return prisma.importSession.update({
+                where: { id: session.id },
+                data: {
+                    status: 'cancelled',
+                    progress: {
+                        ...(session.progress as any || {}),
+                        currentAction: 'Import cancelled by user'
+                    }
+                }
+            });
+        });
+        
+        await Promise.all(cancelPromises);
+        
+        logger.info('🛑 CANCEL IMPORT: Sessions cancelled', { 
+            userId,
+            sessionCount: activeSessions.length,
+            sessionIds: activeSessions.map(s => s.id)
+        });
+        
+        res.json({
+            success: true,
+            message: `Cancelled ${activeSessions.length} active import session(s)`,
+            cancelledSessions: activeSessions.map(s => s.id)
+        });
+        
+    } catch (error) {
+        logger.error('❌ CANCEL IMPORT: Failed', {
+            userId,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        throw createError('Failed to cancel import sessions', 500);
+    }
 }));
 
 export default router;

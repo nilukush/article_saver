@@ -8,7 +8,8 @@
         "dev:backend": "cd backend && npm run dev",
         "build:desktop": "cd desktop && npm run build",
         "build:backend": "cd backend && npm run build",
-        "install:all": "npm install && cd desktop && npm install && cd ../backend && npm install"
+        "install:all": "npm install && cd desktop && npm install && cd ../backend && npm install",
+        "clean:data": "./clean-all-data.sh"
     },
     "keywords": [
         "article",

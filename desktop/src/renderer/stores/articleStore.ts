@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Article, ApiResponse } from '../../../shared/types'
+import type { Article } from '../../../shared/types'
 
 interface ArticleStore {
     articles: Article[]

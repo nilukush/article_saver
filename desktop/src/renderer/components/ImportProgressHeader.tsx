@@ -1,13 +1,65 @@
 import { useImportStore } from '../stores/importStore'
+import { useProgressStore } from '../hooks/useProgressStore'
+import { useProgressPolling } from '../hooks/useProgressPolling'
+import { ErrorBoundary } from './ErrorBoundary'
+import { useEffect } from 'react'
 
-export function ImportProgressHeader() {
-    const { activeImports, expandedView, toggleExpanded, removeImport } = useImportStore()
-
-    // Only show if there are active imports
-    if (activeImports.length === 0) return null
-
-    const activeImport = activeImports[0] // Show first active import
-    const { progress, status, provider, results } = activeImport
+function ImportProgressHeaderContent() {
+    // ENTERPRISE-GRADE SOLUTION: Single source of truth for progress
+    const progress = useProgressStore()
+    
+    // Get import store state for session management
+    const activeImports = useImportStore(state => state.activeImports)
+    const expandedView = useImportStore(state => state.expandedView)
+    const toggleExpanded = useImportStore(state => state.toggleExpanded)
+    const removeImport = useImportStore(state => state.removeImport)
+    const completeImport = useImportStore(state => state.completeImport)
+    
+    // Get active import session
+    const activeImport = activeImports.find(imp => imp.status === 'running')
+    
+    // Enterprise polling hook - single source of truth
+    useProgressPolling({
+        sessionId: activeImport?.sessionId || '',
+        enabled: !!activeImport && activeImport.status === 'running',
+        interval: 2000,
+        onComplete: (results) => {
+            if (activeImport) {
+                // Import completed with results
+                completeImport(activeImport.id, results)
+                progress.clearProgress()
+            }
+        },
+        onError: (error) => {
+            if (activeImport) {
+                // Import failed
+                completeImport(activeImport.id, { imported: 0, skipped: 0, failed: 0, total: 0 }, error)
+                progress.clearProgress()
+            }
+        }
+    })
+    
+    // Clear progress when no active imports
+    useEffect(() => {
+        if (!activeImport) {
+            progress.clearProgress()
+        }
+    }, [activeImport])
+    
+    // Only show if there's an active import or active progress
+    if (!activeImport && !progress.isActive) return null
+    
+    // Use progress store values (real-time) or fallback to import store
+    const progressTotal = progress.isActive ? progress.total : (activeImport?.progress?.total || 0)
+    const progressCurrent = progress.isActive ? progress.current : (activeImport?.progress?.current || 0) 
+    const progressPercentage = progress.isActive ? progress.percentage : (activeImport?.progress?.percentage || 0)
+    const progressAction = progress.isActive ? progress.currentAction : (activeImport?.progress?.currentAction || 'Starting...')
+    
+    const status = activeImport?.status || (progress.isActive ? 'running' : 'completed')
+    const provider = activeImport?.provider || 'pocket'
+    const results = activeImport?.results
+    
+    // Progress values tracked internally
 
     // Format time remaining
     const formatTimeRemaining = (ms: number) => {
@@ -45,22 +97,27 @@ export function ImportProgressHeader() {
                     {status === 'failed' && <span>❌</span>}
 
                     <span className="font-medium">
-                        {status === 'running' && `Importing ${progress.current} of ${progress.total} articles from ${provider}`}
+                        {status === 'running' && (
+                            <>
+                                {progressAction || `Starting import from ${provider}...`}
+                                {progressTotal > 0 && ` (${progressCurrent} of ${progressTotal})`}
+                            </>
+                        )}
                         {status === 'completed' && `Import complete! Added ${results?.imported || 0} articles from ${provider}`}
                         {status === 'failed' && `Import failed from ${provider}`}
                     </span>
                 </div>
 
                 <div className="flex items-center space-x-3">
-                    {status === 'running' && progress.total > 0 && (
+                    {status === 'running' && progressTotal > 0 && (
                         <span className="text-white text-opacity-90">
-                            {progress.percentage}%
+                            {progressPercentage}%
                         </span>
                     )}
 
-                    {status === 'running' && progress.timeRemaining > 0 && (
+                    {status === 'running' && activeImport?.progress.timeRemaining && activeImport.progress.timeRemaining > 0 && (
                         <span className="text-white text-opacity-75 text-xs">
-                            {formatTimeRemaining(progress.timeRemaining)}
+                            {formatTimeRemaining(activeImport.progress.timeRemaining)}
                         </span>
                     )}
 
@@ -68,7 +125,7 @@ export function ImportProgressHeader() {
                         <button
                             onClick={(e) => {
                                 e.stopPropagation()
-                                removeImport(activeImport.id)
+                                activeImport && removeImport(activeImport.id)
                             }}
                             className="text-white text-opacity-75 hover:text-opacity-100 text-xs px-2 py-1 rounded hover:bg-black hover:bg-opacity-20"
                         >
@@ -83,11 +140,11 @@ export function ImportProgressHeader() {
             </div>
 
             {/* Progress bar */}
-            {status === 'running' && progress.total > 0 && (
+            {status === 'running' && progressTotal > 0 && (
                 <div className="mt-2 w-full bg-white bg-opacity-20 rounded-full h-1">
                     <div
                         className="bg-white h-1 rounded-full transition-all duration-300"
-                        style={{ width: `${progress.percentage}%` }}
+                        style={{ width: `${progressPercentage}%` }}
                     ></div>
                 </div>
             )}
@@ -100,12 +157,14 @@ export function ImportProgressHeader() {
 
                         {status === 'running' && (
                             <>
-                                <div>Current Action: {progress.currentAction}</div>
-                                {progress.total > 0 && (
-                                    <div>Progress: {progress.current} of {progress.total} articles ({progress.percentage}%)</div>
+                                <div>Current Action: {progressAction}</div>
+                                {progressTotal > 0 ? (
+                                    <div>Progress: {progressCurrent} of {progressTotal} articles ({progressPercentage}%)</div>
+                                ) : (
+                                    <div>Fetching articles from Pocket...</div>
                                 )}
-                                {progress.timeRemaining > 0 && (
-                                    <div>Time Remaining: {formatTimeRemaining(progress.timeRemaining)}</div>
+                                {activeImport?.progress.timeRemaining && activeImport.progress.timeRemaining > 0 && (
+                                    <div>Time Remaining: {formatTimeRemaining(activeImport.progress.timeRemaining)}</div>
                                 )}
                                 <div className="mt-2 text-white text-opacity-75">
                                     Processing at 2-second intervals (API compliance)
@@ -124,7 +183,7 @@ export function ImportProgressHeader() {
 
                         {status === 'failed' && (
                             <div className="text-red-200">
-                                Error: {activeImport.error || 'Unknown error occurred'}
+                                Error: {activeImport?.error || 'Unknown error occurred'}
                             </div>
                         )}
                     </div>
@@ -132,7 +191,35 @@ export function ImportProgressHeader() {
                     {status === 'running' && (
                         <div className="flex space-x-2 mt-3">
                             <button
-                                onClick={() => removeImport(activeImport.id)}
+                                onClick={async () => {
+                                    if (activeImport) {
+                                        try {
+                                            const token = localStorage.getItem('authToken')
+                                            if (token) {
+                                                const response = await window.electronAPI.netFetch(
+                                                    'http://localhost:3003/api/pocket/sessions/cancel',
+                                                    {
+                                                        method: 'POST',
+                                                        headers: {
+                                                            'Authorization': `Bearer ${token}`,
+                                                            'Content-Type': 'application/json'
+                                                        }
+                                                    }
+                                                )
+                                                
+                                                if (response.success) {
+                                                    // Import cancelled successfully
+                                                    removeImport(activeImport.id)
+                                                    progress.clearProgress()
+                                                } else {
+                                                    // Failed to cancel import
+                                                }
+                                            }
+                                        } catch (error) {
+                                            // Error cancelling import
+                                        }
+                                    }
+                                }}
                                 className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded transition-colors"
                             >
                                 Cancel Import
@@ -142,5 +229,33 @@ export function ImportProgressHeader() {
                 </div>
             )}
         </div>
+    )
+}
+
+/**
+ * ENTERPRISE-GRADE IMPORT PROGRESS HEADER
+ * 
+ * Wrapped with error boundary for maximum reliability
+ * - Catches and handles any rendering errors
+ * - Provides graceful fallback UI
+ * - Maintains system stability
+ */
+export function ImportProgressHeader() {
+    return (
+        <ErrorBoundary
+            fallback={
+                <div className="bg-yellow-600 text-white px-4 py-2 text-sm">
+                    <div className="flex items-center space-x-2">
+                        <span>⚠️</span>
+                        <span>Progress display temporarily unavailable</span>
+                    </div>
+                </div>
+            }
+            onError={(error, errorInfo) => {
+                // ImportProgressHeader error occurred
+            }}
+        >
+            <ImportProgressHeaderContent />
+        </ErrorBoundary>
     )
 }

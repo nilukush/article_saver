@@ -11,7 +11,6 @@ import authRoutes from './routes/auth';
 import articlesRoutes from './routes/articles';
 import syncRoutes from './routes/sync';
 import pocketRoutes from './routes/pocket';
-import passkeyRoutes from './routes/passkey';
 import accountLinkingRoutes from './routes/accountLinking';
 import accountMigrationRoutes from './routes/account-migration';
 
@@ -61,8 +60,10 @@ const limiter = rateLimit({
         });
     },
     skip: (req) => {
-        // Skip rate limiting for progress endpoint to allow frequent polling
-        return req.path === '/api/pocket/progress';
+        // Skip rate limiting for progress endpoints and SSE connections
+        return req.path === '/api/pocket/progress' || 
+               req.path.startsWith('/api/pocket/progress/') ||
+               req.path.startsWith('/api/pocket/sessions/');
     }
 });
 app.use(limiter);
@@ -88,7 +89,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/articles', articlesRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/pocket', pocketRoutes);
-app.use('/api/passkey', passkeyRoutes);
 app.use('/api/account-linking', accountLinkingRoutes);
 app.use('/api/account-migration', accountMigrationRoutes);
 

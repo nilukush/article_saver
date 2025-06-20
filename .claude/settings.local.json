@@ -22,7 +22,17 @@
       "Bash(rg:*)",
       "Bash(npx prisma:*)",
       "Bash(npx tsc:*)",
-      "Bash(npx ts-node:*)"
+      "Bash(npx ts-node:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(curl:*)",
+      "Bash(touch:*)",
+      "Bash(pkill:*)",
+      "Bash(npm run logs:tail:*)",
+      "Bash(npm run logs:*)",
+      "Bash(kill:*)",
+      "Bash(npx tsx:*)",
+      "Bash(true)",
+      "Bash(cat:*)"
     ],
     "deny": []
   }

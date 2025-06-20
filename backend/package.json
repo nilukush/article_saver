@@ -11,9 +11,11 @@
         "db:push": "prisma db push",
         "db:migrate": "prisma migrate dev",
         "db:studio": "prisma studio",
-        "logs": "tail -f logs/combined.log",
+        "logs": "scripts/tail-latest-log.sh",
         "logs:error": "tail -f logs/error.log",
-        "logs:watch": "mkdir -p logs && touch logs/combined.log && tail -f logs/combined.log"
+        "logs:watch": "mkdir -p logs && touch logs/combined.log && tail -f logs/combined.log",
+        "logs:all": "tail -f logs/*.log",
+        "clean:data": "npx ts-node scripts/clean-all-data.ts"
     },
     "keywords": [
         "article",
@@ -26,9 +28,7 @@
     "license": "MIT",
     "dependencies": {
         "@mozilla/readability": "^0.6.0",
-        "@prisma/client": "^6.9.0",
-        "@simplewebauthn/browser": "^13.1.0",
-        "@simplewebauthn/server": "^13.1.1",
+        "@prisma/client": "^6.10.1",
         "@types/jsdom": "^21.1.7",
         "bcryptjs": "^2.4.3",
         "cors": "^2.8.5",

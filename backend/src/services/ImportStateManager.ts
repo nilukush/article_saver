@@ -93,12 +93,19 @@ export class ImportStateManager {
     }
     
     /**
-     * Update session progress
+     * Update session progress with correlation tracking
      */
     async updateProgress(sessionId: string, progress: Partial<ImportSession['progress']>): Promise<void> {
         try {
+            const correlationId = `update_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            
             // Update database record
-            logger.debug('🔄 IMPORT SESSION: Updating progress', { sessionId, progress });
+            logger.info('🔄 IMPORT SESSION: Updating progress', { 
+                sessionId, 
+                correlationId,
+                progress,
+                timestamp: new Date().toISOString()
+            });
             
             // Get current session to merge progress
             const currentSession = await prisma.importSession.findUnique({
@@ -106,21 +113,75 @@ export class ImportStateManager {
             });
             
             if (!currentSession) {
-                throw new Error('Session not found');
+                logger.error('❌ IMPORT SESSION: Session not found during progress update', { 
+                    sessionId, 
+                    correlationId 
+                });
+                throw new Error(`Session ${sessionId} not found`);
+            }
+            
+            // Validate session is still active
+            if (currentSession.status === 'completed' || currentSession.status === 'failed') {
+                logger.warn('⚠️ IMPORT SESSION: Attempting to update completed/failed session', { 
+                    sessionId, 
+                    correlationId,
+                    currentStatus: currentSession.status 
+                });
+                return; // Don't update completed sessions
             }
             
             const currentProgress = currentSession.progress as any;
-            const updatedProgress = { ...currentProgress, ...progress };
+            const updatedProgress = { 
+                ...currentProgress, 
+                ...progress,
+                lastUpdateTime: new Date().toISOString(),
+                correlationId
+            };
             
-            await prisma.importSession.update({
+            // Add validation for progress data
+            if (updatedProgress.totalArticles < 0 || updatedProgress.articlesProcessed < 0) {
+                logger.error('❌ IMPORT SESSION: Invalid progress values', { 
+                    sessionId, 
+                    correlationId,
+                    updatedProgress 
+                });
+                throw new Error('Invalid progress values: cannot be negative');
+            }
+            
+            // Log the full updated progress for debugging
+            logger.info('🔄 IMPORT SESSION: Full updated progress', { 
+                sessionId, 
+                correlationId,
+                updatedProgress,
+                currentTotal: updatedProgress.totalArticles,
+                currentProcessed: updatedProgress.articlesProcessed,
+                percentage: updatedProgress.totalArticles > 0 
+                    ? Math.round((updatedProgress.articlesProcessed / updatedProgress.totalArticles) * 100) 
+                    : 0
+            });
+            
+            // Use Prisma's update with proper JSON handling
+            const updateResult = await prisma.importSession.update({
                 where: { id: sessionId },
-                data: {
-                    progress: updatedProgress
+                data: { 
+                    progress: updatedProgress,
+                    updatedAt: new Date()
                 }
             });
             
+            logger.info('✅ IMPORT SESSION: Progress updated successfully', { 
+                sessionId, 
+                correlationId,
+                progressData: updatedProgress,
+                dbUpdatedAt: updateResult.updatedAt
+            });
+            
         } catch (error) {
-            logger.error('❌ IMPORT SESSION: Failed to update progress', { sessionId, error });
+            logger.error('❌ IMPORT SESSION: Failed to update progress', { 
+                sessionId, 
+                error: error instanceof Error ? error.message : 'Unknown error',
+                stack: error instanceof Error ? error.stack : undefined
+            });
             throw error;
         }
     }
@@ -131,15 +192,22 @@ export class ImportStateManager {
     async getSession(sessionId: string): Promise<ImportSession | null> {
         try {
             // Retrieve from database
-            logger.debug('🔍 IMPORT SESSION: Retrieving session', { sessionId });
+            logger.info('🔍 IMPORT SESSION: Retrieving session', { sessionId });
             
             const session = await prisma.importSession.findUnique({
                 where: { id: sessionId }
             });
             
             if (!session) {
+                logger.warn('⚠️ IMPORT SESSION: Session not found', { sessionId });
                 return null;
             }
+            
+            logger.info('📊 IMPORT SESSION: Retrieved session', { 
+                sessionId,
+                status: session.status,
+                progress: session.progress
+            });
             
             return {
                 id: session.id,
@@ -195,19 +263,85 @@ export class ImportStateManager {
     }
     
     /**
-     * Clean up old sessions
+     * Check session health and detect stale sessions
+     */
+    async checkSessionHealth(sessionId: string): Promise<{ isHealthy: boolean; reason?: string }> {
+        try {
+            const session = await prisma.importSession.findUnique({
+                where: { id: sessionId }
+            });
+            
+            if (!session) {
+                return { isHealthy: false, reason: 'Session not found' };
+            }
+            
+            const now = new Date();
+            const sessionAge = now.getTime() - session.createdAt.getTime();
+            const lastUpdate = session.updatedAt.getTime();
+            const timeSinceUpdate = now.getTime() - lastUpdate;
+            
+            // Session is considered stale if:
+            // 1. No updates in 5 minutes for running sessions
+            // 2. Session is older than 24 hours
+            // 3. Session is pending for more than 5 minutes
+            
+            if (session.status === 'running' && timeSinceUpdate > 5 * 60 * 1000) {
+                return { isHealthy: false, reason: 'No updates in 5 minutes' };
+            }
+            
+            if (sessionAge > 24 * 60 * 60 * 1000) {
+                return { isHealthy: false, reason: 'Session older than 24 hours' };
+            }
+            
+            if (session.status === 'pending' && sessionAge > 5 * 60 * 1000) {
+                return { isHealthy: false, reason: 'Pending session older than 5 minutes' };
+            }
+            
+            return { isHealthy: true };
+            
+        } catch (error) {
+            logger.error('❌ IMPORT SESSION: Failed to check session health', { sessionId, error });
+            return { isHealthy: false, reason: 'Health check failed' };
+        }
+    }
+    
+    /**
+     * Clean up old and stale sessions
      */
     async cleanupUserSessions(userId: string, source?: string): Promise<void> {
         try {
             logger.info('🧹 IMPORT SESSION: Cleaning up old sessions', { userId, source });
             
-            const where: any = { userId };
-            if (source) {
-                where.source = source;
+            // First, check for stale sessions and mark them as failed
+            const staleSessions = await prisma.importSession.findMany({
+                where: {
+                    userId,
+                    ...(source && { source }),
+                    status: { in: ['pending', 'running'] }
+                }
+            });
+            
+            for (const session of staleSessions) {
+                const healthCheck = await this.checkSessionHealth(session.id);
+                if (!healthCheck.isHealthy) {
+                    logger.info('🧹 IMPORT SESSION: Marking stale session as failed', { 
+                        sessionId: session.id, 
+                        reason: healthCheck.reason 
+                    });
+                    
+                    await this.completeSession(session.id, 'failed', `Session became stale: ${healthCheck.reason}`);
+                }
             }
             
+            // Then clean up old completed/failed sessions (older than 1 hour)
+            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
             await prisma.importSession.deleteMany({
-                where
+                where: {
+                    userId,
+                    ...(source && { source }),
+                    status: { in: ['completed', 'failed', 'cancelled'] },
+                    updatedAt: { lt: oneHourAgo }
+                }
             });
             
         } catch (error) {

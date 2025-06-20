@@ -251,7 +251,7 @@ const createWindow = (): void => {
             nodeIntegration: false,
             contextIsolation: true,
             preload: path.join(__dirname, 'preload.js'),
-            devTools: false,
+            devTools: true,
             allowRunningInsecureContent: false,
             webSecurity: true,
             enableWebSQL: false
@@ -276,8 +276,8 @@ const createWindow = (): void => {
     mainWindow.once('ready-to-show', () => {
         mainWindow.show()
 
-        // Prevent dev tools after window is ready
-        preventDevTools()
+        // Temporarily disabled for debugging
+        // preventDevTools()
     })
 
     function preventDevTools() {

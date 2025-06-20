@@ -1,5 +1,6 @@
 import { prisma } from '../database';
 import logger from '../utils/logger';
+import { randomUUID } from 'crypto';
 
 interface BulkArticleData {
     url: string;
@@ -115,7 +116,16 @@ export class BulkArticleProcessor {
         
         try {
             // Step 1: Check for existing articles (deduplication)
-            const urls = batch.map(article => article.url);
+            // Filter out any articles without URLs
+            const validArticles = batch.filter(article => article.url);
+            const urls = validArticles.map(article => article.url);
+            
+            if (urls.length === 0) {
+                logger.warn('⚠️ BULK PROCESSOR: No valid URLs in batch');
+                results.failed = batch.length;
+                return results;
+            }
+            
             const existingArticles = await prisma.article.findMany({
                 where: {
                     userId,
@@ -125,9 +135,10 @@ export class BulkArticleProcessor {
             });
             
             const existingUrls = new Set(existingArticles.map(a => a.url));
-            const newArticles = batch.filter(article => !existingUrls.has(article.url));
+            const newArticles = validArticles.filter(article => !existingUrls.has(article.url));
             
-            results.skipped = batch.length - newArticles.length;
+            results.skipped = validArticles.length - newArticles.length;
+            results.failed = batch.length - validArticles.length; // Count articles without URLs as failed
             
             if (newArticles.length === 0) {
                 logger.debug('⏭️ BULK PROCESSOR: All articles in batch already exist');
@@ -136,7 +147,7 @@ export class BulkArticleProcessor {
             
             // Step 2: Prepare data for bulk insert
             const articlesToInsert = newArticles.map(article => ({
-                id: crypto.randomUUID(),
+                id: randomUUID(),
                 userId,
                 url: article.url,
                 title: article.title,
@@ -151,8 +162,7 @@ export class BulkArticleProcessor {
                 contentExtracted: article.contentExtracted || false,
                 extractionStatus: article.extractionStatus || 'pending',
                 createdAt: new Date(),
-                updatedAt: new Date(),
-                syncedAt: new Date()
+                updatedAt: new Date()
             }));
             
             // Step 3: Bulk insert with transaction
