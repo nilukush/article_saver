@@ -73,6 +73,65 @@ export async function handleEnterpriseOAuthLogin(
         }
     });
     
+    // Also check for accounts that might have been created with unique emails
+    // (e.g., email.provider.timestamp format)
+    if (!existingProviderAccount) {
+        const possibleLinkedAccount = await prisma.user.findFirst({
+            where: {
+                email: {
+                    startsWith: `${email}.${provider}.`
+                },
+                provider
+            }
+        });
+        
+        if (possibleLinkedAccount) {
+            console.log('[ENTERPRISE AUTH] Found linked account with unique email:', {
+                userId: possibleLinkedAccount.id,
+                uniqueEmail: possibleLinkedAccount.email,
+                actualEmail: (possibleLinkedAccount.metadata as any)?.actualEmail || email,
+                provider
+            });
+            
+            // Check if this account is properly linked
+            const linkedAccount = await prisma.linkedAccount.findFirst({
+                where: {
+                    OR: [
+                        { linkedUserId: possibleLinkedAccount.id, verified: true },
+                        { primaryUserId: possibleLinkedAccount.id, verified: true }
+                    ]
+                }
+            });
+            
+            if (linkedAccount) {
+                // Use the linked account for authentication
+                const token = jwt.sign(
+                    { userId: possibleLinkedAccount.id, email },
+                    JWT_SECRET,
+                    { expiresIn: '7d' }
+                );
+                
+                // Update last login
+                await prisma.user.update({
+                    where: { id: possibleLinkedAccount.id },
+                    data: {
+                        metadata: {
+                            ...possibleLinkedAccount.metadata as any,
+                            lastLoginAt: new Date()
+                        }
+                    }
+                });
+                
+                return {
+                    type: 'success',
+                    user: possibleLinkedAccount,
+                    token,
+                    redirectUrl: buildRedirectUrl(electronPort, provider, { token, email })
+                };
+            }
+        }
+    }
+    
     if (existingProviderAccount) {
         // Same email+provider exists - just log them in
         console.log('[ENTERPRISE AUTH] Found exact email+provider match:', { 
@@ -107,8 +166,19 @@ export async function handleEnterpriseOAuthLogin(
     }
     
     // Check for ANY accounts with this email (different providers)
+    // Include accounts that might have unique emails with actualEmail in metadata
     const existingAccounts = await prisma.user.findMany({
-        where: { email }
+        where: {
+            OR: [
+                { email },
+                { 
+                    metadata: {
+                        path: ['actualEmail'],
+                        equals: email
+                    }
+                }
+            ]
+        }
     });
     
     console.log('[ENTERPRISE AUTH] Found existing accounts with email:', { 
@@ -210,11 +280,13 @@ export async function handleEnterpriseOAuthLogin(
         // Check if the linked user is the provider we're looking for
         if (linkedAccount.primaryUserId === primaryAccount.id && 
             linkedAccount.linkedUser.provider === provider) {
-            // Check if it's the same email (either direct match or in metadata)
+            // Check if it's the same email (either direct match, in metadata, or starts with email.provider)
             const linkedUserEmail = linkedAccount.linkedUser.email;
             const linkedUserActualEmail = (linkedAccount.linkedUser.metadata as any)?.actualEmail;
             
-            if (linkedUserEmail === email || linkedUserActualEmail === email) {
+            if (linkedUserEmail === email || 
+                linkedUserActualEmail === email ||
+                linkedUserEmail.startsWith(`${email}.${provider}.`)) {
                 existingLinkedAccount = linkedAccount;
                 break;
             }
@@ -223,11 +295,13 @@ export async function handleEnterpriseOAuthLogin(
         // Check if the primary user is the provider we're looking for (reverse link)
         if (linkedAccount.linkedUserId === primaryAccount.id && 
             linkedAccount.primaryUser.provider === provider) {
-            // Check if it's the same email (either direct match or in metadata)
+            // Check if it's the same email (either direct match, in metadata, or starts with email.provider)
             const primaryUserEmail = linkedAccount.primaryUser.email;
             const primaryUserActualEmail = (linkedAccount.primaryUser.metadata as any)?.actualEmail;
             
-            if (primaryUserEmail === email || primaryUserActualEmail === email) {
+            if (primaryUserEmail === email || 
+                primaryUserActualEmail === email ||
+                primaryUserEmail.startsWith(`${email}.${provider}.`)) {
                 existingLinkedAccount = linkedAccount;
                 break;
             }

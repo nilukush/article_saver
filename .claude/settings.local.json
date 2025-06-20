@@ -19,7 +19,9 @@
       "Bash(# Create a 512x512 PNG for GitHub OAuth\ncp resources/icons/512x512.png resources/github-oauth-logo.png\n\n# Also create one in public directory for easy access\ncp resources/icons/512x512.png public/logo-512.png\n\necho \"✅ Icons generated successfully!\"\necho \"📁 Icon locations:\"\necho \"  - Windows: resources/icon.ico\"\necho \"  - macOS: resources/icon.icns\"\necho \"  - Linux: resources/icons/256x256.png\"\necho \"  - GitHub OAuth: resources/github-oauth-logo.png\")",
       "Bash(npm install:*)",
       "Bash(rm:*)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "Bash(npx prisma:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": []
   }
