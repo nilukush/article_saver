@@ -6,6 +6,7 @@ import { prisma } from '../database';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { signJWT, handleOAuthLogin } from '../utils/authHelpers';
 import { handleEnterpriseOAuthLogin } from '../utils/enterpriseAccountLinking';
+import logger from '../utils/logger';
 
 const router = Router();
 
@@ -78,10 +79,27 @@ router.post('/login', [
 
     const { email, password } = req.body;
 
-    // Find user
-    const user = await prisma.user.findUnique({
+    // Find user - check both direct email and metadata
+    let user = await prisma.user.findUnique({
         where: { email }
     });
+
+    // If not found, check for users with this email in metadata
+    if (!user) {
+        const usersWithEmailInMetadata = await prisma.user.findMany({
+            where: {
+                metadata: {
+                    path: ['actualEmail'],
+                    equals: email
+                }
+            }
+        });
+
+        // Find the one with 'local' provider or password set
+        user = usersWithEmailInMetadata.find(u => 
+            u.provider === 'local' || u.password !== ''
+        ) || usersWithEmailInMetadata[0];
+    }
 
     if (!user) {
         throw createError('Invalid credentials', 401);
@@ -93,8 +111,35 @@ router.post('/login', [
         throw createError('Invalid credentials', 401);
     }
 
-    // Generate JWT token
-    const token = signJWT({ userId: user.id, email: user.email });
+    // Check if this user has a primary account (for proper token generation)
+    let primaryUserId = user.primaryAccountId || user.id;
+    let tokenEmail = email; // Use the actual email they logged in with
+
+    // If this user is linked to a primary account, use that for consistency
+    if (user.primaryAccountId) {
+        const primaryUser = await prisma.user.findUnique({
+            where: { id: user.primaryAccountId }
+        });
+        if (primaryUser) {
+            primaryUserId = primaryUser.id;
+            // Use the actual email from metadata if available
+            const primaryMetadata = primaryUser.metadata as any;
+            if (primaryMetadata?.actualEmail) {
+                tokenEmail = primaryMetadata.actualEmail;
+            }
+        }
+    }
+
+    // Generate JWT token with resolved primary user ID
+    const token = signJWT({ userId: primaryUserId, email: tokenEmail });
+    
+    logger.info('[AUTH] Email/password login successful:', {
+        loginEmail: email,
+        userId: user.id,
+        primaryUserId,
+        tokenEmail,
+        provider: user.provider
+    });
 
     res.json({
         message: 'Login successful',

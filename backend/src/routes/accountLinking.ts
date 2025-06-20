@@ -1,81 +1,100 @@
 import { Router, Response } from 'express';
 import { prisma } from '../database';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
+import { authenticateEnterpriseToken, resolveLinkedAccounts, EnterpriseAuthenticatedRequest } from '../middleware/enterpriseAuth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
+import logger from '../utils/logger';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
 
-// Get linked accounts for the current user
-router.get('/linked', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { userId } = req.user;
+// Get linked accounts for the current user - using enterprise auth
+router.get('/linked', authenticateEnterpriseToken, resolveLinkedAccounts, asyncHandler(async (req: any, res: Response) => {
+    const { primaryUserId, allUserIds, identities } = req.user;
+    
+    logger.info('[ACCOUNT LINKING] Getting linked accounts:', {
+        primaryUserId,
+        allUserIds,
+        identityCount: identities?.length || 0
+    });
 
-    // Get all linked accounts where user is primary
-    const linkedAsOwner = await prisma.linkedAccount.findMany({
+    // With enterprise auth, we already have all the identities resolved
+    if (!identities || identities.length === 0) {
+        logger.warn('[ACCOUNT LINKING] No identities found for user:', primaryUserId);
+        return res.json({
+            currentUser: null,
+            linkedAccounts: []
+        });
+    }
+
+    // Find the primary identity
+    const primaryIdentity = identities.find(id => id.isPrimary) || identities[0];
+    
+    // Format the response with all linked identities
+    const linkedIdentities = identities
+        .filter(id => !id.isPrimary)
+        .map(identity => ({
+            id: identity.id,
+            user: {
+                id: identity.id,
+                email: identity.actualEmail || identity.email,
+                provider: identity.provider,
+                createdAt: new Date() // We don't have this in identities, would need to fetch
+            },
+            isPrimary: false,
+            linkedAt: new Date() // Would need to fetch from linkedAccount table
+        }));
+
+    // Get the actual linked account records for accurate timestamps
+    const linkedAccountRecords = await prisma.linkedAccount.findMany({
         where: {
-            primaryUserId: userId,
-            verified: true
+            AND: [
+                {
+                    OR: [
+                        { primaryUserId: primaryUserId },
+                        { linkedUserId: primaryUserId }
+                    ]
+                },
+                { verified: true }
+            ]
         },
         include: {
-            linkedUser: {
-                select: {
-                    id: true,
-                    email: true,
-                    provider: true,
-                    createdAt: true
-                }
-            }
+            primaryUser: true,
+            linkedUser: true
         }
     });
 
-    // Get all linked accounts where user is linked
-    const linkedAsLinked = await prisma.linkedAccount.findMany({
-        where: {
-            linkedUserId: userId,
-            verified: true
-        },
-        include: {
-            primaryUser: {
-                select: {
-                    id: true,
-                    email: true,
-                    provider: true,
-                    createdAt: true
-                }
-            }
-        }
-    });
-
-    // Get current user info
-    const currentUser = await prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-            id: true,
-            email: true,
-            provider: true,
-            createdAt: true
-        }
+    // Build the response with accurate data
+    const formattedLinkedAccounts = linkedAccountRecords.map(la => {
+        const linkedUser = la.primaryUserId === primaryUserId ? la.linkedUser : la.primaryUser;
+        const actualEmail = (linkedUser.metadata as any)?.actualEmail || linkedUser.email;
+        
+        return {
+            id: la.id,
+            user: {
+                id: linkedUser.id,
+                email: actualEmail.includes('.') && actualEmail.includes('@') 
+                    ? actualEmail.split('.')[0] + '@' + actualEmail.split('@')[1] 
+                    : actualEmail,
+                provider: linkedUser.provider || 'local',
+                createdAt: linkedUser.createdAt
+            },
+            isPrimary: linkedUser.id === primaryUserId,
+            linkedAt: la.linkedAt
+        };
     });
 
     res.json({
-        currentUser,
-        linkedAccounts: [
-            ...linkedAsOwner.map(la => ({
-                id: la.id,
-                user: la.linkedUser,
-                isPrimary: false,
-                linkedAt: la.linkedAt
-            })),
-            ...linkedAsLinked.map(la => ({
-                id: la.id,
-                user: la.primaryUser,
-                isPrimary: true,
-                linkedAt: la.linkedAt
-            }))
-        ]
+        currentUser: {
+            id: primaryIdentity.id,
+            email: primaryIdentity.actualEmail || primaryIdentity.email,
+            provider: primaryIdentity.provider,
+            createdAt: new Date() // Would need to fetch if needed
+        },
+        linkedAccounts: formattedLinkedAccounts
     });
 }));
 
