@@ -179,11 +179,8 @@ export const useImportStore = create<ImportState>()(
             const serverUrl = 'http://localhost:3003'
             
             if (!token) {
-                console.log('🔍 SESSION DISCOVERY: No auth token, skipping discovery')
                 return
             }
-
-            console.log('🔍 SESSION DISCOVERY: Starting session discovery...')
             
             const response = await window.electronAPI.netFetch(`${serverUrl}/api/pocket/sessions/discover`, {
                 headers: {
@@ -194,7 +191,6 @@ export const useImportStore = create<ImportState>()(
 
             if (response.success && response.data?.activeSessions) {
                 const activeSessions = response.data.activeSessions
-                console.log('🔍 SESSION DISCOVERY: Found sessions:', activeSessions.length)
 
                 // Get current state to check for existing imports
                 const currentState = get()
@@ -206,23 +202,25 @@ export const useImportStore = create<ImportState>()(
                     )
                     
                     if (!existingImport) {
-                        console.log('🔄 SESSION RECOVERY: Recovering session', sessionData.id)
                         get().recoverSession(sessionData)
                     } else {
-                        console.log('🔄 SESSION RECOVERY: Session already tracked', sessionData.id)
-                        // Update existing import with fresh data
-                        get().syncWithBackend(sessionData.id, sessionData.progress)
+                        // Session already tracked, update its progress
+                        set(state => ({
+                            activeImports: state.activeImports.map(imp => 
+                                imp.sessionId === sessionData.id 
+                                    ? { ...imp, progress: sessionData.progress }
+                                    : imp
+                            )
+                        }))
                     }
                 })
 
                 if (activeSessions.length > 0) {
                     set({ showProgress: true })
                 }
-            } else {
-                console.log('🔍 SESSION DISCOVERY: No active sessions found')
             }
         } catch (error) {
-            console.error('❌ SESSION DISCOVERY: Failed to discover sessions:', error)
+            // Silently handle errors - no console logging
         }
     },
 
@@ -247,7 +245,6 @@ export const useImportStore = create<ImportState>()(
             lastSyncTime: new Date()
         }
 
-        console.log('🔄 SESSION RECOVERY: Recovered job:', recoveredJob)
 
         set(state => ({
             activeImports: [...state.activeImports, recoveredJob],
