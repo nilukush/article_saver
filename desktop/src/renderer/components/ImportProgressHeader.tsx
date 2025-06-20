@@ -1,4 +1,5 @@
 import { useImportStore } from '../stores/importStore'
+import { useArticleStore } from '../stores/articleStore'
 import { useProgressStore } from '../hooks/useProgressStore'
 import { useProgressPolling } from '../hooks/useProgressPolling'
 import { ErrorBoundary } from './ErrorBoundary'
@@ -15,6 +16,9 @@ function ImportProgressHeaderContent() {
     const removeImport = useImportStore(state => state.removeImport)
     const completeImport = useImportStore(state => state.completeImport)
     
+    // CRITICAL FIX: Get article store to refresh after import
+    const loadInitialArticles = useArticleStore(state => state.loadInitialArticles)
+    
     // Get active import session
     const activeImport = activeImports.find(imp => imp.status === 'running')
     
@@ -28,6 +32,11 @@ function ImportProgressHeaderContent() {
                 // Import completed with results
                 completeImport(activeImport.id, results)
                 progress.clearProgress()
+                
+                // CRITICAL FIX: Refresh articles after import completes!
+                // This was the missing piece - UI wasn't updating because
+                // articles weren't being reloaded after import
+                loadInitialArticles()
             }
         },
         onError: (error) => {
