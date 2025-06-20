@@ -155,7 +155,9 @@ export class ContentExtractionService {
                     where: { id: article.id },
                     data: {
                         content: parsed.content,
-                        title: parsed.title || article.title,
+                        // CRITICAL FIX: Don't overwrite existing title from Pocket
+                        // Only use extracted title if article has no title
+                        title: article.title || parsed.title || 'Untitled',
                         excerpt: parsed.excerpt || article.excerpt || this.generateExcerpt(parsed.content),
                         author: parsed.byline || article.author,
                         contentExtracted: true,
