@@ -25,6 +25,14 @@ export function Settings({ onClose }: SettingsProps) {
         trustLevel?: 'high' | 'medium' | 'low'
         requiresVerification?: boolean
     } | null>(null)
+    
+    // Debug: Track component lifecycle
+    useEffect(() => {
+        console.log('🔍 SETTINGS COMPONENT: Mounted')
+        return () => {
+            console.log('🔍 SETTINGS COMPONENT: Unmounted')
+        }
+    }, [])
 
     // Get stores
     const { loadArticles, loadInitialArticles, resetArticles, totalArticles, setPreventAutoLoad } = useArticleStore()
@@ -761,19 +769,20 @@ export function Settings({ onClose }: SettingsProps) {
 
     // OAuth event listeners - separate effect to avoid nesting
     useEffect(() => {
-        // Listen for OAuth success events (direct token from backend)
-        if (window.electronAPI?.onOAuthSuccess) {
-            window.electronAPI.onOAuthSuccess(async (data: { 
-                provider: string; 
-                token: string; 
-                email: string;
-                pocket_authorized?: boolean;
-                action?: string;
-                existingProvider?: string;
-                linkingToken?: string;
-                trustLevel?: string;
-                requiresVerification?: string;
-            }) => {
+        console.log('🔍 SETTINGS: Setting up OAuth event listeners')
+        
+        // Define OAuth success handler
+        const handleOAuthSuccess = async (data: { 
+            provider: string; 
+            token: string; 
+            email: string;
+            pocket_authorized?: boolean;
+            action?: string;
+            existingProvider?: string;
+            linkingToken?: string;
+            trustLevel?: string;
+            requiresVerification?: string;
+        }) => {
                 console.log('🔍 OAUTH SUCCESS: Event received', {
                     ...data,
                     hasAction: !!data.action,
@@ -799,15 +808,30 @@ export function Settings({ onClose }: SettingsProps) {
                     setIsLoggedIn(true)
                     
                     // Trigger account linking flow
-                    setAccountLinkingData({
+                    const linkingData = {
                         existingProvider: data.existingProvider || 'unknown',
                         linkingProvider: data.provider,
                         linkingToken: data.linkingToken || '',
                         email: data.email,
                         trustLevel: data.trustLevel as 'high' | 'medium' | 'low' | undefined,
                         requiresVerification: data.requiresVerification === 'true'
-                    })
-                    console.log('🔗 ACCOUNT LINKING: Set accountLinkingData state')
+                    }
+                    console.log('🔗 ACCOUNT LINKING: Setting accountLinkingData state to:', linkingData)
+                    setAccountLinkingData(linkingData)
+                    console.log('🔗 ACCOUNT LINKING: State set, accountLinkingData should now be:', linkingData)
+                    
+                    // Add debug alert to confirm state was set
+                    alert(`Account linking state set!\nProvider: ${linkingData.linkingProvider}\nExisting: ${linkingData.existingProvider}\nEmail: ${linkingData.email}`)
+                    
+                    // CRITICAL: Store in window for debugging
+                    (window as any).debugAccountLinkingData = linkingData
+                    console.log('🔗 ACCOUNT LINKING: Stored in window.debugAccountLinkingData')
+                    
+                    // Force a re-render by using setTimeout
+                    setTimeout(() => {
+                        console.log('🔗 ACCOUNT LINKING: Checking state after timeout, current accountLinkingData:', accountLinkingData)
+                        console.log('🔗 ACCOUNT LINKING: Window data:', (window as any).debugAccountLinkingData)
+                    }, 100)
                     return
                 }
                 
@@ -825,15 +849,24 @@ export function Settings({ onClose }: SettingsProps) {
                     setLoading(false)
                     
                     // ENTERPRISE UX: Close modal after successful OAuth login
-                    setTimeout(() => {
-                        onClose()
-                    }, 1500) // Brief delay to show success message
+                    // BUT NOT if we're handling account linking
+                    if (!data.action) {
+                        setTimeout(() => {
+                            onClose()
+                        }, 1500) // Brief delay to show success message
+                    }
                     // Don't close modal if we're expecting account linking
                     // The linking prompt will handle closing
                 }
-            })
+            }
+        }
+        
+        // Register OAuth success handler
+        if (window.electronAPI?.onOAuthSuccess) {
+            window.electronAPI.onOAuthSuccess(handleOAuthSuccess)
         }
 
+        // Register OAuth error handler
         if (window.electronAPI?.onOAuthError) {
             window.electronAPI.onOAuthError((data: { provider: string; error: string }) => {
                 setError(`${data.provider} login failed: ${data.error}`)
@@ -879,7 +912,7 @@ export function Settings({ onClose }: SettingsProps) {
                 window.electronAPI.removeOAuthListeners()
             }
         }
-    }, []) // Only run on mount
+    }, [checkPocketAuth, onClose]) // Include dependencies
 
     // Debug logging for account linking state
     console.log('🔍 SETTINGS RENDER: accountLinkingData state', {
