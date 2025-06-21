@@ -159,13 +159,52 @@ export async function handleEnterpriseOAuthLogin(
     }
     
     if (existingProviderAccount) {
-        // Same email+provider exists - just log them in
+        // ENTERPRISE CRITICAL: Check if there are OTHER providers with same email
+        // If so, we need to potentially trigger account linking flow
+        const otherProviderAccounts = existingAccounts.filter(acc => 
+            acc.id !== existingProviderAccount.id && 
+            (acc.provider !== provider || acc.provider === 'local')
+        );
+        
         logger.info('ENTERPRISE AUTH: Found exact email+provider match', { 
             userId: existingProviderAccount.id, 
             email, 
-            provider 
+            provider,
+            hasOtherProviders: otherProviderAccounts.length > 0,
+            otherProviders: otherProviderAccounts.map(acc => acc.provider)
         });
         
+        // If there are other providers, check for account linking opportunities
+        if (otherProviderAccounts.length > 0) {
+            logger.info('ENTERPRISE AUTH: Multiple providers detected, checking for linking opportunities');
+            
+            // Check if accounts are already linked
+            const existingLinks = await prisma.linkedAccount.findMany({
+                where: {
+                    OR: [
+                        { 
+                            primaryUserId: existingProviderAccount.id,
+                            linkedUserId: { in: otherProviderAccounts.map(acc => acc.id) }
+                        },
+                        { 
+                            linkedUserId: existingProviderAccount.id,
+                            primaryUserId: { in: otherProviderAccounts.map(acc => acc.id) }
+                        }
+                    ]
+                }
+            });
+            
+            // If no verified links exist with other providers, continue with regular linking flow
+            const hasVerifiedLinks = existingLinks.some(link => link.verified);
+            if (!hasVerifiedLinks) {
+                logger.info('ENTERPRISE AUTH: No verified links found, proceeding with account linking flow for existing provider account');
+                // Don't return success here - let it continue to the linking logic below
+            } else {
+                logger.info('ENTERPRISE AUTH: Verified links exist, logging in with existing account');
+            }
+        }
+        
+        // If we reach here, either no other providers or verified links exist
         // Get all linked user IDs for this account
         const linkedAccounts = await prisma.linkedAccount.findMany({
             where: {
@@ -208,29 +247,24 @@ export async function handleEnterpriseOAuthLogin(
             }
         });
         
-        return {
-            type: 'success',
-            user: existingProviderAccount,
-            token,
-            redirectUrl: buildRedirectUrl(electronPort, provider, { token, email })
-        };
-    }
-    
-    // Check for ANY accounts with this email (different providers)
-    // Include accounts that might have unique emails with actualEmail in metadata
-    const existingAccounts = await prisma.user.findMany({
-        where: {
-            OR: [
-                { email },
-                { 
-                    metadata: {
-                        path: ['actualEmail'],
-                        equals: email
-                    }
-                }
-            ]
+        // Only return success if we have verified links or no other providers
+        const otherProvidersExist = otherProviderAccounts.length > 0;
+        const hasVerifiedLinksWithOthers = linkedAccounts.some(link => 
+            otherProviderAccounts.some(acc => acc.id === link.primaryUserId || acc.id === link.linkedUserId)
+        );
+        
+        if (!otherProvidersExist || hasVerifiedLinksWithOthers) {
+            return {
+                type: 'success',
+                user: existingProviderAccount,
+                token,
+                redirectUrl: buildRedirectUrl(electronPort, provider, { token, email })
+            };
         }
-    });
+        
+        // If we have other providers but no verified links, continue to linking flow below
+        logger.info('ENTERPRISE AUTH: Existing provider account found but needs linking with other providers');
+    }
     
     logger.info('ENTERPRISE AUTH: Found existing accounts with email', { 
         email, 
@@ -290,8 +324,9 @@ export async function handleEnterpriseOAuthLogin(
     }
     
     // At this point: Email exists but with a different provider
-    // Check if accounts are already linked before creating a new one
-    const primaryAccount = existingAccounts[0]; // For now, use first account as primary
+    // ENTERPRISE LOGIC: Prioritize local accounts as primary for account linking
+    const primaryAccount = existingAccounts.find(acc => acc.provider === 'local' || acc.provider === null) 
+        || existingAccounts[0]; // Fallback to first if no local account found
     
     // Check if there's already a linked account for this provider
     logger.info('ENTERPRISE AUTH: Checking for existing linked accounts', {
