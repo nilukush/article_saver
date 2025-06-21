@@ -104,9 +104,34 @@ export async function handleEnterpriseOAuthLogin(
             });
             
             if (linkedAccount) {
+                // Get all linked user IDs
+                const allLinkedAccounts = await prisma.linkedAccount.findMany({
+                    where: {
+                        AND: [
+                            {
+                                OR: [
+                                    { primaryUserId: possibleLinkedAccount.id },
+                                    { linkedUserId: possibleLinkedAccount.id }
+                                ]
+                            },
+                            { verified: true }
+                        ]
+                    }
+                });
+                
+                const allUserIds = new Set<string>([possibleLinkedAccount.id]);
+                allLinkedAccounts.forEach(link => {
+                    allUserIds.add(link.primaryUserId);
+                    allUserIds.add(link.linkedUserId);
+                });
+                
                 // Use the linked account for authentication
                 const token = jwt.sign(
-                    { userId: possibleLinkedAccount.id, email },
+                    { 
+                        userId: possibleLinkedAccount.id, 
+                        email,
+                        linkedUserIds: Array.from(allUserIds)
+                    },
                     JWT_SECRET,
                     { expiresIn: '7d' }
                 );
@@ -140,8 +165,33 @@ export async function handleEnterpriseOAuthLogin(
             provider 
         });
         
+        // Get all linked user IDs for this account
+        const linkedAccounts = await prisma.linkedAccount.findMany({
+            where: {
+                AND: [
+                    {
+                        OR: [
+                            { primaryUserId: existingProviderAccount.id },
+                            { linkedUserId: existingProviderAccount.id }
+                        ]
+                    },
+                    { verified: true }
+                ]
+            }
+        });
+        
+        const allUserIds = new Set<string>([existingProviderAccount.id]);
+        linkedAccounts.forEach(link => {
+            allUserIds.add(link.primaryUserId);
+            allUserIds.add(link.linkedUserId);
+        });
+        
         const token = jwt.sign(
-            { userId: existingProviderAccount.id, email: existingProviderAccount.email },
+            { 
+                userId: existingProviderAccount.id, 
+                email: existingProviderAccount.email,
+                linkedUserIds: Array.from(allUserIds)
+            },
             JWT_SECRET,
             { expiresIn: '7d' }
         );
@@ -207,7 +257,11 @@ export async function handleEnterpriseOAuthLogin(
         });
         
         const token = jwt.sign(
-            { userId: user.id, email: user.email },
+            { 
+                userId: user.id, 
+                email: user.email,
+                linkedUserIds: [user.id] // New account starts with just itself
+            },
             JWT_SECRET,
             { expiresIn: '7d' }
         );
@@ -335,9 +389,34 @@ export async function handleEnterpriseOAuthLogin(
             }
         });
         
+        // Get all linked user IDs for the primary account
+        const linkedAccounts = await prisma.linkedAccount.findMany({
+            where: {
+                AND: [
+                    {
+                        OR: [
+                            { primaryUserId: primaryAccount.id },
+                            { linkedUserId: primaryAccount.id }
+                        ]
+                    },
+                    { verified: true }
+                ]
+            }
+        });
+        
+        const allUserIds = new Set<string>([primaryAccount.id]);
+        linkedAccounts.forEach(link => {
+            allUserIds.add(link.primaryUserId);
+            allUserIds.add(link.linkedUserId);
+        });
+        
         // Generate token using the primary account (for consistency)
         const token = jwt.sign(
-            { userId: primaryAccount.id, email: primaryAccount.email },
+            { 
+                userId: primaryAccount.id, 
+                email: primaryAccount.email,
+                linkedUserIds: Array.from(allUserIds)
+            },
             JWT_SECRET,
             { expiresIn: '7d' }
         );
@@ -390,8 +469,13 @@ export async function handleEnterpriseOAuthLogin(
     });
     
     // Generate auth token for new account (use actual email, not unique one)
+    // CRITICAL: Include linkedUserIds even for new accounts that will be linked
     const authToken = jwt.sign(
-        { userId: newProviderAccount.id, email: email },
+        { 
+            userId: newProviderAccount.id, 
+            email: email,
+            linkedUserIds: [newProviderAccount.id] // Start with just this account
+        },
         JWT_SECRET,
         { expiresIn: '7d' }
     );
