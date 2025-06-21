@@ -468,19 +468,25 @@ router.post('/google/callback', asyncHandler(async (req: Request, res: Response)
         throw createError('Failed to get user email', 400);
     }
 
-    // Handle OAuth login with account linking support
-    const result = await handleOAuthLogin({
+    // Handle OAuth login with enterprise-grade account linking
+    const result = await handleEnterpriseOAuthLogin({
         email: userData.email,
-        provider: 'google'
+        provider: 'google',
+        metadata: {
+            emailVerified: userData.verified_email || true,
+            googleId: userData.id
+        }
     }, null);
 
-    if (result.type === 'link_account') {
+    if (result.type === 'requires_linking' || result.type === 'requires_verification') {
         res.json({
             message: 'Account linking required',
             action: 'link_account',
-            existingProvider: result.existingProvider,
-            linkingProvider: result.linkingProvider,
-            linkingToken: result.linkingToken
+            existingProvider: result.linkingData?.existingProvider,
+            linkingProvider: result.linkingData?.newProvider,
+            linkingToken: result.linkingData?.linkingToken,
+            trustLevel: result.linkingData?.trustLevel,
+            requiresVerification: result.linkingData?.verificationRequired
         });
     } else {
         res.json({
@@ -594,19 +600,26 @@ router.post('/github/callback', asyncHandler(async (req: Request, res: Response)
         throw createError('Failed to get user email', 400);
     }
 
-    // Handle OAuth login with account linking support
-    const result = await handleOAuthLogin({
+    // Handle OAuth login with enterprise-grade account linking
+    const result = await handleEnterpriseOAuthLogin({
         email: primaryEmail,
-        provider: 'github'
+        provider: 'github',
+        metadata: {
+            emailVerified: emailData.find((email: any) => email.primary)?.verified || false,
+            githubId: userData.id,
+            githubLogin: userData.login
+        }
     }, null);
 
-    if (result.type === 'link_account') {
+    if (result.type === 'requires_linking' || result.type === 'requires_verification') {
         res.json({
             message: 'Account linking required',
             action: 'link_account',
-            existingProvider: result.existingProvider,
-            linkingProvider: result.linkingProvider,
-            linkingToken: result.linkingToken
+            existingProvider: result.linkingData?.existingProvider,
+            linkingProvider: result.linkingData?.newProvider,
+            linkingToken: result.linkingData?.linkingToken,
+            trustLevel: result.linkingData?.trustLevel,
+            requiresVerification: result.linkingData?.verificationRequired
         });
     } else {
         res.json({

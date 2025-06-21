@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import logger from '../utils/logger';
+import { completeAccountLinking } from '../utils/enterpriseAccountLinking';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
@@ -444,6 +445,31 @@ router.delete('/unlink/:linkId', authenticateToken, asyncHandler(async (req: Aut
     res.json({
         message: 'Accounts successfully unlinked'
     });
+}));
+
+// Complete OAuth-based account linking
+router.post('/complete-oauth', asyncHandler(async (req: any, res: Response) => {
+    const { linkingToken, verificationCode } = req.body;
+
+    if (!linkingToken) {
+        throw createError('Linking token is required', 400);
+    }
+
+    logger.info('[ACCOUNT LINKING] Completing OAuth account linking:', {
+        hasToken: !!linkingToken,
+        hasVerificationCode: !!verificationCode
+    });
+
+    const result = await completeAccountLinking(linkingToken, verificationCode);
+
+    if (result.success) {
+        res.json({
+            message: 'Accounts successfully linked',
+            token: result.token
+        });
+    } else {
+        throw createError(result.error || 'Failed to complete account linking', 400);
+    }
 }));
 
 export default router;

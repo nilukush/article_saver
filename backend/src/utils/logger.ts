@@ -4,9 +4,27 @@ import path from 'path';
 // Create logs directory if it doesn't exist
 const logsDir = path.join(__dirname, '../../logs');
 
-// Winston logger configuration
+// Enterprise-grade Winston logger configuration with environment-specific levels
+const getLogLevel = (): string => {
+    // Explicit LOG_LEVEL takes precedence for fine-grained control
+    if (process.env.LOG_LEVEL) {
+        return process.env.LOG_LEVEL.toLowerCase();
+    }
+    
+    // Environment-based defaults following enterprise best practices
+    switch (process.env.NODE_ENV) {
+        case 'production':
+            return 'warn';  // Production: Only warnings and errors
+        case 'staging':
+            return 'info';  // Staging: Include important business events
+        case 'development':
+        default:
+            return 'debug'; // Development: Full verbose logging
+    }
+};
+
 const logger = winston.createLogger({
-    level: process.env.NODE_ENV === 'development' ? 'debug' : 'info',
+    level: getLogLevel(),
     format: winston.format.combine(
         winston.format.timestamp({
             format: 'YYYY-MM-DD HH:mm:ss'
