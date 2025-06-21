@@ -556,32 +556,41 @@ router.get('/user/info', authenticateToken, asyncHandler(async (req: Request, re
     }
 }));
 
-// Bulk delete all articles for current user (for testing/cleanup)
+// Bulk delete all articles for current user AND all linked accounts
 router.delete('/bulk/all', authenticateToken, asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const userId = (req as any).user.userId;
     
-    logger.info('🗑️ BULK DELETE: Starting bulk deletion for user', { userId });
+    logger.info('🗑️ BULK DELETE: Starting bulk deletion for user and linked accounts', { userId });
     
     try {
-        // Get count before deletion for logging
+        // CRITICAL: Get all linked user IDs to delete from ALL accounts
+        const userIds = await getAllLinkedUserIds(userId);
+        logger.info('🗑️ BULK DELETE: Found linked accounts', { userId, linkedUserIds: userIds });
+        
+        // Get count before deletion for logging (from all linked accounts)
         const countBefore = await prisma.article.count({
-            where: { userId }
+            where: { userId: { in: userIds } }
         });
         
-        logger.info('🗑️ BULK DELETE: Count before deletion', { userId, countBefore });
+        logger.info('🗑️ BULK DELETE: Count before deletion across all linked accounts', { 
+            userId, 
+            linkedAccounts: userIds.length,
+            countBefore 
+        });
         
-        // Delete all articles for this user
+        // Delete all articles for this user AND all linked accounts
         const deleteResult = await prisma.article.deleteMany({
-            where: { userId }
+            where: { userId: { in: userIds } }
         });
         
         // Verify deletion was successful
         const countAfter = await prisma.article.count({
-            where: { userId }
+            where: { userId: { in: userIds } }
         });
         
-        logger.info('✅ BULK DELETE: Successfully deleted articles', {
+        logger.info('✅ BULK DELETE: Successfully deleted articles from all linked accounts', {
             userId,
+            linkedAccounts: userIds,
             articlesDeleted: deleteResult.count,
             countBefore,
             countAfter
@@ -590,8 +599,9 @@ router.delete('/bulk/all', authenticateToken, asyncHandler(async (req: Request, 
         res.json({
             success: true,
             deletedCount: deleteResult.count,
-            message: `Successfully deleted ${deleteResult.count} articles`,
-            articlesRemaining: countAfter
+            message: `Successfully deleted ${deleteResult.count} articles from all linked accounts`,
+            articlesRemaining: countAfter,
+            linkedAccountsCleared: userIds.length
         });
         return;
         
@@ -1081,8 +1091,14 @@ router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
     const userId = (req as any).user.userId;
     const { id } = req.params;
 
+    // Get all linked user IDs to ensure article can be deleted from any linked account
+    const userIds = await getAllLinkedUserIds(userId);
+
     const article = await prisma.article.deleteMany({
-        where: { id, userId }
+        where: { 
+            id, 
+            userId: { in: userIds } 
+        }
     });
 
     if (article.count === 0) {
