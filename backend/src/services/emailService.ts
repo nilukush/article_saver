@@ -63,7 +63,7 @@ class EmailService {
             }
 
             // Create reusable transporter
-            this.transporter = nodemailer.createTransporter({
+            this.transporter = nodemailer.createTransport({
                 host: EMAIL_CONFIG.host,
                 port: EMAIL_CONFIG.port,
                 secure: EMAIL_CONFIG.secure,
@@ -84,7 +84,9 @@ class EmailService {
             });
 
             // Verify connection configuration
-            await this.transporter.verify();
+            if (this.transporter) {
+                await this.transporter.verify();
+            }
             this.isInitialized = true;
             logger.info('Email service initialized successfully');
         } catch (error) {
@@ -319,7 +321,7 @@ class EmailService {
                 subject: options.subject,
                 html: options.html,
                 text: options.text,
-                priority: options.priority,
+                priority: options.priority as 'high' | 'normal' | 'low' | undefined,
                 attachments: options.attachments,
                 // Additional headers for better deliverability
                 headers: {
