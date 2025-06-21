@@ -519,12 +519,26 @@ if (!gotTheLock) {
                     console.log('✅ Using regular fetch for localhost HTTP')
                     const response = await fetch(url, options)
                     const data = await response.json()
-                    console.log('✅ Regular fetch successful')
-                    return {
-                        success: true,
-                        data,
-                        status: response.status,
-                        statusText: response.statusText
+                    console.log(`📡 Response status: ${response.status}`)
+                    
+                    // Check if response is successful (2xx status codes)
+                    if (response.ok) {
+                        return {
+                            success: true,
+                            data,
+                            status: response.status,
+                            statusText: response.statusText
+                        }
+                    } else {
+                        // Handle error responses (4xx, 5xx)
+                        console.error(`❌ HTTP Error: ${response.status} ${response.statusText}`)
+                        return {
+                            success: false,
+                            error: data?.error?.message || data?.message || `${response.status} ${response.statusText}`,
+                            status: response.status,
+                            statusText: response.statusText,
+                            data // Include data for additional error details
+                        }
                     }
                 } else {
                     console.log('🌐 Using net.fetch for external request')
@@ -535,12 +549,26 @@ if (!gotTheLock) {
                         bypassCustomProtocolHandlers: true
                     })
                     const data = await response.json()
-                    console.log('✅ Net.fetch successful')
-                    return {
-                        success: true,
-                        data,
-                        status: response.status,
-                        statusText: response.statusText
+                    console.log(`📡 Response status: ${response.status}`)
+                    
+                    // Check if response is successful (2xx status codes)
+                    if (response.ok) {
+                        return {
+                            success: true,
+                            data,
+                            status: response.status,
+                            statusText: response.statusText
+                        }
+                    } else {
+                        // Handle error responses (4xx, 5xx)
+                        console.error(`❌ HTTP Error: ${response.status} ${response.statusText}`)
+                        return {
+                            success: false,
+                            error: data?.error?.message || data?.message || `${response.status} ${response.statusText}`,
+                            status: response.status,
+                            statusText: response.statusText,
+                            data // Include data for additional error details
+                        }
                     }
                 }
             } catch (error) {
