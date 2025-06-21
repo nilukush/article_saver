@@ -14,6 +14,7 @@ import pocketRoutes from './routes/pocket';
 import accountLinkingRoutes from './routes/accountLinking';
 import accountMigrationRoutes from './routes/account-migration';
 import emailTestRoutes from './routes/emailTest';
+import debugRoutes from './routes/debug';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -93,9 +94,10 @@ app.use('/api/pocket', pocketRoutes);
 app.use('/api/account-linking', accountLinkingRoutes);
 app.use('/api/account-migration', accountMigrationRoutes);
 
-// Email testing routes (development only)
+// Development routes (development only)
 if (process.env.NODE_ENV !== 'production') {
     app.use('/api/email-test', emailTestRoutes);
+    app.use('/api/debug', debugRoutes);
 }
 
 // 404 handler

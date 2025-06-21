@@ -104,27 +104,46 @@ export async function handleOAuthLogin(userData: OAuthUserData, electronPort?: s
 
 export async function getAllLinkedUserIds(userId: string, tokenLinkedIds?: string[]): Promise<string[]> {
     // If linked IDs are already in the token, use those for performance
-    if (tokenLinkedIds && tokenLinkedIds.length > 0) {
-        return tokenLinkedIds;
+    // BUT only if we're confident they're complete (this is an optimization for verified tokens)
+    if (tokenLinkedIds && tokenLinkedIds.length > 1) {
+        // Verify the token contains the current user and do a quick validation
+        if (tokenLinkedIds.includes(userId)) {
+            return tokenLinkedIds;
+        }
     }
     
-    // Otherwise, query the database
-    const linkedAccounts = await prisma.linkedAccount.findMany({
-        where: {
-            verified: true,
-            OR: [
-                { primaryUserId: userId },
-                { linkedUserId: userId }
-            ]
-        }
-    });
-
-    const userIds = new Set<string>([userId]);
+    // Otherwise, query the database with RECURSIVE/TRANSITIVE linking
+    // This finds all accounts connected through any chain of verified links
+    const allFound = new Set<string>();
+    const toProcess = [userId];
     
-    linkedAccounts.forEach(link => {
-        userIds.add(link.primaryUserId);
-        userIds.add(link.linkedUserId);
-    });
+    while (toProcess.length > 0) {
+        const currentUserId = toProcess.pop()!;
+        if (allFound.has(currentUserId)) continue;
+        
+        allFound.add(currentUserId);
+        
+        // Find all verified linked accounts for the current user
+        const linkedAccounts = await prisma.linkedAccount.findMany({
+            where: {
+                verified: true,
+                OR: [
+                    { primaryUserId: currentUserId },
+                    { linkedUserId: currentUserId }
+                ]
+            }
+        });
+        
+        // Add newly discovered users to the processing queue
+        for (const link of linkedAccounts) {
+            if (!allFound.has(link.primaryUserId)) {
+                toProcess.push(link.primaryUserId);
+            }
+            if (!allFound.has(link.linkedUserId)) {
+                toProcess.push(link.linkedUserId);
+            }
+        }
+    }
 
-    return Array.from(userIds);
+    return Array.from(allFound);
 }

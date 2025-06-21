@@ -111,6 +111,12 @@ export const useAccountLinkingStore = create<AccountLinkingState>((set, get) => 
                 // Reload linked accounts
                 await get().loadLinkedAccounts()
                 
+                // CRITICAL: Refresh articles to show all linked account articles
+                const articleStore = await import('./articleStore')
+                if (articleStore.useArticleStore && typeof articleStore.useArticleStore.getState === 'function') {
+                    articleStore.useArticleStore.getState().loadInitialArticles()
+                }
+                
                 set({ loading: false })
             } else {
                 set({ error: response.error || 'Failed to link account', loading: false })

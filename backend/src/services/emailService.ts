@@ -313,22 +313,25 @@ class EmailService {
             // Cleanup old rate limit entries periodically
             this.cleanupRateLimiter();
 
-            // Send email
+            // Send email with Gmail-friendly headers
             const info: SentMessageInfo = await this.transporter.sendMail({
-                from: EMAIL_CONFIG.from,
-                replyTo: EMAIL_CONFIG.replyTo,
+                from: 'Article Saver Security <90379f001@smtp-brevo.com>',
+                replyTo: '90379f001@smtp-brevo.com',
                 to: options.to,
-                subject: options.subject,
+                subject: '[URGENT] Security Verification Required - Article Saver',
                 html: options.html,
                 text: options.text,
-                priority: options.priority as 'high' | 'normal' | 'low' | undefined,
+                priority: 'high',
                 attachments: options.attachments,
-                // Additional headers for better deliverability
+                // Gmail delivery optimization headers
                 headers: {
-                    'X-Priority': options.priority === 'high' ? '1' : '3',
-                    'X-MSMail-Priority': options.priority === 'high' ? 'High' : 'Normal',
-                    'X-Mailer': 'Article Saver Email Service',
-                    'List-Unsubscribe': '<mailto:unsubscribe@articlesaver.com>'
+                    'X-Priority': '1',
+                    'X-MSMail-Priority': 'High',
+                    'Importance': 'high',
+                    'X-Mailer': 'Article Saver Security System',
+                    'Message-ID': `<security-${Date.now()}.${Math.random().toString(36)}@smtp-brevo.com>`,
+                    'List-Unsubscribe': '<mailto:unsubscribe@smtp-brevo.com>',
+                    'X-Entity-Ref-ID': `security-verification-${Date.now()}`
                 }
             });
 
