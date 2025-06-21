@@ -31,10 +31,6 @@ npm run db:push         # Push schema changes to database
 npm run db:migrate      # Run database migrations
 npm run db:studio       # Open Prisma Studio GUI
 
-# Logging and debugging
-npm run logs            # Tail combined.log
-npm run logs:error      # Tail error.log
-npm run logs:watch      # Watch all log files
 ```
 
 ### Desktop Development (`cd desktop/`)
@@ -86,9 +82,12 @@ npm run dev:clean       # Clean and restart development
 - Fallback: JSDOM with minimal configuration to avoid CSS parsing errors
 - JSDOM config: Use URL-only, avoid `resources: "usable"` which causes CSS errors
 
-**Error Handling & Logging:**
-- Winston structured logging with file rotation (combined.log, error.log, debug.log)
-- Enterprise logging standards - no console.log in production code
+**Enterprise Logging & Error Handling:**
+- Backend: Winston structured logging with JSON format and file rotation
+- Desktop: Custom Electron logger with main/renderer process separation  
+- Log levels: debug (development), info (business events), warn (production), error (critical)
+- File locations: `~/Library/Application Support/Article Saver/logs/` (macOS)
+- NEVER use console.log in production code - use proper logger methods
 - Comprehensive try-catch blocks with proper error propagation
 - Progress endpoints excluded from rate limiting for real-time updates
 - Security-compliant logging (no sensitive data exposure)
@@ -111,8 +110,10 @@ npm run dev:clean       # Clean and restart development
 - `main/preload.ts` - Secure IPC bridge between main and renderer
 - `main/database/database.ts` - Local JSON file database operations
 - `main/services/articleService.ts` - Content extraction and processing
+- `main/utils/logger.ts` - Enterprise Electron main process logging
 - `renderer/stores/` - Zustand state management (articleStore, importStore)
 - `renderer/components/` - React components with TypeScript
+- `renderer/utils/logger.ts` - Enterprise Electron renderer process logging
 - `renderer/hooks/useInfiniteScroll.ts` - Infinite scroll implementation
 
 ### `/shared/types.ts`
@@ -242,3 +243,31 @@ devTools: false // Completely disabled in production with enterprise controls
 ### Import Progress Tracking
 - **Problem**: Real-time progress not updating
 - **Solution**: Progress endpoints excluded from rate limiting, 3-second polling interval
+
+## Enterprise Security & Configuration
+
+### Environment Variables
+- **CRITICAL**: Never commit `.env` files to repository
+- Use `.env.example` as template with placeholder values
+- Rotate all OAuth secrets and JWT keys after any exposure
+- Required variables: DATABASE_URL, JWT_SECRET, OAuth credentials
+
+### OAuth Security
+- Client secrets and JWT keys must be kept secure
+- Redirect URIs must match exactly (no wildcards)
+- OAuth tokens stored with encryption in database
+- Account linking requires email verification for enterprise compliance
+
+### Electron Security
+- Context isolation enabled (`contextIsolation: true`)
+- Node integration disabled in renderer (`nodeIntegration: false`)
+- Content Security Policy enforced
+- Dev tools completely disabled in production builds
+- All IPC communication through secure preload scripts
+
+### Database Security
+- PostgreSQL with prepared statements (Prisma ORM)
+- Password hashing with bcrypt (12 rounds minimum)
+- Rate limiting: 100 requests per 15 minutes globally
+- Input validation on all API endpoints
+- No sensitive data in logs or error messages

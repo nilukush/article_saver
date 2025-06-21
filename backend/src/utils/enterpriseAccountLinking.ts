@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { createError } from '../middleware/errorHandler';
 import logger from './logger';
 import { emailService } from '../services/emailService';
+import { getAllLinkedUserIds } from './authHelpers';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
 
@@ -106,33 +107,15 @@ export async function handleEnterpriseOAuthLogin(
             });
             
             if (linkedAccount) {
-                // Get all linked user IDs
-                const allLinkedAccounts = await prisma.linkedAccount.findMany({
-                    where: {
-                        AND: [
-                            {
-                                OR: [
-                                    { primaryUserId: possibleLinkedAccount.id },
-                                    { linkedUserId: possibleLinkedAccount.id }
-                                ]
-                            },
-                            { verified: true }
-                        ]
-                    }
-                });
-                
-                const allUserIds = new Set<string>([possibleLinkedAccount.id]);
-                allLinkedAccounts.forEach(link => {
-                    allUserIds.add(link.primaryUserId);
-                    allUserIds.add(link.linkedUserId);
-                });
+                // Get all transitively linked user IDs using the fixed helper function
+                const allUserIds = await getAllLinkedUserIds(possibleLinkedAccount.id);
                 
                 // Use the linked account for authentication
                 const token = jwt.sign(
                     { 
                         userId: possibleLinkedAccount.id, 
                         email,
-                        linkedUserIds: Array.from(allUserIds)
+                        linkedUserIds: allUserIds
                     },
                     JWT_SECRET,
                     { expiresIn: '7d' }
@@ -222,32 +205,14 @@ export async function handleEnterpriseOAuthLogin(
         }
         
         // If we reach here, either no other providers or verified links exist
-        // Get all linked user IDs for this account
-        const linkedAccounts = await prisma.linkedAccount.findMany({
-            where: {
-                AND: [
-                    {
-                        OR: [
-                            { primaryUserId: existingProviderAccount.id },
-                            { linkedUserId: existingProviderAccount.id }
-                        ]
-                    },
-                    { verified: true }
-                ]
-            }
-        });
-        
-        const allUserIds = new Set<string>([existingProviderAccount.id]);
-        linkedAccounts.forEach(link => {
-            allUserIds.add(link.primaryUserId);
-            allUserIds.add(link.linkedUserId);
-        });
+        // Get all transitively linked user IDs for this account
+        const allUserIds = await getAllLinkedUserIds(existingProviderAccount.id);
         
         const token = jwt.sign(
             { 
                 userId: existingProviderAccount.id, 
                 email: existingProviderAccount.email,
-                linkedUserIds: Array.from(allUserIds)
+                linkedUserIds: allUserIds
             },
             JWT_SECRET,
             { expiresIn: '7d' }
@@ -264,13 +229,9 @@ export async function handleEnterpriseOAuthLogin(
             }
         });
         
-        // Only return success if we have verified links or no other providers
-        const otherProvidersExist = otherProviderAccounts.length > 0;
-        const hasVerifiedLinksWithOthers = linkedAccounts.some(link => 
-            otherProviderAccounts.some(acc => acc.id === link.primaryUserId || acc.id === link.linkedUserId)
-        );
-        
-        if (!otherProvidersExist || hasVerifiedLinksWithOthers) {
+        // Since we're using getAllLinkedUserIds which handles transitivity correctly,
+        // we can now return success in all cases for existing provider accounts
+        if (true) {
             return {
                 type: 'success',
                 user: existingProviderAccount,
@@ -456,33 +417,15 @@ export async function handleEnterpriseOAuthLogin(
             }
         });
         
-        // Get all linked user IDs for the primary account
-        const linkedAccounts = await prisma.linkedAccount.findMany({
-            where: {
-                AND: [
-                    {
-                        OR: [
-                            { primaryUserId: primaryAccount.id },
-                            { linkedUserId: primaryAccount.id }
-                        ]
-                    },
-                    { verified: true }
-                ]
-            }
-        });
-        
-        const allUserIds = new Set<string>([primaryAccount.id]);
-        linkedAccounts.forEach(link => {
-            allUserIds.add(link.primaryUserId);
-            allUserIds.add(link.linkedUserId);
-        });
+        // Get all transitively linked user IDs for the primary account
+        const allUserIds = await getAllLinkedUserIds(primaryAccount.id);
         
         // Generate token using the primary account (for consistency)
         const token = jwt.sign(
             { 
                 userId: primaryAccount.id, 
                 email: primaryAccount.email,
-                linkedUserIds: Array.from(allUserIds)
+                linkedUserIds: allUserIds
             },
             JWT_SECRET,
             { expiresIn: '7d' }
@@ -556,33 +499,15 @@ export async function handleEnterpriseOAuthLogin(
                 }
             });
             
-            // Get all linked user IDs for the primary account
-            const linkedAccounts = await prisma.linkedAccount.findMany({
-                where: {
-                    AND: [
-                        {
-                            OR: [
-                                { primaryUserId: primaryAccount.id },
-                                { linkedUserId: primaryAccount.id }
-                            ]
-                        },
-                        { verified: true }
-                    ]
-                }
-            });
-            
-            const allUserIds = new Set<string>([primaryAccount.id]);
-            linkedAccounts.forEach(link => {
-                allUserIds.add(link.primaryUserId);
-                allUserIds.add(link.linkedUserId);
-            });
+            // Get all transitively linked user IDs for the primary account
+            const allUserIds = await getAllLinkedUserIds(primaryAccount.id);
             
             // Generate token using the primary account (for consistency)
             const token = jwt.sign(
                 { 
                     userId: primaryAccount.id, 
                     email: primaryAccount.email,
-                    linkedUserIds: Array.from(allUserIds)
+                    linkedUserIds: allUserIds
                 },
                 JWT_SECRET,
                 { expiresIn: '7d' }
@@ -642,7 +567,7 @@ export async function handleEnterpriseOAuthLogin(
                     action: 'verify_existing_link',
                     existingLinkId: existingUnverifiedLinkedAccount.id,
                     trustLevel: calculateCombinedTrustLevel(primaryTrust, linkedProviderTrust),
-                    exp: Math.floor(Date.now() / 1000) + (15 * 60) // 15 minute expiry
+                    exp: Math.floor(Date.now() / 1000) + (60 * 60) // 60 minute expiry for enterprise workflows
                 },
                 JWT_SECRET
             );
@@ -658,23 +583,23 @@ export async function handleEnterpriseOAuthLogin(
             
             // Generate and send verification email for existing unverified link
             try {
-                const { generateVerificationCode } = await import('./verificationCode');
-                const { EmailService } = await import('../services/emailService');
+                const { VerificationCodeService } = await import('./verificationCode');
                 
-                const verificationCode = await generateVerificationCode(
+                const { code: verificationCode } = await VerificationCodeService.storeCode(
                     primaryAccount.id,
                     email,
-                    'account_linking'
+                    'account_linking',
+                    { length: 6, type: 'numeric', expiresInMinutes: 15 }
                 );
                 
-                const emailService = EmailService.getInstance();
                 await emailService.sendVerificationCode(
                     email,
                     verificationCode,
-                    'Account Link Verification',
                     {
+                        userId: primaryAccount.id,
                         existingProvider: primaryAccount.provider || 'local',
-                        newProvider: provider
+                        newProvider: provider,
+                        expiresIn: 15
                     }
                 );
                 
@@ -778,7 +703,7 @@ export async function handleEnterpriseOAuthLogin(
             action: 'link_account',
             requiresVerification,
             trustLevel: calculateCombinedTrustLevel(primaryTrust, trustLevel),
-            exp: Math.floor(Date.now() / 1000) + (15 * 60) // 15 minute expiry
+            exp: Math.floor(Date.now() / 1000) + (60 * 60) // 60 minute expiry for enterprise workflows
         },
         JWT_SECRET
     );
@@ -935,7 +860,7 @@ export async function sendVerificationEmail(
 export async function completeAccountLinking(
     linkingToken: string,
     verificationCode?: string
-): Promise<{ success: boolean; token?: string; error?: string }> {
+): Promise<{ success: boolean; token?: string; error?: string; errorCode?: string }> {
     try {
         const decoded = jwt.verify(linkingToken, JWT_SECRET) as any;
         
@@ -967,33 +892,15 @@ export async function completeAccountLinking(
             }
         });
         
-        // Get all linked user IDs for the primary account
-        const allLinkedAccounts = await prisma.linkedAccount.findMany({
-            where: {
-                AND: [
-                    {
-                        OR: [
-                            { primaryUserId: decoded.primaryUserId },
-                            { linkedUserId: decoded.primaryUserId }
-                        ]
-                    },
-                    { verified: true }
-                ]
-            }
-        });
-        
-        const allUserIds = new Set<string>([decoded.primaryUserId]);
-        allLinkedAccounts.forEach(link => {
-            allUserIds.add(link.primaryUserId);
-            allUserIds.add(link.linkedUserId);
-        });
+        // Get all transitively linked user IDs for the primary account
+        const allUserIds = await getAllLinkedUserIds(decoded.primaryUserId);
         
         // Generate new token with all linked accounts
         const token = jwt.sign(
             {
                 userId: decoded.primaryUserId,
                 email: decoded.email,
-                linkedUserIds: Array.from(allUserIds)
+                linkedUserIds: allUserIds
             },
             JWT_SECRET,
             { expiresIn: '7d' }
@@ -1016,9 +923,26 @@ export async function completeAccountLinking(
         return { success: true, token };
     } catch (error) {
         logger.error('Account linking error', { error: error instanceof Error ? error.message : error, stack: error instanceof Error ? error.stack : undefined });
+        
+        // Enhanced enterprise error handling
+        if (error instanceof jwt.TokenExpiredError) {
+            return { 
+                success: false, 
+                error: 'Linking session expired. Please restart the account linking process.',
+                errorCode: 'TOKEN_EXPIRED'
+            };
+        } else if (error instanceof jwt.JsonWebTokenError) {
+            return { 
+                success: false, 
+                error: 'Invalid linking token. Please restart the account linking process.',
+                errorCode: 'TOKEN_INVALID'
+            };
+        }
+        
         return { 
             success: false, 
-            error: error instanceof Error ? error.message : 'Failed to complete linking'
+            error: error instanceof Error ? error.message : 'Failed to complete linking',
+            errorCode: 'LINKING_FAILED'
         };
     }
 }

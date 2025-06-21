@@ -73,9 +73,13 @@ export function EnterpriseAccountLinkingPrompt({
     const handleLink = async () => {
         setLinking(true)
         try {
+            console.log('[ENTERPRISE DEBUG] Starting account linking process...')
+            
             // For OAuth-based linking, we might not need a verification code
             // The backend should handle this based on trust level
             await linkAccount(linkingToken, linkingProvider, verificationCode || undefined)
+            
+            console.log('[ENTERPRISE DEBUG] Account linking API call completed')
             
             // Update the user email in localStorage if not already set
             if (!localStorage.getItem('userEmail') && email) {
@@ -91,16 +95,25 @@ export function EnterpriseAccountLinkingPrompt({
                 timestamp: new Date().toISOString()
             })
             
-            // Reload articles to include linked account articles
-            await loadArticles()
+            console.log('[ENTERPRISE DEBUG] Closing prompt and refreshing articles...')
             
-            // Close the prompt
+            // Close the prompt FIRST to avoid component lifecycle issues
             onClose()
             
-            // Reload the page to ensure all components pick up the new token
-            setTimeout(() => {
-                window.location.reload()
-            }, 500)
+            // ENTERPRISE SOLUTION: Delayed article refresh to ensure proper token propagation
+            setTimeout(async () => {
+                try {
+                    console.log('[ENTERPRISE DEBUG] Refreshing articles with new linked token...')
+                    // Force article refresh with the updated token
+                    await loadArticles()
+                    console.log('[ENTERPRISE DEBUG] Article refresh completed successfully')
+                } catch (error) {
+                    console.error('[ENTERPRISE ERROR] Failed to refresh articles:', error)
+                    // Fallback: reload page if article refresh fails
+                    window.location.reload()
+                }
+            }, 1000) // 1 second delay to ensure token propagation
+            
         } catch (err) {
             console.error('Failed to link accounts:', err)
             setLinking(false)

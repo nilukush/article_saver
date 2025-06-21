@@ -37,7 +37,8 @@
       "Bash(psql:*)",
       "Bash(mv:*)",
       "Bash(echo:*)",
-      "Bash(npm run test:email:*)"
+      "Bash(npm run test:email:*)",
+      "Bash(npm run dev-tools:*)"
     ],
     "deny": []
   }

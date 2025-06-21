@@ -4,6 +4,7 @@ import http from 'http'
 import url from 'url'
 import { DatabaseService } from './database/database'
 import { ArticleService } from './services/articleService'
+import { logger } from './utils/logger'
 
 // DISABLE DEV TOOLS AT CHROMIUM ENGINE LEVEL - MUST BE BEFORE app.ready
 app.commandLine.appendSwitch('--disable-dev-tools')
@@ -55,8 +56,8 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
                 const existingProvider = url.searchParams.get('existingProvider')
                 const linkingToken = url.searchParams.get('linkingToken')
                 
-                // CRITICAL DEBUG: Log all OAuth callback parameters
-                console.log('🔍 OAUTH CALLBACK RECEIVED:', {
+                // Log all OAuth callback parameters
+                logger.oauth('OAuth callback received', {
                     provider,
                     hasCode: !!code,
                     hasToken: !!token,
@@ -95,37 +96,24 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
                     </html>
                 `)
 
-                // Log all parameters for debugging
-                console.log('OAuth callback received:', {
-                    provider,
-                    hasCode: !!code,
-                    hasToken: !!token,
-                    hasEmail: !!email,
-                    hasError: !!error,
-                    action,
-                    existingProvider,
-                    hasLinkingToken: !!linkingToken,
-                    requiresVerification: url.searchParams.get('requiresVerification'),
-                    fullUrl: url.href
-                })
 
-                // CRITICAL DEBUG: Log OAuth callback processing
-                console.log('🔥 PROCESSING OAUTH CALLBACK - mainWindow exists:', !!mainWindow);
+                // Log OAuth callback processing
+                logger.oauth('Processing OAuth callback', { mainWindowExists: !!mainWindow });
                 
                 // Send result to main window
                 if (mainWindow) {
                     if (error) {
-                        console.error('OAuth error:', error)
+                        logger.error('OAuth error occurred', { provider, error })
                         mainWindow.webContents.send('oauth-error', { provider, error })
                     } else if ((action === 'link_account' || action === 'verify_existing_link') && linkingToken) {
-                        console.log('🔗 DETECTED ACCOUNT LINKING ACTION:', {
+                        logger.oauth('Account linking action detected', {
                             action,
+                            provider,
                             existingProvider,
                             hasLinkingToken: !!linkingToken,
                             willSendOAuthSuccess: !!(token && email),
                             willSendAccountLinking: true
-                        });
-                        console.log('Detected account linking scenario:', { action, provider, existingProvider })
+                        })
                         // If we also have a token, save it first
                         if (token && email) {
                             mainWindow.webContents.send('oauth-success', { 
@@ -151,10 +139,10 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
                             requiresVerification: url.searchParams.get('requiresVerification')
                         })
                     } else if (token && email) {
-                        console.log('Normal OAuth success:', { provider, hasToken: !!token, hasEmail: !!email })
+                        logger.oauth('OAuth success', { provider, hasToken: !!token, hasEmail: !!email })
                         mainWindow.webContents.send('oauth-success', { provider, token, email })
                     } else if (code) {
-                        console.log('OAuth callback with code:', { provider, hasCode: !!code })
+                        logger.oauth('OAuth callback with code', { provider, hasCode: !!code })
                         mainWindow.webContents.send('oauth-callback', { provider, code })
                     } else if (provider === 'pocket') {
                         // For Pocket, call backend to exchange request token for access token
@@ -192,14 +180,14 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
                                             email: pocketUsername
                                         })
                                     } else {
-                                        console.error('Missing Pocket credentials in redirect')
+                                        logger.error('Missing Pocket credentials in redirect')
                                         mainWindow.webContents.send('oauth-error', {
                                             provider: 'pocket',
                                             error: 'Missing credentials in OAuth redirect'
                                         })
                                     }
                                 } else {
-                                    console.error('Pocket token exchange failed:', response.statusCode)
+                                    logger.error('Pocket token exchange failed', { statusCode: response.statusCode })
                                     mainWindow.webContents.send('oauth-error', {
                                         provider: 'pocket',
                                         error: `Token exchange failed: ${response.statusCode}`
@@ -209,7 +197,7 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
                         })
 
                         req.on('error', (error: any) => {
-                            console.error('OAuth HTTP request error:', error.message)
+                            logger.error('OAuth HTTP request error', { error: error.message })
                             mainWindow.webContents.send('oauth-error', {
                                 provider: 'pocket',
                                 error: `Network error during token exchange: ${error.message}`
@@ -217,7 +205,7 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
                         })
 
                         req.on('timeout', () => {
-                            console.error('OAuth HTTP request timeout')
+                            logger.error('OAuth HTTP request timeout')
                             req.destroy()
                             mainWindow.webContents.send('oauth-error', {
                                 provider: 'pocket',
@@ -451,7 +439,7 @@ if (!gotTheLock) {
                 const article = await articleService.saveArticle(url, tags)
                 return { success: true, data: article }
             } catch (error) {
-                console.error('Error saving article:', error)
+                logger.error('Error saving article', { error: error instanceof Error ? error.message : 'Unknown error' })
                 return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
             }
         })
@@ -461,7 +449,7 @@ if (!gotTheLock) {
                 const articles = await articleService.getArticles(options)
                 return { success: true, data: articles }
             } catch (error) {
-                console.error('Error getting articles:', error)
+                logger.error('Error getting articles', { error: error instanceof Error ? error.message : 'Unknown error' })
                 return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
             }
         })
@@ -471,7 +459,7 @@ if (!gotTheLock) {
                 const article = await articleService.getArticle(id)
                 return { success: true, data: article }
             } catch (error) {
-                console.error('Error getting article:', error)
+                logger.error('Error getting article', { error: error instanceof Error ? error.message : 'Unknown error' })
                 return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
             }
         })
@@ -481,7 +469,7 @@ if (!gotTheLock) {
                 const article = await articleService.updateArticle(id, updates)
                 return { success: true, data: article }
             } catch (error) {
-                console.error('Error updating article:', error)
+                logger.error('Error updating article', { error: error instanceof Error ? error.message : 'Unknown error' })
                 return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
             }
         })
@@ -491,7 +479,7 @@ if (!gotTheLock) {
                 await articleService.deleteArticle(id)
                 return { success: true }
             } catch (error) {
-                console.error('Error deleting article:', error)
+                logger.error('Error deleting article', { error: error instanceof Error ? error.message : 'Unknown error' })
                 return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
             }
         })
@@ -501,7 +489,7 @@ if (!gotTheLock) {
                 const articles = await articleService.searchArticles(query)
                 return { success: true, data: articles }
             } catch (error) {
-                console.error('Error searching articles:', error)
+                logger.error('Error searching articles', { error: error instanceof Error ? error.message : 'Unknown error' })
                 return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
             }
         })
@@ -512,7 +500,7 @@ if (!gotTheLock) {
                 await shell.openExternal(url)
                 return { success: true }
             } catch (error) {
-                console.error('Error opening OAuth URL:', error)
+                logger.error('Error opening OAuth URL', { error: error instanceof Error ? error.message : 'Unknown error' })
                 return { success: false, error: error instanceof Error ? error.message : 'Failed to open browser' }
             }
         })
@@ -523,7 +511,7 @@ if (!gotTheLock) {
                 const { server, port } = await createOAuthServer()
                 return { success: true, data: { port } }
             } catch (error) {
-                console.error('Error creating OAuth server:', error)
+                logger.error('Error creating OAuth server', { error: error instanceof Error ? error.message : 'Unknown error' })
                 return { success: false, error: error instanceof Error ? error.message : 'Failed to create OAuth server' }
             }
         })
@@ -583,7 +571,7 @@ if (!gotTheLock) {
                     }
                 }
             } catch (error) {
-                console.error('Net fetch error:', error)
+                logger.error('Net fetch error', { error: error instanceof Error ? error.message : 'Unknown error' })
                 return {
                     success: false,
                     error: error instanceof Error ? error.message : 'Network request failed'

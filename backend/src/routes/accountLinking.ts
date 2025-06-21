@@ -10,6 +10,7 @@ import logger from '../utils/logger';
 import { completeAccountLinking, sendVerificationEmail } from '../utils/enterpriseAccountLinking';
 import { storeVerificationCode, verifyCode, checkCodeRateLimit } from '../utils/verificationCode';
 import { emailService } from '../services/emailService';
+import { getAllLinkedUserIds } from '../utils/authHelpers';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
@@ -316,31 +317,13 @@ router.post('/verify', authenticateToken, asyncHandler(async (req: Authenticated
         }
     });
 
-    // Generate new token including all linked accounts
-    const allLinkedAccounts = await prisma.linkedAccount.findMany({
-        where: {
-            AND: [
-                {
-                    OR: [
-                        { primaryUserId: linkedAccount.primaryUserId },
-                        { linkedUserId: linkedAccount.primaryUserId }
-                    ]
-                },
-                { verified: true }
-            ]
-        }
-    });
-
-    const allUserIds = new Set<string>([linkedAccount.primaryUserId]);
-    allLinkedAccounts.forEach(link => {
-        allUserIds.add(link.primaryUserId);
-        allUserIds.add(link.linkedUserId);
-    });
+    // Generate new token including all transitively linked accounts
+    const allUserIds = await getAllLinkedUserIds(linkedAccount.primaryUserId);
 
     const token = jwt.sign({
         userId: linkedAccount.primaryUserId,
         email: linkedAccount.primaryUser.email,
-        linkedUserIds: Array.from(allUserIds)
+        linkedUserIds: allUserIds
     }, JWT_SECRET, { expiresIn: '7d' });
 
     res.json({
