@@ -325,7 +325,15 @@ router.put('/:id', [
     const { id } = req.params;
     const updateData = req.body;
 
-    // Log the update request for debugging
+    // Enterprise-grade logging and debugging
+    console.log('📝 ARTICLE UPDATE: Processing update request', {
+        userId,
+        articleId: id,
+        updateFields: Object.keys(updateData),
+        isRead: updateData.isRead,
+        timestamp: new Date().toISOString()
+    });
+
     logger.info('📝 ARTICLE UPDATE: Processing update request', {
         userId,
         articleId: id,
@@ -336,7 +344,22 @@ router.put('/:id', [
     // CRITICAL FIX: Support linked accounts for article updates
     // Get all linked user IDs (with token optimization)
     const tokenLinkedIds = (req as any).user.linkedUserIds;
+    
+    console.log('🔍 ARTICLE UPDATE: Auth middleware data', {
+        userId,
+        tokenLinkedIds,
+        hasTokenLinkedIds: !!tokenLinkedIds,
+        tokenLinkedCount: tokenLinkedIds?.length || 0
+    });
+
     const userIds = await getAllLinkedUserIds(userId, tokenLinkedIds);
+
+    console.log('🔍 ARTICLE UPDATE: Resolved linked accounts', {
+        currentUserId: userId,
+        linkedUserIds: userIds,
+        linkedCount: userIds.length,
+        tokenLinkedIds
+    });
 
     logger.info('🔍 ARTICLE UPDATE: Checking linked accounts', {
         currentUserId: userId,
@@ -350,6 +373,12 @@ router.put('/:id', [
     }
 
     // First check if article exists for any linked account
+    console.log('🔍 ARTICLE UPDATE: Searching for article', {
+        articleId: id,
+        searchingUserIds: userIds,
+        query: { id, userId: { in: userIds } }
+    });
+
     const existingArticle = await prisma.article.findFirst({
         where: { 
             id,
@@ -357,7 +386,19 @@ router.put('/:id', [
         }
     });
 
+    console.log('🔍 ARTICLE UPDATE: Search result', {
+        articleId: id,
+        found: !!existingArticle,
+        articleUserId: existingArticle?.userId || 'none',
+        searchedUserIds: userIds
+    });
+
     if (!existingArticle) {
+        console.error('❌ ARTICLE UPDATE: Article not found', {
+            articleId: id,
+            userId,
+            checkedUserIds: userIds
+        });
         logger.error('❌ ARTICLE UPDATE: Article not found', {
             articleId: id,
             userId,
@@ -365,6 +406,12 @@ router.put('/:id', [
         });
         throw createError('Article not found', 404);
     }
+
+    console.log('✅ ARTICLE UPDATE: Article found', {
+        articleId: id,
+        articleUserId: existingArticle.userId,
+        currentUserId: userId
+    });
 
     logger.info('✅ ARTICLE UPDATE: Article found', {
         articleId: id,
