@@ -124,32 +124,65 @@ router.post('/login', [
         throw createError('Invalid credentials', 401);
     }
 
-    // Check if this user has a primary account (for proper token generation)
+    // CRITICAL FIX: Properly resolve linked accounts for email/password login
+    // This ensures users see articles from ALL their linked accounts
+    
+    // First, determine the primary user
     let primaryUserId = user.primaryAccountId || user.id;
-    let tokenEmail = email; // Use the actual email they logged in with
-
-    // If this user is linked to a primary account, use that for consistency
+    let primaryUser = user;
+    
     if (user.primaryAccountId) {
-        const primaryUser = await prisma.user.findUnique({
+        const primary = await prisma.user.findUnique({
             where: { id: user.primaryAccountId }
         });
-        if (primaryUser) {
-            primaryUserId = primaryUser.id;
-            // Use the actual email from metadata if available
-            const primaryMetadata = primaryUser.metadata as any;
-            if (primaryMetadata?.actualEmail) {
-                tokenEmail = primaryMetadata.actualEmail;
-            }
+        if (primary) {
+            primaryUser = primary;
+            primaryUserId = primary.id;
         }
     }
-
-    // Generate JWT token with resolved primary user ID
-    const token = signJWT({ userId: primaryUserId, email: tokenEmail });
     
-    logger.info('[AUTH] Email/password login successful:', {
+    // Find ALL linked accounts (both as primary and linked)
+    const linkedAccounts = await prisma.linkedAccount.findMany({
+        where: {
+            AND: [
+                {
+                    OR: [
+                        { primaryUserId: primaryUserId },
+                        { linkedUserId: primaryUserId }
+                    ]
+                },
+                { verified: true }
+            ]
+        },
+        include: {
+            primaryUser: true,
+            linkedUser: true
+        }
+    });
+    
+    // Collect all user IDs
+    const allUserIds = new Set<string>([primaryUserId]);
+    linkedAccounts.forEach(link => {
+        allUserIds.add(link.primaryUserId);
+        allUserIds.add(link.linkedUserId);
+    });
+    
+    // Use the actual email they logged in with (important for UX)
+    const tokenEmail = email;
+    
+    // Generate JWT token with all linked user IDs
+    const token = signJWT({ 
+        userId: primaryUserId, 
+        email: tokenEmail,
+        linkedUserIds: Array.from(allUserIds) // Include all linked user IDs
+    });
+    
+    logger.info('[AUTH] Email/password login successful with linked accounts:', {
         loginEmail: email,
         userId: user.id,
         primaryUserId,
+        linkedUserIds: Array.from(allUserIds),
+        linkedAccountCount: allUserIds.size,
         tokenEmail,
         provider: user.provider
     });
