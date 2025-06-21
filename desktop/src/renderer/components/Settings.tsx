@@ -777,8 +777,8 @@ export function Settings({ onClose }: SettingsProps) {
                 console.log('🔍 OAUTH SUCCESS: Event received', data)
                 
                 // Check if this is an account linking response
-                if (data.action === 'link_account') {
-                    console.log('🔗 ACCOUNT LINKING: Detected in OAuth success event')
+                if (data.action === 'link_account' || data.action === 'verify_existing_link') {
+                    console.log('🔗 ACCOUNT LINKING: Detected in OAuth success event', { action: data.action })
                     setLoading(false)
                     
                     // Set auth token first so user is authenticated
