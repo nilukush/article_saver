@@ -27,34 +27,46 @@ function App() {
         searchResults,
         loadInitialArticles,
         searchArticles,
-        clearSearch,
-        preventAutoLoad
+        clearSearch
     } = useArticleStore()
 
     const { discoverAndRecoverSessions } = useImportStore()
 
     useEffect(() => {
-        // Check authentication status
+        // Check authentication status on mount only
         const token = localStorage.getItem('authToken')
         setIsAuthenticated(!!token)
 
         // Only load articles if authenticated and not prevented
-        if (token && !preventAutoLoad) {
-            loadInitialArticles()
-            // Discover and recover any active import sessions on app startup
-            discoverAndRecoverSessions()
+        if (token) {
+            // Use getState to get current preventAutoLoad value
+            const { preventAutoLoad: currentPreventAutoLoad } = useArticleStore.getState()
+            if (!currentPreventAutoLoad) {
+                loadInitialArticles()
+                // Discover and recover any active import sessions on app startup
+                discoverAndRecoverSessions()
+            }
         }
-    }, [loadInitialArticles, discoverAndRecoverSessions, preventAutoLoad])
+    }, [loadInitialArticles, discoverAndRecoverSessions]) // Removed preventAutoLoad - this should only run on mount
 
     // Check for authentication changes
     useEffect(() => {
         const handleStorageChange = () => {
             const token = localStorage.getItem('authToken')
-            setIsAuthenticated(!!token)
-            if (token && !preventAutoLoad) {
-                loadInitialArticles()
-                // Also discover sessions when auth changes
-                discoverAndRecoverSessions()
+            const wasAuthenticated = isAuthenticated
+            const nowAuthenticated = !!token
+            
+            if (wasAuthenticated !== nowAuthenticated) {
+                setIsAuthenticated(nowAuthenticated)
+                if (nowAuthenticated) {
+                    // Only load articles if we just became authenticated
+                    // Use getState to get current preventAutoLoad value
+                    const { preventAutoLoad: currentPreventAutoLoad } = useArticleStore.getState()
+                    if (!currentPreventAutoLoad) {
+                        loadInitialArticles()
+                        discoverAndRecoverSessions()
+                    }
+                }
             }
         }
 
@@ -67,8 +79,12 @@ function App() {
             const currentAuth = !!token
             if (currentAuth !== isAuthenticated) {
                 setIsAuthenticated(currentAuth)
-                if (currentAuth && !preventAutoLoad) {
-                    loadInitialArticles()
+                if (currentAuth) {
+                    // Use getState to get current preventAutoLoad value
+                    const { preventAutoLoad: currentPreventAutoLoad } = useArticleStore.getState()
+                    if (!currentPreventAutoLoad) {
+                        loadInitialArticles()
+                    }
                 }
             }
         }, 1000) // Check every second
@@ -77,7 +93,7 @@ function App() {
             window.removeEventListener('storage', handleStorageChange)
             clearInterval(authCheckInterval)
         }
-    }, [loadInitialArticles, isAuthenticated, preventAutoLoad, discoverAndRecoverSessions])
+    }, [loadInitialArticles, isAuthenticated, discoverAndRecoverSessions]) // Removed preventAutoLoad from deps
 
     const handleSearch = async (query: string) => {
         setSearchQuery(query)
@@ -85,7 +101,9 @@ function App() {
             await searchArticles(query)
         } else {
             clearSearch()
-            if (!preventAutoLoad) {
+            // Use getState to get current preventAutoLoad value
+            const { preventAutoLoad: currentPreventAutoLoad } = useArticleStore.getState()
+            if (!currentPreventAutoLoad) {
                 await loadInitialArticles()
             }
         }
@@ -109,7 +127,9 @@ function App() {
 
     const handleArticleAdded = () => {
         setShowAddForm(false)
-        if (!preventAutoLoad) {
+        // Use getState to get current preventAutoLoad value
+        const { preventAutoLoad: currentPreventAutoLoad } = useArticleStore.getState()
+        if (!currentPreventAutoLoad) {
             loadInitialArticles() // Refresh the list
         }
     }

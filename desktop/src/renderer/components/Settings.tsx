@@ -384,11 +384,12 @@ export function Settings({ onClose }: SettingsProps) {
                 console.log('[DELETE ALL] Resetting article store...')
                 resetArticles()
                 
-                // Clear the prevent flag after a delay to allow normal operation
+                // Clear the prevent flag after a longer delay to ensure UI stability
+                // This prevents any race conditions with component mounting/unmounting
                 setTimeout(() => {
                     console.log('[DELETE ALL] Clearing preventAutoLoad flag')
                     setPreventAutoLoad(false)
-                }, 3000)
+                }, 5000) // Increased to 5 seconds for safety
                 
                 // Close modal after 2 seconds
                 setTimeout(() => {

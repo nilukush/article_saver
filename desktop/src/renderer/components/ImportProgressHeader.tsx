@@ -18,7 +18,6 @@ function ImportProgressHeaderContent() {
     
     // CRITICAL FIX: Get article store to refresh after import
     const loadInitialArticles = useArticleStore(state => state.loadInitialArticles)
-    const preventAutoLoad = useArticleStore(state => state.preventAutoLoad)
     
     // Get active import session
     const activeImport = activeImports.find(imp => imp.status === 'running')
@@ -37,7 +36,8 @@ function ImportProgressHeaderContent() {
                 // CRITICAL FIX: Refresh articles after import completes!
                 // This was the missing piece - UI wasn't updating because
                 // articles weren't being reloaded after import
-                // But respect preventAutoLoad flag to avoid race conditions
+                // Use getState to get current preventAutoLoad value
+                const { preventAutoLoad } = useArticleStore.getState()
                 if (!preventAutoLoad) {
                     loadInitialArticles()
                 }
