@@ -27,7 +27,8 @@ function App() {
         searchResults,
         loadInitialArticles,
         searchArticles,
-        clearSearch
+        clearSearch,
+        preventAutoLoad
     } = useArticleStore()
 
     const { discoverAndRecoverSessions } = useImportStore()
@@ -37,20 +38,20 @@ function App() {
         const token = localStorage.getItem('authToken')
         setIsAuthenticated(!!token)
 
-        // Only load articles if authenticated
-        if (token) {
+        // Only load articles if authenticated and not prevented
+        if (token && !preventAutoLoad) {
             loadInitialArticles()
             // Discover and recover any active import sessions on app startup
             discoverAndRecoverSessions()
         }
-    }, [loadInitialArticles, discoverAndRecoverSessions])
+    }, [loadInitialArticles, discoverAndRecoverSessions, preventAutoLoad])
 
     // Check for authentication changes
     useEffect(() => {
         const handleStorageChange = () => {
             const token = localStorage.getItem('authToken')
             setIsAuthenticated(!!token)
-            if (token) {
+            if (token && !preventAutoLoad) {
                 loadInitialArticles()
                 // Also discover sessions when auth changes
                 discoverAndRecoverSessions()
@@ -66,7 +67,7 @@ function App() {
             const currentAuth = !!token
             if (currentAuth !== isAuthenticated) {
                 setIsAuthenticated(currentAuth)
-                if (currentAuth) {
+                if (currentAuth && !preventAutoLoad) {
                     loadInitialArticles()
                 }
             }
@@ -76,7 +77,7 @@ function App() {
             window.removeEventListener('storage', handleStorageChange)
             clearInterval(authCheckInterval)
         }
-    }, [loadInitialArticles, isAuthenticated])
+    }, [loadInitialArticles, isAuthenticated, preventAutoLoad, discoverAndRecoverSessions])
 
     const handleSearch = async (query: string) => {
         setSearchQuery(query)
@@ -84,7 +85,9 @@ function App() {
             await searchArticles(query)
         } else {
             clearSearch()
-            await loadInitialArticles()
+            if (!preventAutoLoad) {
+                await loadInitialArticles()
+            }
         }
     }
 
@@ -106,7 +109,9 @@ function App() {
 
     const handleArticleAdded = () => {
         setShowAddForm(false)
-        loadInitialArticles() // Refresh the list
+        if (!preventAutoLoad) {
+            loadInitialArticles() // Refresh the list
+        }
     }
 
     const handleOpenSettings = () => {

@@ -27,7 +27,7 @@ export function Settings({ onClose }: SettingsProps) {
     } | null>(null)
 
     // Get stores
-    const { loadArticles, loadInitialArticles, resetArticles, totalArticles } = useArticleStore()
+    const { loadArticles, loadInitialArticles, resetArticles, totalArticles, setPreventAutoLoad } = useArticleStore()
     const { startImport, activeImports, removeImport, discoverAndRecoverSessions } = useImportStore()
     
     // Check if Pocket import is currently active
@@ -376,15 +376,19 @@ export function Settings({ onClose }: SettingsProps) {
                 localStorage.removeItem('lastPocketImport')
                 setLastImportTime(null)
                 
+                // Prevent auto-loading for a short time to avoid race conditions
+                console.log('[DELETE ALL] Setting preventAutoLoad flag...')
+                setPreventAutoLoad(true)
+                
                 // Reset and reload articles to show empty state
                 console.log('[DELETE ALL] Resetting article store...')
                 resetArticles()
                 
-                // Small delay to ensure state is reset before reloading
-                await new Promise(resolve => setTimeout(resolve, 100))
-                
-                console.log('[DELETE ALL] Loading initial articles...')
-                await loadInitialArticles()
+                // Clear the prevent flag after a delay to allow normal operation
+                setTimeout(() => {
+                    console.log('[DELETE ALL] Clearing preventAutoLoad flag')
+                    setPreventAutoLoad(false)
+                }, 3000)
                 
                 // Close modal after 2 seconds
                 setTimeout(() => {
