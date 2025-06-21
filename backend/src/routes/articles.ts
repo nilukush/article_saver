@@ -325,25 +325,35 @@ router.put('/:id', [
     const { id } = req.params;
     const updateData = req.body;
 
+    // CRITICAL FIX: Support linked accounts for article updates
+    // Get all linked user IDs (with token optimization)
+    const tokenLinkedIds = (req as any).user.linkedUserIds;
+    const userIds = await getAllLinkedUserIds(userId, tokenLinkedIds);
+
     // Convert publishedDate if provided
     if (updateData.publishedDate) {
         updateData.publishedDate = new Date(updateData.publishedDate);
     }
 
-    const article = await prisma.article.updateMany({
-        where: { id, userId },
-        data: updateData
+    // First check if article exists for any linked account
+    const existingArticle = await prisma.article.findFirst({
+        where: { 
+            id,
+            userId: { in: userIds }
+        }
     });
 
-    if (article.count === 0) {
+    if (!existingArticle) {
         throw createError('Article not found', 404);
     }
 
-    const updatedArticle = await prisma.article.findUnique({
-        where: { id }
+    // Update the article (only the owner can update)
+    const article = await prisma.article.update({
+        where: { id },
+        data: updateData
     });
 
-    res.json(updatedArticle);
+    res.json(article);
 }));
 
 // Re-extract content for an existing article

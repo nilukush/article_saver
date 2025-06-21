@@ -140,9 +140,16 @@ function ArticleCard({ article, onClick }: ArticleCardProps) {
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white line-clamp-2">
                     {article.title || 'Untitled'}
                 </h3>
-                {!article.isRead && (
-                    <div className="w-2 h-2 bg-primary-500 rounded-full flex-shrink-0 mt-2 ml-2"></div>
-                )}
+                <div className="flex items-center gap-2 ml-2">
+                    {article.isArchived && (
+                        <span className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-1 rounded">
+                            Archived
+                        </span>
+                    )}
+                    {!article.isRead && (
+                        <div className="w-2 h-2 bg-primary-500 rounded-full flex-shrink-0"></div>
+                    )}
+                </div>
             </div>
 
             {article.excerpt && (
