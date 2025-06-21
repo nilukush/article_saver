@@ -115,6 +115,9 @@ function App() {
 
     const handleBackToList = () => {
         setSelectedArticle(null)
+        // Clear any error that might have occurred during article operations
+        const { setError } = useArticleStore.getState()
+        setError(null)
     }
 
     const handleAddArticle = () => {
@@ -160,8 +163,11 @@ function App() {
                 return !article.isRead && !article.isArchived
             case 'archived':
                 return article.isArchived
+            case 'all':
+                // Show all articles including archived ones in "All Articles" view
+                return true
             default:
-                return !article.isArchived
+                return true
         }
     })
 

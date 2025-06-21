@@ -11,9 +11,9 @@ interface SidebarProps {
 
 export function Sidebar({ currentView, onViewChange, onAddArticle, onOpenSettings }: SidebarProps) {
     const menuItems = [
-        { id: 'all', label: 'All Articles', icon: '📚' },
-        { id: 'unread', label: 'Unread', icon: '📖' },
-        { id: 'archived', label: 'Archived', icon: '📦' },
+        { id: 'all', label: 'All Articles', icon: '📚', tooltip: 'Includes archived' },
+        { id: 'unread', label: 'Unread', icon: '📖', tooltip: 'Active unread only' },
+        { id: 'archived', label: 'Archived', icon: '📦', tooltip: 'Archived only' },
     ] as const
 
     return (
@@ -34,6 +34,7 @@ export function Sidebar({ currentView, onViewChange, onAddArticle, onOpenSetting
                                     ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
                                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                                     }`}
+                                title={item.tooltip}
                             >
                                 <span className="mr-3 text-lg">{item.icon}</span>
                                 <span className="font-medium">{item.label}</span>
