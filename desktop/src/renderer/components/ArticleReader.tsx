@@ -14,7 +14,24 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
 
     const handleMarkAsRead = async () => {
         if (!article.isRead) {
-            await updateArticle(article.id, { isRead: true })
+            console.log('🔍 MARK AS READ: Attempting to mark article as read:', {
+                articleId: article.id,
+                currentlyRead: article.isRead,
+                articleTitle: article.title?.substring(0, 50)
+            });
+            
+            try {
+                await updateArticle(article.id, { isRead: true })
+                console.log('✅ MARK AS READ: Successfully marked article as read:', article.id);
+            } catch (error) {
+                console.error('❌ MARK AS READ: Failed to mark article as read:', {
+                    articleId: article.id,
+                    error: error instanceof Error ? error.message : error
+                });
+                // Don't throw the error to avoid breaking the component
+            }
+        } else {
+            console.log('ℹ️ MARK AS READ: Article already marked as read:', article.id);
         }
     }
 
