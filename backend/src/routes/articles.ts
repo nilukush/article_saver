@@ -325,10 +325,24 @@ router.put('/:id', [
     const { id } = req.params;
     const updateData = req.body;
 
+    // Log the update request for debugging
+    logger.info('📝 ARTICLE UPDATE: Processing update request', {
+        userId,
+        articleId: id,
+        updateFields: Object.keys(updateData),
+        isRead: updateData.isRead
+    });
+
     // CRITICAL FIX: Support linked accounts for article updates
     // Get all linked user IDs (with token optimization)
     const tokenLinkedIds = (req as any).user.linkedUserIds;
     const userIds = await getAllLinkedUserIds(userId, tokenLinkedIds);
+
+    logger.info('🔍 ARTICLE UPDATE: Checking linked accounts', {
+        currentUserId: userId,
+        linkedUserIds: userIds,
+        tokenLinkedIds
+    });
 
     // Convert publishedDate if provided
     if (updateData.publishedDate) {
@@ -344,13 +358,31 @@ router.put('/:id', [
     });
 
     if (!existingArticle) {
+        logger.error('❌ ARTICLE UPDATE: Article not found', {
+            articleId: id,
+            userId,
+            checkedUserIds: userIds
+        });
         throw createError('Article not found', 404);
     }
+
+    logger.info('✅ ARTICLE UPDATE: Article found', {
+        articleId: id,
+        articleUserId: existingArticle.userId,
+        currentUserId: userId
+    });
 
     // Update the article (only the owner can update)
     const article = await prisma.article.update({
         where: { id },
         data: updateData
+    });
+
+    logger.info('✅ ARTICLE UPDATE: Update successful', {
+        articleId: id,
+        updatedFields: Object.keys(updateData),
+        isRead: article.isRead,
+        isArchived: article.isArchived
     });
 
     res.json(article);

@@ -27,6 +27,18 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
             email: decoded.email,
             linkedUserIds: decoded.linkedUserIds // Pass through linked user IDs
         };
+        
+        // Debug logging for linked accounts
+        if (req.method === 'PUT' && req.path.includes('/articles/')) {
+            console.log('🔐 AUTH MIDDLEWARE: Token decoded for article update:', {
+                userId: decoded.userId,
+                email: decoded.email,
+                hasLinkedUserIds: !!decoded.linkedUserIds,
+                linkedUserIds: decoded.linkedUserIds || 'none',
+                linkedCount: decoded.linkedUserIds?.length || 0
+            });
+        }
+        
         next();
     } catch (error) {
         throw createError('Invalid or expired token', 403);
