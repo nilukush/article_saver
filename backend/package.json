@@ -15,7 +15,8 @@
         "logs:error": "tail -f logs/error.log",
         "logs:watch": "mkdir -p logs && touch logs/combined.log && tail -f logs/combined.log",
         "logs:all": "tail -f logs/*.log",
-        "clean:data": "npx ts-node dev-tools/clean-all-data.ts"
+        "clean:data": "npx ts-node dev-tools/clean-all-data.ts",
+        "test:email": "npx ts-node scripts/test-email-service.ts"
     },
     "keywords": [
         "article",
@@ -30,6 +31,7 @@
         "@mozilla/readability": "^0.6.0",
         "@prisma/client": "^6.10.1",
         "@types/jsdom": "^21.1.7",
+        "@types/nodemailer": "^6.4.17",
         "bcryptjs": "^2.4.3",
         "cors": "^2.8.5",
         "dotenv": "^16.3.1",
@@ -39,6 +41,7 @@
         "helmet": "^7.1.0",
         "jsdom": "^23.2.0",
         "jsonwebtoken": "^9.0.2",
+        "nodemailer": "^7.0.3",
         "uuid": "^9.0.1",
         "winston": "^3.17.0"
     },

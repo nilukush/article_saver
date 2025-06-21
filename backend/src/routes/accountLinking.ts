@@ -7,7 +7,9 @@ import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import logger from '../utils/logger';
-import { completeAccountLinking } from '../utils/enterpriseAccountLinking';
+import { completeAccountLinking, sendVerificationEmail } from '../utils/enterpriseAccountLinking';
+import { storeVerificationCode, verifyCode, checkCodeRateLimit } from '../utils/verificationCode';
+import { emailService } from '../services/emailService';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
@@ -106,6 +108,15 @@ router.post('/link', authenticateToken, asyncHandler(async (req: AuthenticatedRe
         throw createError('Target email and provider are required', 400);
     }
 
+    // Get current user details
+    const currentUser = await prisma.user.findUnique({
+        where: { id: userId }
+    });
+
+    if (!currentUser) {
+        throw createError('Current user not found', 404);
+    }
+
     // Find the target user
     const targetUser = await prisma.user.findUnique({
         where: { email: targetEmail }
@@ -134,19 +145,43 @@ router.post('/link', authenticateToken, asyncHandler(async (req: AuthenticatedRe
     });
 
     if (existingLink) {
-        throw createError('Accounts are already linked', 409);
+        if (existingLink.verified) {
+            throw createError('Accounts are already linked', 409);
+        } else {
+            throw createError('Account linking already in progress. Check your email for verification.', 409);
+        }
     }
 
-    // Generate verification code
-    const verificationCode = crypto.randomBytes(32).toString('hex');
+    // Check rate limit for verification codes
+    const rateLimit = await checkCodeRateLimit(userId, targetEmail, 'account_linking');
+    if (!rateLimit.allowed) {
+        throw createError(`Too many verification requests. Please wait ${rateLimit.waitMinutes} minutes before trying again.`, 429);
+    }
 
-    // Create pending link
+    // Generate and store verification code
+    const { code, expiresAt } = await storeVerificationCode(
+        userId,
+        targetEmail,
+        'account_linking',
+        { length: 6, type: 'numeric' },
+        {
+            targetUserId: targetUser.id,
+            targetProvider,
+            currentProvider: currentUser.provider || 'local'
+        }
+    );
+
+    // Create pending link (without storing the verification code in the link itself)
     const linkedAccount = await prisma.linkedAccount.create({
         data: {
             primaryUserId: userId,
             linkedUserId: targetUser.id,
-            verificationCode,
-            verified: false
+            verified: false,
+            metadata: {
+                initiatedAt: new Date(),
+                expiresAt,
+                method: 'email_verification'
+            }
         }
     });
 
@@ -165,19 +200,29 @@ router.post('/link', authenticateToken, asyncHandler(async (req: AuthenticatedRe
         }
     });
 
-    // Note: Email verification system would be implemented here in production
-    // Current implementation returns verification code for development/testing
+    // Send verification email
+    try {
+        await sendVerificationEmail(userId, targetEmail, code, {
+            existingProvider: currentUser.provider || 'local',
+            newProvider: targetProvider
+        });
 
-    res.json({
-        message: 'Account linking initiated. Please check your email for verification.',
-        linkId: linkedAccount.id,
-        verificationCode // Remove this in production
-    });
+        res.json({
+            message: 'Account linking initiated. We\'ve sent a verification code to your email.',
+            linkId: linkedAccount.id,
+            expiresAt
+        });
+    } catch (error) {
+        // Clean up if email fails
+        await prisma.linkedAccount.delete({ where: { id: linkedAccount.id } });
+        throw error;
+    }
 }));
 
 // Verify account linking
 router.post('/verify', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const { linkId, verificationCode } = req.body;
+    const { userId } = req.user;
 
     if (!linkId || !verificationCode) {
         throw createError('Link ID and verification code are required', 400);
@@ -199,8 +244,26 @@ router.post('/verify', authenticateToken, asyncHandler(async (req: Authenticated
         throw createError('Account link already verified', 409);
     }
 
-    if (linkedAccount.verificationCode !== verificationCode) {
-        throw createError('Invalid verification code', 400);
+    // Ensure the user is part of this linking request
+    if (linkedAccount.primaryUserId !== userId && linkedAccount.linkedUserId !== userId) {
+        throw createError('Unauthorized to verify this link', 403);
+    }
+
+    // Determine which email to verify against
+    const verificationEmail = linkedAccount.primaryUserId === userId 
+        ? linkedAccount.linkedUser.email 
+        : linkedAccount.primaryUser.email;
+
+    // Verify the code using the verification service
+    const verificationResult = await verifyCode(
+        userId,
+        verificationEmail,
+        verificationCode,
+        'account_linking'
+    );
+
+    if (!verificationResult.valid) {
+        throw createError(verificationResult.error || 'Invalid verification code', 400);
     }
 
     // Verify the link
@@ -208,8 +271,35 @@ router.post('/verify', authenticateToken, asyncHandler(async (req: Authenticated
         where: { id: linkId },
         data: {
             verified: true,
-            verificationCode: null
+            metadata: {
+                ...linkedAccount.metadata as any,
+                verifiedAt: new Date(),
+                verificationMethod: 'email_code'
+            }
         }
+    });
+
+    // Send confirmation email to both accounts
+    const primaryEmail = linkedAccount.primaryUser.email;
+    const linkedEmail = linkedAccount.linkedUser.email;
+    const linkedProvider = linkedAccount.linkedUserId === userId 
+        ? linkedAccount.primaryUser.provider 
+        : linkedAccount.linkedUser.provider;
+
+    // Send notifications asynchronously
+    Promise.all([
+        emailService.sendAccountLinkedNotification(primaryEmail, {
+            userId: linkedAccount.primaryUserId,
+            linkedProvider: linkedAccount.linkedUser.provider || 'local',
+            linkedAt: new Date()
+        }),
+        emailService.sendAccountLinkedNotification(linkedEmail, {
+            userId: linkedAccount.linkedUserId,
+            linkedProvider: linkedAccount.primaryUser.provider || 'local',
+            linkedAt: new Date()
+        })
+    ]).catch(error => {
+        logger.error('Failed to send account linked notifications', { error });
     });
 
     // Create audit log
@@ -218,16 +308,44 @@ router.post('/verify', authenticateToken, asyncHandler(async (req: Authenticated
             userId: linkedAccount.linkedUserId,
             linkedId: linkedAccount.primaryUserId,
             action: 'link_verified',
-            performedBy: req.user.userId,
+            performedBy: userId,
             metadata: {
                 linkId,
-                verificationMethod: 'code'
+                verificationMethod: 'email_code'
             }
         }
     });
 
+    // Generate new token including all linked accounts
+    const allLinkedAccounts = await prisma.linkedAccount.findMany({
+        where: {
+            AND: [
+                {
+                    OR: [
+                        { primaryUserId: linkedAccount.primaryUserId },
+                        { linkedUserId: linkedAccount.primaryUserId }
+                    ]
+                },
+                { verified: true }
+            ]
+        }
+    });
+
+    const allUserIds = new Set<string>([linkedAccount.primaryUserId]);
+    allLinkedAccounts.forEach(link => {
+        allUserIds.add(link.primaryUserId);
+        allUserIds.add(link.linkedUserId);
+    });
+
+    const token = jwt.sign({
+        userId: linkedAccount.primaryUserId,
+        email: linkedAccount.primaryUser.email,
+        linkedUserIds: Array.from(allUserIds)
+    }, JWT_SECRET, { expiresIn: '7d' });
+
     res.json({
         message: 'Accounts successfully linked',
+        token,
         linkedAccount: {
             primaryUser: {
                 email: linkedAccount.primaryUser.email,

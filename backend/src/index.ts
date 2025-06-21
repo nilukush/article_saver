@@ -13,6 +13,7 @@ import syncRoutes from './routes/sync';
 import pocketRoutes from './routes/pocket';
 import accountLinkingRoutes from './routes/accountLinking';
 import accountMigrationRoutes from './routes/account-migration';
+import emailTestRoutes from './routes/emailTest';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -91,6 +92,11 @@ app.use('/api/sync', syncRoutes);
 app.use('/api/pocket', pocketRoutes);
 app.use('/api/account-linking', accountLinkingRoutes);
 app.use('/api/account-migration', accountMigrationRoutes);
+
+// Email testing routes (development only)
+if (process.env.NODE_ENV !== 'production') {
+    app.use('/api/email-test', emailTestRoutes);
+}
 
 // 404 handler
 app.use('*', (req, res) => {
