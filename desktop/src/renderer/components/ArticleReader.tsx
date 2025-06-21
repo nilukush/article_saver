@@ -37,23 +37,17 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
 
     const handleToggleArchive = async () => {
         try {
-            console.log('🗂️ ARCHIVE: Toggling archive status for article:', article.id, 'current:', article.isArchived)
             await updateArticle(article.id, { isArchived: !article.isArchived })
-            console.log('🗂️ ARCHIVE: Archive status updated successfully')
             
             // Redirect to home page after archiving for better UX
-            console.log('🗂️ ARCHIVE: Redirecting to home page')
             onBack()
         } catch (error) {
-            console.error('🗂️ ARCHIVE ERROR: Failed to update archive status:', error)
+            console.error('Failed to update archive status:', error)
         }
     }
 
     const handleReExtractContent = async () => {
         try {
-            console.log('🔄 RE-EXTRACTION: Starting content re-extraction for article:', article.id)
-            
-            // Show loading state (you could add a loading state here)
             const confirmed = confirm(
                 'Re-extract content from the original URL?\n\n' +
                 'This will attempt to fetch and process the article content again using the latest extraction algorithms.\n\n' +
@@ -76,7 +70,6 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
             }
             
             const updatedArticle = await response.json()
-            console.log('✅ RE-EXTRACTION: Content re-extracted successfully')
             
             // Update the article in the store
             await updateArticle(article.id, {
@@ -89,31 +82,27 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
             window.location.reload()
             
         } catch (error) {
-            console.error('❌ RE-EXTRACTION ERROR:', error)
+            console.error('Content re-extraction failed:', error)
             alert('Failed to re-extract content. Please try again or use "View Original" to read the article.')
         }
     }
 
     const handleViewOriginal = async () => {
         try {
-            console.log('🔗 VIEW ORIGINAL: Opening URL:', article.url)
-            
             // Try electron API first if available
             if (window.electronAPI?.openOAuthUrl) {
                 try {
                     await window.electronAPI.openOAuthUrl(article.url)
-                    console.log('🔗 VIEW ORIGINAL: URL opened successfully via electronAPI')
                     return
                 } catch (error) {
-                    console.warn('🔗 VIEW ORIGINAL: electronAPI failed, falling back to window.open:', error)
+                    console.warn('electronAPI failed, falling back to window.open:', error)
                 }
             }
             
             // Fallback to standard browser behavior
             window.open(article.url, '_blank', 'noopener,noreferrer')
-            console.log('🔗 VIEW ORIGINAL: URL opened via window.open')
         } catch (error) {
-            console.error('🔗 VIEW ORIGINAL ERROR: All methods failed:', error)
+            console.error('Failed to open original URL:', error)
             // Final fallback - copy to clipboard as last resort
             if (navigator.clipboard) {
                 try {
@@ -147,7 +136,6 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
 
     // Enterprise content processing helper functions
     const convertPlainTextToHtml = (text: string): string => {
-        console.log('📝 CONVERTING: Plain text to HTML with intelligent paragraph detection')
         
         // Split by double newlines first (natural paragraph breaks)
         let paragraphs = text.split(/\n\s*\n/)
@@ -180,7 +168,6 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
     }
 
     const enhanceMinimalHtml = (html: string): string => {
-        console.log('🔧 ENHANCING: Minimal HTML content')
         
         let enhanced = html
         
@@ -200,7 +187,6 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
     }
 
     const processRichHtml = (html: string): string => {
-        console.log('🎨 PROCESSING: Rich HTML content')
         
         let processed = html
         
@@ -219,7 +205,6 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
     }
 
     const universalContentCleanup = (content: string): string => {
-        console.log('🧹 CLEANING: Universal content optimization')
         
         let cleaned = content
         
@@ -278,12 +263,6 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
 
         // Enterprise-grade content processing - handles both old and new articles
         let processedContent = content
-        
-        console.log('🔄 CONTENT PROCESSING: Starting enterprise processing', {
-            originalLength: content.length,
-            hasHtml: /<[^>]+>/.test(content),
-            contentType: typeof content
-        })
 
         // Step 1: Security cleanup - Remove potentially harmful elements
         processedContent = processedContent.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
@@ -297,24 +276,14 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
         const hasMinimalHtml = /<p>|<div>|<br>/.test(processedContent) && processedContent.split('<').length < 10
         const isRichHtml = processedContent.split('<').length > 10
         
-        console.log('🔍 CONTENT ANALYSIS:', {
-            isPlainText,
-            hasMinimalHtml,
-            isRichHtml,
-            tagCount: processedContent.split('<').length
-        })
-
         if (isPlainText) {
             // Handle plain text content (running text from old extractions)
-            console.log('📝 PROCESSING: Plain text content detected')
             processedContent = convertPlainTextToHtml(processedContent)
         } else if (hasMinimalHtml) {
             // Handle minimally formatted content
-            console.log('🔧 PROCESSING: Minimal HTML content detected')
             processedContent = enhanceMinimalHtml(processedContent)
         } else {
             // Handle rich HTML content
-            console.log('🎨 PROCESSING: Rich HTML content detected')
             processedContent = processRichHtml(processedContent)
         }
         

@@ -56,7 +56,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
         // In production, send to error tracking service
         if (process.env.NODE_ENV === 'production') {
-            // TODO: Send to error tracking service (Sentry, etc.)
+            // Note: Error tracking service (Sentry/LogRocket) would be integrated here
             console.error('Production error captured:', {
                 error: error.message,
                 stack: error.stack,

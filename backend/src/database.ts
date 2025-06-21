@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import logger from './utils/logger';
 
 // Enterprise-grade Prisma client with global instance management
 // Prevents multiple instances in development hot reloads
@@ -16,11 +17,11 @@ if (process.env.NODE_ENV !== 'production') {
 
 // Graceful shutdown handlers
 process.on('SIGINT', async () => {
-    console.log('Received SIGINT, disconnecting Prisma...');
+    logger.info('Received SIGINT, disconnecting Prisma...');
     await prisma.$disconnect();
 });
 
 process.on('SIGTERM', async () => {
-    console.log('Received SIGTERM, disconnecting Prisma...');
+    logger.info('Received SIGTERM, disconnecting Prisma...');
     await prisma.$disconnect();
 });

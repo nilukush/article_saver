@@ -867,9 +867,7 @@ export function Settings({ onClose }: SettingsProps) {
                 {isLoggedIn && activeImports.length > 0 && (
                     <button
                         onClick={() => {
-                            console.log('🧹 Clearing all imports')
                             activeImports.forEach(imp => {
-                                console.log('Removing import:', imp.id, 'with session:', imp.sessionId)
                                 removeImport(imp.id)
                             })
                             // Also clear localStorage
@@ -1046,12 +1044,9 @@ export function Settings({ onClose }: SettingsProps) {
                                 <div>
                                     <button
                                         onClick={() => {
-                                            console.log('🔘 Import button clicked! pocketAuthorized:', pocketAuthorized, 'loading:', loading, 'isPocketImportActive:', isPocketImportActive)
                                             if (pocketAuthorized) {
-                                                console.log('🎯 Calling handlePocketImport')
                                                 handlePocketImport()
                                             } else {
-                                                console.log('🎯 Calling handlePocketAuthorize(true)')
                                                 handlePocketAuthorize(true)
                                             }
                                         }}

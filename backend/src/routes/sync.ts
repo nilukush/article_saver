@@ -3,6 +3,7 @@ import { body, validationResult } from 'express-validator';
 import { prisma } from '../database';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken } from '../middleware/auth';
+import logger from '../utils/logger';
 
 const router = Router();
 
@@ -91,7 +92,7 @@ router.post('/upload', [
                 results.created++;
             }
         } catch (error) {
-            console.error(`Error syncing article ${articleData.url}:`, error);
+            logger.error('Error syncing article', { url: articleData.url, error: error instanceof Error ? error.message : error });
         }
     }
 

@@ -2,6 +2,7 @@ import { prisma } from '../database';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { createError } from '../middleware/errorHandler';
+import logger from './logger';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
 
@@ -59,7 +60,7 @@ export async function handleEnterpriseOAuthLogin(
 ): Promise<EnterpriseOAuthResult> {
     const { email, provider, metadata } = userData;
     
-    console.log('[ENTERPRISE AUTH] OAuth login attempt:', { email, provider, electronPort });
+    logger.info('ENTERPRISE AUTH: OAuth login attempt', { email, provider, electronPort });
     
     // Evaluate provider trust level
     const trustLevel = evaluateProviderTrust(provider, email, metadata);
@@ -86,7 +87,7 @@ export async function handleEnterpriseOAuthLogin(
         });
         
         if (possibleLinkedAccount) {
-            console.log('[ENTERPRISE AUTH] Found linked account with unique email:', {
+            logger.info('ENTERPRISE AUTH: Found linked account with unique email', {
                 userId: possibleLinkedAccount.id,
                 uniqueEmail: possibleLinkedAccount.email,
                 actualEmail: (possibleLinkedAccount.metadata as any)?.actualEmail || email,
@@ -159,7 +160,7 @@ export async function handleEnterpriseOAuthLogin(
     
     if (existingProviderAccount) {
         // Same email+provider exists - just log them in
-        console.log('[ENTERPRISE AUTH] Found exact email+provider match:', { 
+        logger.info('ENTERPRISE AUTH: Found exact email+provider match', { 
             userId: existingProviderAccount.id, 
             email, 
             provider 
@@ -231,7 +232,7 @@ export async function handleEnterpriseOAuthLogin(
         }
     });
     
-    console.log('[ENTERPRISE AUTH] Found existing accounts with email:', { 
+    logger.info('ENTERPRISE AUTH: Found existing accounts with email', { 
         email, 
         count: existingAccounts.length,
         providers: existingAccounts.map(a => a.provider)
@@ -239,7 +240,7 @@ export async function handleEnterpriseOAuthLogin(
     
     if (existingAccounts.length === 0) {
         // No existing account with this email - create new user
-        console.log('[ENTERPRISE AUTH] Creating new user account:', { email, provider });
+        logger.info('ENTERPRISE AUTH: Creating new user account', { email, provider });
         
         const user = await prisma.user.create({
             data: {
@@ -293,7 +294,7 @@ export async function handleEnterpriseOAuthLogin(
     const primaryAccount = existingAccounts[0]; // For now, use first account as primary
     
     // Check if there's already a linked account for this provider
-    console.log('[ENTERPRISE AUTH] Checking for existing linked accounts:', {
+    logger.info('ENTERPRISE AUTH: Checking for existing linked accounts', {
         primaryAccountId: primaryAccount.id,
         primaryProvider: primaryAccount.provider,
         searchingForProvider: provider,
@@ -314,7 +315,7 @@ export async function handleEnterpriseOAuthLogin(
         }
     });
     
-    console.log('[ENTERPRISE AUTH] All linked accounts for primary user:', {
+    logger.debug('ENTERPRISE AUTH: All linked accounts for primary user', {
         count: allLinkedAccounts.length,
         accounts: allLinkedAccounts.map(la => ({
             id: la.id,
@@ -362,7 +363,7 @@ export async function handleEnterpriseOAuthLogin(
         }
     }
     
-    console.log('[ENTERPRISE AUTH] Existing linked account search result:', {
+    logger.info('ENTERPRISE AUTH: Existing linked account search result', {
         found: !!existingLinkedAccount,
         account: existingLinkedAccount ? {
             id: existingLinkedAccount.id,
@@ -421,7 +422,7 @@ export async function handleEnterpriseOAuthLogin(
             { expiresIn: '7d' }
         );
         
-        console.log('[ENTERPRISE AUTH] Using existing linked account for', email, 'with provider', provider);
+        logger.info('ENTERPRISE AUTH: Using existing linked account', { email, provider });
         
         return {
             type: 'success',
@@ -626,7 +627,7 @@ export async function sendVerificationEmail(
 ): Promise<void> {
     // In production, integrate with email service
     // For now, log the verification code
-    console.log('[EMAIL] Verification code for', email, ':', verificationCode);
+    logger.info('EMAIL: Verification code sent', { email, verificationCode });
     
     // Create audit log
     await prisma.accountLinkingAudit.create({
@@ -705,7 +706,7 @@ export async function completeAccountLinking(
         
         return { success: true, token };
     } catch (error) {
-        console.error('Account linking error:', error);
+        logger.error('Account linking error', { error: error instanceof Error ? error.message : error, stack: error instanceof Error ? error.stack : undefined });
         return { 
             success: false, 
             error: error instanceof Error ? error.message : 'Failed to complete linking'
