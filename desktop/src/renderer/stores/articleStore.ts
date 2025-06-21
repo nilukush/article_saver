@@ -38,7 +38,26 @@ const getApiUrl = () => {
 
 // Get auth token from localStorage
 const getAuthToken = () => {
-    return localStorage.getItem('authToken')
+    const token = localStorage.getItem('authToken')
+    
+    // Debug: Decode JWT to see what's in it
+    if (token) {
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]))
+            console.log('🔍 JWT TOKEN DEBUG: Current token contents:', {
+                userId: payload.userId,
+                email: payload.email,
+                hasLinkedUserIds: !!payload.linkedUserIds,
+                linkedUserIds: payload.linkedUserIds || 'none',
+                linkedCount: payload.linkedUserIds?.length || 0,
+                tokenExpiry: new Date(payload.exp * 1000)
+            })
+        } catch (e) {
+            console.log('🔍 JWT TOKEN DEBUG: Could not decode token')
+        }
+    }
+    
+    return token
 }
 
 // Make authenticated API request using Electron's net module
@@ -141,6 +160,48 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
                 timestamp: new Date().toISOString()
             });
             
+            // Debug: Check if this article exists in our local articles array
+            const { articles } = get();
+            const localArticle = articles.find(a => a.id === id);
+            console.log('📝 ARTICLE STORE: Local article check:', {
+                articleId: id,
+                foundLocally: !!localArticle,
+                localArticleUserId: localArticle?.userId || 'not found',
+                localIsRead: localArticle?.isRead
+            });
+            
+            // CRITICAL FIX: If local article has no userId, fetch it from backend first
+            if (!localArticle?.userId) {
+                console.log('🔧 ARTICLE STORE: Local article missing userId, fetching from backend first...');
+                try {
+                    const backendArticle = await apiRequest(`/api/articles/${id}`, {
+                        method: 'GET'
+                    });
+                    console.log('🔧 ARTICLE STORE: Backend article data:', {
+                        articleId: id,
+                        hasBackendArticle: !!backendArticle,
+                        backendUserId: backendArticle?.userId,
+                        backendIsRead: backendArticle?.isRead
+                    });
+                    
+                    // Update local cache with correct backend data
+                    if (backendArticle && backendArticle.userId) {
+                        console.log('🔧 ARTICLE STORE: Updating local cache with backend data...');
+                        const { articles } = get();
+                        const updatedArticles = articles.map(article =>
+                            article.id === id ? { ...article, ...backendArticle } : article
+                        );
+                        set({ articles: updatedArticles });
+                        console.log('✅ ARTICLE STORE: Local cache updated with correct userId');
+                        
+                        // Now try the API call again with refreshed cache
+                        console.log('🔧 ARTICLE STORE: Cache refreshed, now trying API call again...');
+                    }
+                } catch (fetchError) {
+                    console.log('🔧 ARTICLE STORE: Failed to fetch from backend:', fetchError);
+                }
+            }
+
             const updatedArticle = await apiRequest(`/api/articles/${id}`, {
                 method: 'PUT',
                 body: JSON.stringify(updates),
