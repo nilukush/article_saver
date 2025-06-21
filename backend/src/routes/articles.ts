@@ -568,21 +568,30 @@ router.delete('/bulk/all', authenticateToken, asyncHandler(async (req: Request, 
             where: { userId }
         });
         
+        logger.info('🗑️ BULK DELETE: Count before deletion', { userId, countBefore });
+        
         // Delete all articles for this user
         const deleteResult = await prisma.article.deleteMany({
+            where: { userId }
+        });
+        
+        // Verify deletion was successful
+        const countAfter = await prisma.article.count({
             where: { userId }
         });
         
         logger.info('✅ BULK DELETE: Successfully deleted articles', {
             userId,
             articlesDeleted: deleteResult.count,
-            countBefore
+            countBefore,
+            countAfter
         });
         
         res.json({
             success: true,
             deletedCount: deleteResult.count,
-            message: `Successfully deleted ${deleteResult.count} articles`
+            message: `Successfully deleted ${deleteResult.count} articles`,
+            articlesRemaining: countAfter
         });
         return;
         

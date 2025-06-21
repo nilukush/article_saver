@@ -27,7 +27,7 @@ export function Settings({ onClose }: SettingsProps) {
     } | null>(null)
 
     // Get stores
-    const { loadArticles, totalArticles } = useArticleStore()
+    const { loadArticles, loadInitialArticles, resetArticles, totalArticles } = useArticleStore()
     const { startImport, activeImports, removeImport, discoverAndRecoverSessions } = useImportStore()
     
     // Check if Pocket import is currently active
@@ -369,14 +369,22 @@ export function Settings({ onClose }: SettingsProps) {
 
             if (response.success) {
                 const data = response.data
+                console.log('[DELETE ALL] Response:', data)
                 setError(`✅ Successfully deleted ${data.deletedCount} articles!`)
                 
                 // Clear import timestamp since we deleted everything
                 localStorage.removeItem('lastPocketImport')
                 setLastImportTime(null)
                 
-                // Reload articles to show empty state
-                await loadArticles()
+                // Reset and reload articles to show empty state
+                console.log('[DELETE ALL] Resetting article store...')
+                resetArticles()
+                
+                // Small delay to ensure state is reset before reloading
+                await new Promise(resolve => setTimeout(resolve, 100))
+                
+                console.log('[DELETE ALL] Loading initial articles...')
+                await loadInitialArticles()
                 
                 // Close modal after 2 seconds
                 setTimeout(() => {
