@@ -13,6 +13,9 @@ interface ArticleStore {
     totalArticles: number
     hasMore: boolean
     loadingMore: boolean
+    
+    // Flag to prevent auto-loading after bulk deletion
+    preventAutoLoad: boolean
 
     // Actions
     loadArticles: () => Promise<void>
@@ -25,6 +28,7 @@ interface ArticleStore {
     searchArticles: (query: string) => Promise<void>
     clearSearch: () => void
     setError: (error: string | null) => void
+    setPreventAutoLoad: (prevent: boolean) => void
 }
 
 // Get API URL from environment
@@ -79,6 +83,7 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
     totalArticles: 0,
     hasMore: false,
     loadingMore: false,
+    preventAutoLoad: false,
 
     loadArticles: async () => {
         set({ loading: true, error: null })
@@ -198,6 +203,12 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
     },
 
     loadInitialArticles: async () => {
+        const { preventAutoLoad } = get()
+        if (preventAutoLoad) {
+            console.log('Auto-load prevented after bulk deletion')
+            return
+        }
+        
         set({ loading: true, error: null })
         try {
             console.log('Loading initial 100 articles...')
@@ -284,5 +295,9 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
 
     setError: (error: string | null) => {
         set({ error })
+    },
+    
+    setPreventAutoLoad: (prevent: boolean) => {
+        set({ preventAutoLoad: prevent })
     }
 }))
