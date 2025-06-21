@@ -556,52 +556,156 @@ router.get('/user/info', authenticateToken, asyncHandler(async (req: Request, re
     }
 }));
 
-// Bulk delete all articles for current user AND all linked accounts
+// Bulk delete all articles - Enterprise-grade with explicit scope control
 router.delete('/bulk/all', authenticateToken, asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const userId = (req as any).user.userId;
+    const { scope = 'current' } = req.query as { scope?: 'current' | 'all-linked' };
+    const { confirmationToken } = req.body;
     
-    logger.info('🗑️ BULK DELETE: Starting bulk deletion for user and linked accounts', { userId });
+    logger.info('🗑️ BULK DELETE: Starting bulk deletion', { userId, scope });
     
     try {
-        // CRITICAL: Get all linked user IDs to delete from ALL accounts
-        const userIds = await getAllLinkedUserIds(userId);
-        logger.info('🗑️ BULK DELETE: Found linked accounts', { userId, linkedUserIds: userIds });
+        let deleteResult;
+        let countBefore: number;
+        let countAfter: number;
+        let affectedAccounts: string[] = [userId];
         
-        // Get count before deletion for logging (from all linked accounts)
-        const countBefore = await prisma.article.count({
-            where: { userId: { in: userIds } }
-        });
+        if (scope === 'all-linked') {
+            // ENTERPRISE REQUIREMENT: Explicit confirmation for cross-account deletion
+            if (!confirmationToken) {
+                logger.warn('🚫 BULK DELETE: Cross-account deletion attempted without confirmation', { userId });
+                res.status(400).json({
+                    error: 'Confirmation required',
+                    message: 'Cross-account deletion requires explicit confirmation',
+                    requiresConfirmation: true
+                });
+                return;
+            }
+            
+            // Get all linked user IDs
+            const userIds = await getAllLinkedUserIds(userId);
+            affectedAccounts = userIds;
+            
+            logger.info('🗑️ BULK DELETE: Cross-account deletion confirmed', { 
+                userId, 
+                linkedUserIds: userIds,
+                accountCount: userIds.length 
+            });
+            
+            // Get count before deletion (from all linked accounts)
+            countBefore = await prisma.article.count({
+                where: { userId: { in: userIds } }
+            });
+            
+            // Show detailed breakdown for audit
+            const breakdown: Record<string, number> = {};
+            for (const id of userIds) {
+                const count = await prisma.article.count({ where: { userId: id } });
+                const user = await prisma.user.findUnique({ where: { id } });
+                breakdown[user?.email || id] = count;
+            }
+            
+            logger.info('🗑️ BULK DELETE: Article breakdown by account', { breakdown });
+            
+            // Delete from all linked accounts
+            deleteResult = await prisma.article.deleteMany({
+                where: { userId: { in: userIds } }
+            });
+            
+            // Verify deletion
+            countAfter = await prisma.article.count({
+                where: { userId: { in: userIds } }
+            });
+            
+        } else {
+            // DEFAULT: Delete from current account only (Enterprise best practice)
+            logger.info('🗑️ BULK DELETE: Deleting from current account only', { userId });
+            
+            // Count articles in current account
+            countBefore = await prisma.article.count({
+                where: { userId }
+            });
+            
+            // Check if there are articles in linked accounts
+            const allUserIds = await getAllLinkedUserIds(userId);
+            const linkedAccountsCount = allUserIds.length - 1;
+            const articlesInLinkedAccounts = await prisma.article.count({
+                where: { 
+                    userId: { 
+                        in: allUserIds.filter(id => id !== userId) 
+                    } 
+                }
+            });
+            
+            // Delete from current account only
+            deleteResult = await prisma.article.deleteMany({
+                where: { userId }
+            });
+            
+            // Verify deletion
+            countAfter = await prisma.article.count({
+                where: { userId }
+            });
+            
+            // Log warning if articles remain in linked accounts
+            if (articlesInLinkedAccounts > 0) {
+                logger.info('⚠️ BULK DELETE: Articles remain in linked accounts', {
+                    userId,
+                    articlesInLinkedAccounts,
+                    linkedAccountsCount
+                });
+            }
+        }
         
-        logger.info('🗑️ BULK DELETE: Count before deletion across all linked accounts', { 
-            userId, 
-            linkedAccounts: userIds.length,
-            countBefore 
-        });
-        
-        // Delete all articles for this user AND all linked accounts
-        const deleteResult = await prisma.article.deleteMany({
-            where: { userId: { in: userIds } }
-        });
-        
-        // Verify deletion was successful
-        const countAfter = await prisma.article.count({
-            where: { userId: { in: userIds } }
-        });
-        
-        logger.info('✅ BULK DELETE: Successfully deleted articles from all linked accounts', {
+        logger.info('✅ BULK DELETE: Successfully deleted articles', {
             userId,
-            linkedAccounts: userIds,
+            scope,
+            affectedAccounts,
             articlesDeleted: deleteResult.count,
             countBefore,
             countAfter
         });
         
+        // Create audit log
+        await prisma.accountLinkingAudit.create({
+            data: {
+                userId,
+                linkedId: userId,
+                action: 'bulk_delete',
+                performedBy: userId,
+                metadata: {
+                    scope,
+                    articlesDeleted: deleteResult.count,
+                    affectedAccounts,
+                    timestamp: new Date()
+                }
+            }
+        }).catch(err => {
+            logger.error('Failed to create audit log', err);
+        });
+        
         res.json({
             success: true,
             deletedCount: deleteResult.count,
-            message: `Successfully deleted ${deleteResult.count} articles from all linked accounts`,
+            message: scope === 'all-linked' 
+                ? `Successfully deleted ${deleteResult.count} articles from all linked accounts`
+                : `Successfully deleted ${deleteResult.count} articles from current account`,
             articlesRemaining: countAfter,
-            linkedAccountsCleared: userIds.length
+            scope,
+            affectedAccounts: affectedAccounts.length,
+            // Include info about linked accounts if deleting from current only
+            ...(scope === 'current' && {
+                linkedAccountsInfo: {
+                    hasLinkedAccounts: affectedAccounts.length > 1,
+                    articlesInLinkedAccounts: await prisma.article.count({
+                        where: { 
+                            userId: { 
+                                in: affectedAccounts.filter(id => id !== userId) 
+                            } 
+                        }
+                    })
+                }
+            })
         });
         return;
         
