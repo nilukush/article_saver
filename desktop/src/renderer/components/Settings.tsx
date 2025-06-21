@@ -256,6 +256,8 @@ export function Settings({ onClose }: SettingsProps) {
                 body: JSON.stringify({ email, password }),
             })
 
+            console.log('🔍 LOGIN DEBUG: Response from netFetch:', response)
+
             if (response.success) {
                 const data = response.data
                 localStorage.setItem('authToken', data.token)
@@ -266,9 +268,11 @@ export function Settings({ onClose }: SettingsProps) {
                 // Close settings modal immediately after successful login
                 onClose()
             } else {
+                console.error('❌ LOGIN ERROR: Authentication failed:', response.error)
                 setError(response.error || 'Login failed')
             }
         } catch (err) {
+            console.error('❌ LOGIN ERROR: Network/connection error:', err)
             setError(err instanceof Error ? err.message : 'Failed to connect to server')
         } finally {
             setLoading(false)
@@ -289,6 +293,8 @@ export function Settings({ onClose }: SettingsProps) {
                 body: JSON.stringify({ email, password }),
             })
 
+            console.log('🔍 REGISTER DEBUG: Response from netFetch:', response)
+
             if (response.success) {
                 const data = response.data
                 localStorage.setItem('authToken', data.token)
@@ -299,9 +305,11 @@ export function Settings({ onClose }: SettingsProps) {
                 // Close settings modal immediately after successful registration
                 onClose()
             } else {
+                console.error('❌ REGISTER ERROR: Registration failed:', response.error)
                 setError(response.error || 'Registration failed')
             }
         } catch (err) {
+            console.error('❌ REGISTER ERROR: Network/connection error:', err)
             setError(err instanceof Error ? err.message : 'Failed to connect to server')
         } finally {
             setLoading(false)
