@@ -601,6 +601,13 @@ router.post('/github/callback', asyncHandler(async (req: Request, res: Response)
     }
 
     // Handle OAuth login with enterprise-grade account linking
+    logger.info('ENTERPRISE AUTH: Processing GitHub POST callback', {
+        email: primaryEmail,
+        provider: 'github',
+        githubId: userData.id,
+        githubLogin: userData.login
+    });
+
     const result = await handleEnterpriseOAuthLogin({
         email: primaryEmail,
         provider: 'github',
@@ -611,17 +618,39 @@ router.post('/github/callback', asyncHandler(async (req: Request, res: Response)
         }
     }, null);
 
+    logger.info('ENTERPRISE AUTH: GitHub POST callback result', {
+        type: result.type,
+        hasLinkingData: !!result.linkingData,
+        hasUser: !!result.user,
+        hasToken: !!result.token
+    });
+
     if (result.type === 'requires_linking' || result.type === 'requires_verification') {
+        logger.info('ENTERPRISE AUTH: GitHub requires account linking', {
+            existingProvider: result.linkingData?.existingProvider,
+            linkingProvider: result.linkingData?.newProvider,
+            requiresVerification: result.linkingData?.verificationRequired,
+            trustLevel: result.linkingData?.trustLevel
+        });
+
         res.json({
             message: 'Account linking required',
             action: 'link_account',
+            provider: 'github',
             existingProvider: result.linkingData?.existingProvider,
             linkingProvider: result.linkingData?.newProvider,
             linkingToken: result.linkingData?.linkingToken,
+            email: primaryEmail,
+            token: result.token,
             trustLevel: result.linkingData?.trustLevel,
             requiresVerification: result.linkingData?.verificationRequired
         });
     } else {
+        logger.info('ENTERPRISE AUTH: GitHub login successful without linking', {
+            userId: result.user?.id,
+            email: primaryEmail
+        });
+
         res.json({
             message: 'GitHub login successful',
             user: result.user ? {
