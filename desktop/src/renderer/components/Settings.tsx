@@ -10,6 +10,9 @@ interface SettingsProps {
     onClose: () => void
 }
 
+// Global state to persist account linking data across re-renders
+let globalAccountLinkingData: any = null
+
 export function Settings({ onClose }: SettingsProps) {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
@@ -24,7 +27,7 @@ export function Settings({ onClose }: SettingsProps) {
         email: string
         trustLevel?: 'high' | 'medium' | 'low'
         requiresVerification?: boolean
-    } | null>(null)
+    } | null>(globalAccountLinkingData)
     
     // Debug: Track component lifecycle
     useEffect(() => {
@@ -820,6 +823,7 @@ export function Settings({ onClose }: SettingsProps) {
                         requiresVerification: data.requiresVerification === 'true'
                     }
                     console.log('🔗 ACCOUNT LINKING: Setting accountLinkingData state to:', linkingData)
+                    globalAccountLinkingData = linkingData // Persist globally
                     setAccountLinkingData(linkingData)
                     console.log('🔗 ACCOUNT LINKING: State set, accountLinkingData should now be:', linkingData)
                     
@@ -894,14 +898,16 @@ export function Settings({ onClose }: SettingsProps) {
                     setIsLoggedIn(true)
                 }
                 
-                setAccountLinkingData({
+                const linkingData = {
                     existingProvider: data.existingProvider,
                     linkingProvider: data.provider,
                     linkingToken: data.linkingToken,
                     email: data.email,
                     trustLevel: data.trustLevel as 'high' | 'medium' | 'low' | undefined,
                     requiresVerification: data.requiresVerification === 'true'
-                })
+                }
+                globalAccountLinkingData = linkingData // Persist globally
+                setAccountLinkingData(linkingData)
             })
         }
 
@@ -1229,6 +1235,7 @@ export function Settings({ onClose }: SettingsProps) {
                     trustLevel={accountLinkingData.trustLevel}
                     requiresVerification={accountLinkingData.requiresVerification}
                     onClose={() => {
+                        globalAccountLinkingData = null // Clear global state
                         setAccountLinkingData(null)
                         // Also close the Settings modal after account linking is handled
                         onClose()
