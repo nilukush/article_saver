@@ -326,7 +326,7 @@ router.put('/:id', [
     const updateData = req.body;
 
     // Enterprise-grade logging and debugging
-    console.log('📝 ARTICLE UPDATE: Processing update request', {
+    logger.info('📝 ARTICLE UPDATE: Processing update request', {
         userId,
         articleId: id,
         updateFields: Object.keys(updateData),
@@ -334,18 +334,11 @@ router.put('/:id', [
         timestamp: new Date().toISOString()
     });
 
-    logger.info('📝 ARTICLE UPDATE: Processing update request', {
-        userId,
-        articleId: id,
-        updateFields: Object.keys(updateData),
-        isRead: updateData.isRead
-    });
-
     // CRITICAL FIX: Support linked accounts for article updates
     // Get all linked user IDs (with token optimization)
     const tokenLinkedIds = (req as any).user.linkedUserIds;
     
-    console.log('🔍 ARTICLE UPDATE: Auth middleware data', {
+    logger.info('🔍 ARTICLE UPDATE: Auth middleware data', {
         userId,
         tokenLinkedIds,
         hasTokenLinkedIds: !!tokenLinkedIds,
@@ -354,16 +347,10 @@ router.put('/:id', [
 
     const userIds = await getAllLinkedUserIds(userId, tokenLinkedIds);
 
-    console.log('🔍 ARTICLE UPDATE: Resolved linked accounts', {
+    logger.info('🔍 ARTICLE UPDATE: Resolved linked accounts', {
         currentUserId: userId,
         linkedUserIds: userIds,
         linkedCount: userIds.length,
-        tokenLinkedIds
-    });
-
-    logger.info('🔍 ARTICLE UPDATE: Checking linked accounts', {
-        currentUserId: userId,
-        linkedUserIds: userIds,
         tokenLinkedIds
     });
 
@@ -373,7 +360,7 @@ router.put('/:id', [
     }
 
     // First check if article exists for any linked account
-    console.log('🔍 ARTICLE UPDATE: Searching for article', {
+    logger.info('🔍 ARTICLE UPDATE: Searching for article', {
         articleId: id,
         searchingUserIds: userIds,
         query: { id, userId: { in: userIds } }
@@ -386,7 +373,7 @@ router.put('/:id', [
         }
     });
 
-    console.log('🔍 ARTICLE UPDATE: Search result', {
+    logger.info('🔍 ARTICLE UPDATE: Search result', {
         articleId: id,
         found: !!existingArticle,
         articleUserId: existingArticle?.userId || 'none',
@@ -394,11 +381,6 @@ router.put('/:id', [
     });
 
     if (!existingArticle) {
-        console.error('❌ ARTICLE UPDATE: Article not found', {
-            articleId: id,
-            userId,
-            checkedUserIds: userIds
-        });
         logger.error('❌ ARTICLE UPDATE: Article not found', {
             articleId: id,
             userId,
@@ -406,12 +388,6 @@ router.put('/:id', [
         });
         throw createError('Article not found', 404);
     }
-
-    console.log('✅ ARTICLE UPDATE: Article found', {
-        articleId: id,
-        articleUserId: existingArticle.userId,
-        currentUserId: userId
-    });
 
     logger.info('✅ ARTICLE UPDATE: Article found', {
         articleId: id,
