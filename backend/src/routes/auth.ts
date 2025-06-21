@@ -426,7 +426,19 @@ router.get('/github/callback', asyncHandler(async (req: Request, res: Response) 
         resultType: result.type,
         hasLinkingData: !!result.linkingData,
         redirectUrl: result.redirectUrl,
-        electronPort
+        electronPort,
+        redirectUrlParsed: new URL(result.redirectUrl)
+    });
+    
+    // CRITICAL DEBUG: Log the exact redirect parameters
+    const redirectUrlObj = new URL(result.redirectUrl);
+    logger.info('CRITICAL: OAuth redirect parameters', {
+        baseUrl: redirectUrlObj.origin + redirectUrlObj.pathname,
+        queryParams: Object.fromEntries(redirectUrlObj.searchParams.entries()),
+        hasAction: redirectUrlObj.searchParams.has('action'),
+        actionValue: redirectUrlObj.searchParams.get('action'),
+        hasToken: redirectUrlObj.searchParams.has('token'),
+        hasLinkingToken: redirectUrlObj.searchParams.has('linkingToken')
     });
 
     // Redirect based on result
