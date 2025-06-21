@@ -54,6 +54,21 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
                 const action = url.searchParams.get('action')
                 const existingProvider = url.searchParams.get('existingProvider')
                 const linkingToken = url.searchParams.get('linkingToken')
+                
+                // CRITICAL DEBUG: Log all OAuth callback parameters
+                console.log('🔍 OAUTH CALLBACK RECEIVED:', {
+                    provider,
+                    hasCode: !!code,
+                    hasToken: !!token,
+                    hasEmail: !!email,
+                    hasError: !!error,
+                    action,
+                    existingProvider,
+                    hasLinkingToken: !!linkingToken,
+                    requiresVerification: url.searchParams.get('requiresVerification'),
+                    fullUrl: url.href,
+                    allParams: Object.fromEntries(url.searchParams.entries())
+                })
 
                 // Send success page to browser
                 res.writeHead(200, { 'Content-Type': 'text/html' })
@@ -94,12 +109,22 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
                     fullUrl: url.href
                 })
 
+                // CRITICAL DEBUG: Log OAuth callback processing
+                console.log('🔥 PROCESSING OAUTH CALLBACK - mainWindow exists:', !!mainWindow);
+                
                 // Send result to main window
                 if (mainWindow) {
                     if (error) {
                         console.error('OAuth error:', error)
                         mainWindow.webContents.send('oauth-error', { provider, error })
                     } else if ((action === 'link_account' || action === 'verify_existing_link') && linkingToken) {
+                        console.log('🔗 DETECTED ACCOUNT LINKING ACTION:', {
+                            action,
+                            existingProvider,
+                            hasLinkingToken: !!linkingToken,
+                            willSendOAuthSuccess: !!(token && email),
+                            willSendAccountLinking: true
+                        });
                         console.log('Detected account linking scenario:', { action, provider, existingProvider })
                         // If we also have a token, save it first
                         if (token && email) {
