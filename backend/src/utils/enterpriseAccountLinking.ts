@@ -662,7 +662,8 @@ export async function handleEnterpriseOAuthLogin(
                 existingProvider: primaryAccount.provider || 'local',
                 hasToken: !!authToken,
                 hasLinkingToken: !!linkingToken,
-                redirectUrl
+                redirectUrl,
+                fullRedirectUrl: redirectUrl
             });
             
             return {
