@@ -85,10 +85,19 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
                     if (error) {
                         console.error('OAuth error:', error)
                         mainWindow.webContents.send('oauth-error', { provider, error })
-                    } else if (action === 'link_account' && linkingToken) {
+                    } else if ((action === 'link_account' || action === 'verify_existing_link') && linkingToken) {
                         // If we also have a token, save it first
                         if (token && email) {
-                            mainWindow.webContents.send('oauth-success', { provider, token, email })
+                            mainWindow.webContents.send('oauth-success', { 
+                                provider, 
+                                token, 
+                                email, 
+                                action,
+                                existingProvider,
+                                linkingToken,
+                                trustLevel: url.searchParams.get('trustLevel'),
+                                requiresVerification: url.searchParams.get('requiresVerification')
+                            })
                         }
                         // Then show the linking prompt
                         mainWindow.webContents.send('oauth-account-linking', { 
