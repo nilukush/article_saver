@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { createError } from '../middleware/errorHandler';
 import logger from './logger';
+import { emailService } from '../services/emailService';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
 
@@ -873,24 +874,26 @@ function buildRedirectUrl(
 export async function sendVerificationEmail(
     userId: string,
     email: string,
-    verificationCode: string
+    verificationCode: string,
+    context?: {
+        existingProvider: string;
+        newProvider: string;
+    }
 ): Promise<void> {
-    // In production, integrate with email service
-    // For now, log the verification code
-    logger.info('EMAIL: Verification code sent', { email, verificationCode });
-    
-    // Create audit log
-    await prisma.accountLinkingAudit.create({
-        data: {
-            userId,
-            action: 'verification_email_sent',
-            performedBy: userId,
-            metadata: {
-                email,
-                timestamp: new Date()
-            }
-        }
+    // Use the email service to send verification code
+    const emailSent = await emailService.sendVerificationCode(email, verificationCode, {
+        userId,
+        existingProvider: context?.existingProvider || 'local',
+        newProvider: context?.newProvider || 'unknown',
+        expiresIn: 15 // 15 minutes
     });
+    
+    if (!emailSent) {
+        logger.error('Failed to send verification email', { email, userId });
+        throw createError('Failed to send verification email. Please try again later.', 500);
+    }
+    
+    logger.info('EMAIL: Verification code sent successfully', { email, userId });
 }
 
 // Complete account linking with verification
@@ -912,13 +915,8 @@ export async function completeAccountLinking(
             throw createError('Linking record not found', 404);
         }
         
-        // Development workaround: Skip verification code check for OAuth-based linking
-        // In production, this should send an email with verification code
-        if (decoded.requiresVerification && decoded.action !== 'verify_existing_link') {
-            // Only check verification code for new links, not existing unverified ones
-            if (linkedAccount.verificationCode !== verificationCode) {
-                throw createError('Invalid verification code', 400);
-            }
+        if (decoded.requiresVerification && linkedAccount.verificationCode !== verificationCode) {
+            throw createError('Invalid verification code', 400);
         }
         
         // Update link as verified

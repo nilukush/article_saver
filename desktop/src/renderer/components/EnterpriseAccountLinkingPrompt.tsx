@@ -200,10 +200,10 @@ export function EnterpriseAccountLinkingPrompt({
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                         />
                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                            For security, we've sent a verification code to {email}
+                            Email verification is required for security but not yet implemented.
                         </p>
-                        <p className="mt-1 text-xs text-yellow-600 dark:text-yellow-400">
-                            Note: Email verification is not yet implemented. You can use "Keep Separate" for now.
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">
+                            Click "Keep Separate" to continue with separate accounts.
                         </p>
                     </div>
                 )}

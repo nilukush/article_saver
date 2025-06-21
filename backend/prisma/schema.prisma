@@ -149,3 +149,25 @@ model OAuthToken {
   @@index([expiresAt])
   @@map("oauth_tokens")
 }
+
+model VerificationCode {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  email       String
+  code        String   // Hashed verification code
+  purpose     String   // 'account_linking', 'email_verification', 'password_reset', etc.
+  expiresAt   DateTime @map("expires_at")
+  attempts    Int      @default(0)
+  verified    Boolean  @default(false)
+  metadata    Json     @default("{}") @db.Json
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Indexes
+  @@index([userId, email, purpose])
+  @@index([email, code, purpose])
+  @@index([expiresAt])
+  @@index([verified])
+  @@index([createdAt])
+  @@map("verification_codes")
+}
