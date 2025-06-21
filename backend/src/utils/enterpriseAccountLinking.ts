@@ -656,6 +656,41 @@ export async function handleEnterpriseOAuthLogin(
                 requiresVerification: 'true'
             });
             
+            // Generate and send verification email for existing unverified link
+            try {
+                const { generateVerificationCode } = await import('./verificationCode');
+                const { EmailService } = await import('../services/emailService');
+                
+                const verificationCode = await generateVerificationCode(
+                    primaryAccount.id,
+                    email,
+                    'account_linking'
+                );
+                
+                const emailService = EmailService.getInstance();
+                await emailService.sendVerificationCode(
+                    email,
+                    verificationCode,
+                    'Account Link Verification',
+                    {
+                        existingProvider: primaryAccount.provider || 'local',
+                        newProvider: provider
+                    }
+                );
+                
+                logger.info('ENTERPRISE AUTH: Verification email sent for existing link', {
+                    email,
+                    provider,
+                    hasCode: !!verificationCode
+                });
+            } catch (emailError) {
+                logger.error('ENTERPRISE AUTH: Failed to send verification email', {
+                    error: emailError instanceof Error ? emailError.message : emailError,
+                    email,
+                    provider
+                });
+            }
+            
             logger.info('ENTERPRISE AUTH: Building redirect URL for verification', {
                 electronPort,
                 provider,
