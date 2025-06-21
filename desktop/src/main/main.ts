@@ -309,8 +309,19 @@ const createWindow = (): void => {
     mainWindow.once('ready-to-show', () => {
         mainWindow.show()
 
-        // Temporarily disabled for debugging
-        // preventDevTools()
+        // Add keyboard shortcut for dev tools (F12 or Cmd+Option+I)
+        mainWindow.webContents.on('before-input-event', (event, input) => {
+            // F12 or Cmd+Option+I to open dev tools
+            if (input.key === 'F12' || 
+                (input.meta && input.alt && input.key.toLowerCase() === 'i')) {
+                mainWindow.webContents.toggleDevTools()
+            }
+        })
+
+        // Re-enable security in production
+        if (process.env.NODE_ENV !== 'development') {
+            preventDevTools()
+        }
     })
 
     function preventDevTools() {
