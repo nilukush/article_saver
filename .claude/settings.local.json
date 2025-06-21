@@ -32,7 +32,8 @@
       "Bash(kill:*)",
       "Bash(npx tsx:*)",
       "Bash(true)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(git pull:*)"
     ],
     "deny": []
   }
