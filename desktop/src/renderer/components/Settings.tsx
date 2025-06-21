@@ -843,13 +843,15 @@ export function Settings({ onClose }: SettingsProps) {
                     </div>
                 )}
                 
-                {/* Debug info */}
-                <div className="mb-2 text-xs text-gray-500">
-                    Active imports: {activeImports.length}
-                </div>
+                {/* Debug info - only show when logged in */}
+                {isLoggedIn && (
+                    <div className="mb-2 text-xs text-gray-500">
+                        Active imports: {activeImports.length}
+                    </div>
+                )}
                 
-                {/* Debug: Clear stuck imports button */}
-                {activeImports.length > 0 && (
+                {/* Debug: Clear stuck imports button - only show when logged in */}
+                {isLoggedIn && activeImports.length > 0 && (
                     <button
                         onClick={() => {
                             console.log('🧹 Clearing all imports')
@@ -1123,7 +1125,11 @@ export function Settings({ onClose }: SettingsProps) {
                     email={accountLinkingData.email}
                     trustLevel={accountLinkingData.trustLevel}
                     requiresVerification={accountLinkingData.requiresVerification}
-                    onClose={() => setAccountLinkingData(null)}
+                    onClose={() => {
+                        setAccountLinkingData(null)
+                        // Also close the Settings modal after account linking is handled
+                        onClose()
+                    }}
                 />
             )}
         </div>
