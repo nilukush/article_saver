@@ -80,12 +80,27 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
                     </html>
                 `)
 
+                // Log all parameters for debugging
+                console.log('OAuth callback received:', {
+                    provider,
+                    hasCode: !!code,
+                    hasToken: !!token,
+                    hasEmail: !!email,
+                    hasError: !!error,
+                    action,
+                    existingProvider,
+                    hasLinkingToken: !!linkingToken,
+                    requiresVerification: url.searchParams.get('requiresVerification'),
+                    fullUrl: url.href
+                })
+
                 // Send result to main window
                 if (mainWindow) {
                     if (error) {
                         console.error('OAuth error:', error)
                         mainWindow.webContents.send('oauth-error', { provider, error })
                     } else if ((action === 'link_account' || action === 'verify_existing_link') && linkingToken) {
+                        console.log('Detected account linking scenario:', { action, provider, existingProvider })
                         // If we also have a token, save it first
                         if (token && email) {
                             mainWindow.webContents.send('oauth-success', { 
@@ -111,8 +126,10 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
                             requiresVerification: url.searchParams.get('requiresVerification')
                         })
                     } else if (token && email) {
+                        console.log('Normal OAuth success:', { provider, hasToken: !!token, hasEmail: !!email })
                         mainWindow.webContents.send('oauth-success', { provider, token, email })
                     } else if (code) {
+                        console.log('OAuth callback with code:', { provider, hasCode: !!code })
                         mainWindow.webContents.send('oauth-callback', { provider, code })
                     } else if (provider === 'pocket') {
                         // For Pocket, call backend to exchange request token for access token

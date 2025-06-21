@@ -422,6 +422,13 @@ router.get('/github/callback', asyncHandler(async (req: Request, res: Response) 
         }
     }, electronPort);
 
+    logger.info('GitHub OAuth GET callback - redirecting', {
+        resultType: result.type,
+        hasLinkingData: !!result.linkingData,
+        redirectUrl: result.redirectUrl,
+        electronPort
+    });
+
     // Redirect based on result
     res.redirect(result.redirectUrl);
 }));

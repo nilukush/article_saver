@@ -21,6 +21,15 @@ export function EnterpriseAccountLinkingPrompt({
     requiresVerification = false,
     onClose
 }: EnterpriseAccountLinkingPromptProps) {
+    console.log('🔗 ENTERPRISE ACCOUNT LINKING PROMPT: Component rendered', {
+        existingProvider,
+        linkingProvider,
+        email,
+        trustLevel,
+        requiresVerification,
+        hasLinkingToken: !!linkingToken
+    })
+    
     const [linking, setLinking] = useState(false)
     const [verificationCode, setVerificationCode] = useState('')
     const [showVerification, setShowVerification] = useState(requiresVerification)

@@ -774,11 +774,23 @@ export function Settings({ onClose }: SettingsProps) {
                 trustLevel?: string;
                 requiresVerification?: string;
             }) => {
-                console.log('🔍 OAUTH SUCCESS: Event received', data)
+                console.log('🔍 OAUTH SUCCESS: Event received', {
+                    ...data,
+                    hasAction: !!data.action,
+                    hasLinkingToken: !!data.linkingToken,
+                    requiresVerification: data.requiresVerification
+                })
                 
                 // Check if this is an account linking response
                 if (data.action === 'link_account' || data.action === 'verify_existing_link') {
-                    console.log('🔗 ACCOUNT LINKING: Detected in OAuth success event', { action: data.action })
+                    console.log('🔗 ACCOUNT LINKING: Detected in OAuth success event', { 
+                        action: data.action,
+                        existingProvider: data.existingProvider,
+                        linkingProvider: data.provider,
+                        hasLinkingToken: !!data.linkingToken,
+                        trustLevel: data.trustLevel,
+                        requiresVerification: data.requiresVerification
+                    })
                     setLoading(false)
                     
                     // Set auth token first so user is authenticated
@@ -795,6 +807,7 @@ export function Settings({ onClose }: SettingsProps) {
                         trustLevel: data.trustLevel as 'high' | 'medium' | 'low' | undefined,
                         requiresVerification: data.requiresVerification === 'true'
                     })
+                    console.log('🔗 ACCOUNT LINKING: Set accountLinkingData state')
                     return
                 }
                 
@@ -867,6 +880,12 @@ export function Settings({ onClose }: SettingsProps) {
             }
         }
     }, []) // Only run on mount
+
+    // Debug logging for account linking state
+    console.log('🔍 SETTINGS RENDER: accountLinkingData state', {
+        hasAccountLinkingData: !!accountLinkingData,
+        accountLinkingData
+    })
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

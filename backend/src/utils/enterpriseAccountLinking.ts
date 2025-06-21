@@ -646,6 +646,25 @@ export async function handleEnterpriseOAuthLogin(
                 JWT_SECRET
             );
             
+            const redirectUrl = buildRedirectUrl(electronPort, provider, {
+                token: authToken,
+                email,
+                action: 'verify_existing_link',
+                existingProvider: primaryAccount.provider || 'local',
+                linkingToken,
+                requiresVerification: 'true'
+            });
+            
+            logger.info('ENTERPRISE AUTH: Building redirect URL for verification', {
+                electronPort,
+                provider,
+                action: 'verify_existing_link',
+                existingProvider: primaryAccount.provider || 'local',
+                hasToken: !!authToken,
+                hasLinkingToken: !!linkingToken,
+                redirectUrl
+            });
+            
             return {
                 type: 'requires_verification',
                 user: linkedProviderAccount,
@@ -657,14 +676,7 @@ export async function handleEnterpriseOAuthLogin(
                     verificationRequired: true,
                     trustLevel: calculateCombinedTrustLevel(primaryTrust, linkedProviderTrust)
                 },
-                redirectUrl: buildRedirectUrl(electronPort, provider, {
-                    token: authToken,
-                    email,
-                    action: 'verify_existing_link',
-                    existingProvider: primaryAccount.provider || 'local',
-                    linkingToken,
-                    requiresVerification: 'true'
-                })
+                redirectUrl
             };
         }
     }
