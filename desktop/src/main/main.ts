@@ -13,8 +13,12 @@ app.commandLine.appendSwitch('--disable-gpu-debug')
 // Remove --disable-web-security to allow WebAuthn
 // app.commandLine.appendSwitch('--disable-web-security')
 
-// Set app name early in the process
+// Set app name early in the process - Multiple ways for macOS compatibility
+app.setName('Article Saver')
 app.name = 'Article Saver'
+if (process.platform === 'darwin') {
+    app.dock?.setIcon(path.join(__dirname, '../../../assets/icon.png'))
+}
 
 // Set environment variables to disable debugging
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true'
@@ -260,9 +264,41 @@ const createWindow = (): void => {
         show: false,
     })
 
-    // Remove menu bar completely (prevents F12 menu option)
-    mainWindow.setMenuBarVisibility(false)
-    mainWindow.setMenu(null)
+    // Set app-specific menu for proper naming on macOS
+    if (process.platform === 'darwin') {
+        const { Menu } = require('electron')
+        const template = [
+            {
+                label: 'Article Saver', // This fixes the menu bar name issue
+                submenu: [
+                    { label: 'About Article Saver', role: 'about' },
+                    { type: 'separator' },
+                    { label: 'Hide Article Saver', role: 'hide' },
+                    { label: 'Hide Others', role: 'hideothers' },
+                    { label: 'Show All', role: 'unhide' },
+                    { type: 'separator' },
+                    { label: 'Quit Article Saver', role: 'quit' }
+                ]
+            },
+            {
+                label: 'Edit',
+                submenu: [
+                    { role: 'undo' },
+                    { role: 'redo' },
+                    { type: 'separator' },
+                    { role: 'cut' },
+                    { role: 'copy' },
+                    { role: 'paste' },
+                    { role: 'selectall' }
+                ]
+            }
+        ]
+        Menu.setApplicationMenu(Menu.buildFromTemplate(template))
+    } else {
+        // Remove menu bar completely on non-macOS (prevents F12 menu option)
+        mainWindow.setMenuBarVisibility(false)
+        mainWindow.setMenu(null)
+    }
 
     // Load the app
     if (process.env.NODE_ENV === 'development') {
