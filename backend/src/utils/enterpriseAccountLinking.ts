@@ -158,6 +158,22 @@ export async function handleEnterpriseOAuthLogin(
         }
     }
     
+    // Check for ANY accounts with this email (different providers)
+    // Include accounts that might have unique emails with actualEmail in metadata
+    const existingAccounts = await prisma.user.findMany({
+        where: {
+            OR: [
+                { email },
+                { 
+                    metadata: {
+                        path: ['actualEmail'],
+                        equals: email
+                    }
+                }
+            ]
+        }
+    });
+    
     if (existingProviderAccount) {
         // ENTERPRISE CRITICAL: Check if there are OTHER providers with same email
         // If so, we need to potentially trigger account linking flow
@@ -363,10 +379,9 @@ export async function handleEnterpriseOAuthLogin(
     // Now check for a linked account with the specific provider
     // We need to check if any of the linked accounts are for the requested provider
     let existingLinkedAccount = null;
+    let existingUnverifiedLinkedAccount = null;
     
     for (const linkedAccount of allLinkedAccounts) {
-        if (!linkedAccount.verified) continue;
-        
         // Check if the linked user is the provider we're looking for
         if (linkedAccount.primaryUserId === primaryAccount.id && 
             linkedAccount.linkedUser.provider === provider) {
@@ -377,8 +392,12 @@ export async function handleEnterpriseOAuthLogin(
             if (linkedUserEmail === email || 
                 linkedUserActualEmail === email ||
                 linkedUserEmail.startsWith(`${email}.${provider}.`)) {
-                existingLinkedAccount = linkedAccount;
-                break;
+                if (linkedAccount.verified) {
+                    existingLinkedAccount = linkedAccount;
+                    break;
+                } else {
+                    existingUnverifiedLinkedAccount = linkedAccount;
+                }
             }
         }
         
@@ -392,19 +411,30 @@ export async function handleEnterpriseOAuthLogin(
             if (primaryUserEmail === email || 
                 primaryUserActualEmail === email ||
                 primaryUserEmail.startsWith(`${email}.${provider}.`)) {
-                existingLinkedAccount = linkedAccount;
-                break;
+                if (linkedAccount.verified) {
+                    existingLinkedAccount = linkedAccount;
+                    break;
+                } else {
+                    existingUnverifiedLinkedAccount = linkedAccount;
+                }
             }
         }
     }
     
     logger.info('ENTERPRISE AUTH: Existing linked account search result', {
         found: !!existingLinkedAccount,
+        unverifiedFound: !!existingUnverifiedLinkedAccount,
         account: existingLinkedAccount ? {
             id: existingLinkedAccount.id,
             verified: existingLinkedAccount.verified,
             primaryUser: { id: existingLinkedAccount.primaryUser.id, email: existingLinkedAccount.primaryUser.email, provider: existingLinkedAccount.primaryUser.provider },
             linkedUser: { id: existingLinkedAccount.linkedUser.id, email: existingLinkedAccount.linkedUser.email, provider: existingLinkedAccount.linkedUser.provider }
+        } : null,
+        unverifiedAccount: existingUnverifiedLinkedAccount ? {
+            id: existingUnverifiedLinkedAccount.id,
+            verified: existingUnverifiedLinkedAccount.verified,
+            primaryUser: { id: existingUnverifiedLinkedAccount.primaryUser.id, email: existingUnverifiedLinkedAccount.primaryUser.email, provider: existingUnverifiedLinkedAccount.primaryUser.provider },
+            linkedUser: { id: existingUnverifiedLinkedAccount.linkedUser.id, email: existingUnverifiedLinkedAccount.linkedUser.email, provider: existingUnverifiedLinkedAccount.linkedUser.provider }
         } : null
     });
     
@@ -465,6 +495,178 @@ export async function handleEnterpriseOAuthLogin(
             token,
             redirectUrl: buildRedirectUrl(electronPort, provider, { token, email })
         };
+    }
+    
+    // Handle existing unverified linked account
+    if (existingUnverifiedLinkedAccount) {
+        logger.info('ENTERPRISE AUTH: Found existing unverified linked account, proceeding with enterprise verification logic');
+        
+        const linkedProviderAccount = existingUnverifiedLinkedAccount.primaryUserId === primaryAccount.id 
+            ? existingUnverifiedLinkedAccount.linkedUser 
+            : existingUnverifiedLinkedAccount.primaryUser;
+            
+        // Evaluate trust levels for auto-verification
+        const primaryTrust = evaluateProviderTrust(
+            primaryAccount.provider || 'unknown',
+            primaryAccount.email,
+            primaryAccount.metadata
+        );
+        
+        const linkedProviderTrust = evaluateProviderTrust(
+            provider,
+            email,
+            linkedProviderAccount.metadata
+        );
+        
+        // For high-trust scenarios, automatically verify the existing link
+        const shouldAutoVerify = !determineVerificationRequirement(
+            primaryTrust,
+            linkedProviderTrust,
+            primaryAccount
+        );
+        
+        if (shouldAutoVerify) {
+            logger.info('ENTERPRISE AUTH: Auto-verifying existing link due to high trust levels', {
+                primaryTrust: primaryTrust.trustScore,
+                linkedTrust: linkedProviderTrust.trustScore
+            });
+            
+            // Auto-verify the existing link
+            await prisma.linkedAccount.update({
+                where: { id: existingUnverifiedLinkedAccount.id },
+                data: {
+                    verified: true,
+                    metadata: {
+                        ...existingUnverifiedLinkedAccount.metadata as any,
+                        verifiedAt: new Date(),
+                        autoVerifiedReason: 'high_trust_providers'
+                    }
+                }
+            });
+            
+            // Update last login for the linked account
+            await prisma.user.update({
+                where: { id: linkedProviderAccount.id },
+                data: {
+                    metadata: {
+                        ...linkedProviderAccount.metadata as any,
+                        lastLoginAt: new Date()
+                    }
+                }
+            });
+            
+            // Get all linked user IDs for the primary account
+            const linkedAccounts = await prisma.linkedAccount.findMany({
+                where: {
+                    AND: [
+                        {
+                            OR: [
+                                { primaryUserId: primaryAccount.id },
+                                { linkedUserId: primaryAccount.id }
+                            ]
+                        },
+                        { verified: true }
+                    ]
+                }
+            });
+            
+            const allUserIds = new Set<string>([primaryAccount.id]);
+            linkedAccounts.forEach(link => {
+                allUserIds.add(link.primaryUserId);
+                allUserIds.add(link.linkedUserId);
+            });
+            
+            // Generate token using the primary account (for consistency)
+            const token = jwt.sign(
+                { 
+                    userId: primaryAccount.id, 
+                    email: primaryAccount.email,
+                    linkedUserIds: Array.from(allUserIds)
+                },
+                JWT_SECRET,
+                { expiresIn: '7d' }
+            );
+            
+            // Audit log
+            await prisma.accountLinkingAudit.create({
+                data: {
+                    userId: primaryAccount.id,
+                    linkedId: linkedProviderAccount.id,
+                    action: 'link_auto_verified',
+                    performedBy: linkedProviderAccount.id,
+                    metadata: {
+                        reason: 'high_trust_providers',
+                        trustScores: {
+                            primary: primaryTrust.trustScore,
+                            linked: linkedProviderTrust.trustScore
+                        }
+                    }
+                }
+            });
+            
+            logger.info('ENTERPRISE AUTH: Successfully auto-verified and logged in with linked account', { email, provider });
+            
+            return {
+                type: 'success',
+                user: primaryAccount,
+                token,
+                redirectUrl: buildRedirectUrl(electronPort, provider, { token, email })
+            };
+        } else {
+            // Low trust - require manual verification
+            logger.info('ENTERPRISE AUTH: Existing unverified link requires manual verification', {
+                primaryTrust: primaryTrust.trustScore,
+                linkedTrust: linkedProviderTrust.trustScore
+            });
+            
+            // Generate auth token for the linked provider account
+            const authToken = jwt.sign(
+                { 
+                    userId: linkedProviderAccount.id, 
+                    email: email,
+                    linkedUserIds: [linkedProviderAccount.id]
+                },
+                JWT_SECRET,
+                { expiresIn: '7d' }
+            );
+            
+            // Generate verification token
+            const linkingToken = jwt.sign(
+                {
+                    primaryUserId: primaryAccount.id,
+                    newUserId: linkedProviderAccount.id,
+                    email,
+                    primaryProvider: primaryAccount.provider || 'local',
+                    newProvider: provider,
+                    action: 'verify_existing_link',
+                    existingLinkId: existingUnverifiedLinkedAccount.id,
+                    trustLevel: calculateCombinedTrustLevel(primaryTrust, linkedProviderTrust),
+                    exp: Math.floor(Date.now() / 1000) + (15 * 60) // 15 minute expiry
+                },
+                JWT_SECRET
+            );
+            
+            return {
+                type: 'requires_verification',
+                user: linkedProviderAccount,
+                token: authToken,
+                linkingData: {
+                    existingProvider: primaryAccount.provider || 'unknown',
+                    newProvider: provider,
+                    linkingToken,
+                    verificationRequired: true,
+                    trustLevel: calculateCombinedTrustLevel(primaryTrust, linkedProviderTrust)
+                },
+                redirectUrl: buildRedirectUrl(electronPort, provider, {
+                    token: authToken,
+                    email,
+                    action: 'verify_existing_link',
+                    existingProvider: primaryAccount.provider || 'local',
+                    linkingToken,
+                    requiresVerification: 'true'
+                })
+            };
+        }
     }
     
     // No existing linked account found - proceed with creating new account

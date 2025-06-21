@@ -763,7 +763,41 @@ export function Settings({ onClose }: SettingsProps) {
     useEffect(() => {
         // Listen for OAuth success events (direct token from backend)
         if (window.electronAPI?.onOAuthSuccess) {
-            window.electronAPI.onOAuthSuccess(async (data: { provider: string; token: string; email: string; pocket_authorized?: boolean }) => {
+            window.electronAPI.onOAuthSuccess(async (data: { 
+                provider: string; 
+                token: string; 
+                email: string;
+                pocket_authorized?: boolean;
+                action?: string;
+                existingProvider?: string;
+                linkingToken?: string;
+                trustLevel?: string;
+                requiresVerification?: string;
+            }) => {
+                console.log('🔍 OAUTH SUCCESS: Event received', data)
+                
+                // Check if this is an account linking response
+                if (data.action === 'link_account') {
+                    console.log('🔗 ACCOUNT LINKING: Detected in OAuth success event')
+                    setLoading(false)
+                    
+                    // Set auth token first so user is authenticated
+                    localStorage.setItem('authToken', data.token)
+                    localStorage.setItem('userEmail', data.email)
+                    setIsLoggedIn(true)
+                    
+                    // Trigger account linking flow
+                    setAccountLinkingData({
+                        existingProvider: data.existingProvider || 'unknown',
+                        linkingProvider: data.provider,
+                        linkingToken: data.linkingToken || '',
+                        email: data.email,
+                        trustLevel: data.trustLevel as 'high' | 'medium' | 'low' | undefined,
+                        requiresVerification: data.requiresVerification === 'true'
+                    })
+                    return
+                }
+                
                 if (data.provider === 'pocket') {
                     // OAuth completed successfully - refresh auth status
                     setError('Pocket authorization successful! Refreshing status...')

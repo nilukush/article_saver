@@ -34,7 +34,9 @@
       "Bash(true)",
       "Bash(cat:*)",
       "Bash(git pull:*)",
-      "Bash(psql:*)"
+      "Bash(psql:*)",
+      "Bash(mv:*)",
+      "Bash(echo:*)"
     ],
     "deny": []
   }
