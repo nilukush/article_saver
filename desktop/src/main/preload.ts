@@ -41,7 +41,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onOAuthSuccess: (callback: (data: { provider: string; token: string; email: string }) => void) =>
         ipcRenderer.on('oauth-success', (_event, data) => callback(data)),
 
-    onOAuthAccountLinking: (callback: (data: { provider: string; existingProvider: string; linkingToken: string; email: string; action: string }) => void) =>
+    onOAuthAccountLinking: (callback: (data: { provider: string; existingProvider: string; linkingToken: string; email: string; action: string; token?: string; trustLevel?: string; requiresVerification?: string }) => void) =>
         ipcRenderer.on('oauth-account-linking', (_event, data) => callback(data)),
 
     removeOAuthListeners: () => {
@@ -71,7 +71,7 @@ declare global {
             onOAuthCallback: (callback: (data: { provider: string; code: string }) => void) => void
             onOAuthError: (callback: (data: { provider: string; error: string }) => void) => void
             onOAuthSuccess: (callback: (data: { provider: string; token: string; email: string }) => void) => void
-            onOAuthAccountLinking: (callback: (data: { provider: string; existingProvider: string; linkingToken: string; email: string; action: string }) => void) => void
+            onOAuthAccountLinking: (callback: (data: { provider: string; existingProvider: string; linkingToken: string; email: string; action: string; token?: string; trustLevel?: string; requiresVerification?: string }) => void) => void
             removeOAuthListeners: () => void
             netFetch: (url: string, options?: any) => Promise<ApiResponse<any>>
         }

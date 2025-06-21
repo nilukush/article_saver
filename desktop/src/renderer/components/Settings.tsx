@@ -803,6 +803,8 @@ export function Settings({ onClose }: SettingsProps) {
                 email: string; 
                 action: string;
                 token?: string;
+                trustLevel?: string;
+                requiresVerification?: string;
             }) => {
                 setLoading(false)
                 
@@ -818,7 +820,7 @@ export function Settings({ onClose }: SettingsProps) {
                     linkingProvider: data.provider,
                     linkingToken: data.linkingToken,
                     email: data.email,
-                    trustLevel: data.trustLevel,
+                    trustLevel: data.trustLevel as 'high' | 'medium' | 'low' | undefined,
                     requiresVerification: data.requiresVerification === 'true'
                 })
             })

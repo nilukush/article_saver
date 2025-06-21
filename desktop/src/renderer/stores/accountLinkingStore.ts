@@ -25,7 +25,7 @@ interface AccountLinkingState {
     
     // Actions
     loadLinkedAccounts: () => Promise<void>
-    linkAccount: (linkingToken: string, provider: string) => Promise<void>
+    linkAccount: (linkingToken: string, provider: string, verificationCode?: string) => Promise<void>
     unlinkAccount: (linkId: string) => Promise<void>
     setError: (error: string | null) => void
 }
@@ -81,20 +81,20 @@ export const useAccountLinkingStore = create<AccountLinkingState>((set, get) => 
         }
     },
     
-    linkAccount: async (linkingToken: string, provider: string) => {
+    linkAccount: async (linkingToken: string, provider: string, verificationCode?: string) => {
         set({ loading: true, error: null })
         
         try {
             const serverUrl = 'http://localhost:3003' // Backend runs on port 3003
             
-            const response = await window.electronAPI.netFetch(`${serverUrl}/api/account-linking/oauth/link`, {
+            const response = await window.electronAPI.netFetch(`${serverUrl}/api/account-linking/complete-oauth`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     linkingToken,
-                    provider
+                    verificationCode
                 })
             })
             

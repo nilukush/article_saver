@@ -679,12 +679,33 @@ export async function completeAccountLinking(
             }
         });
         
-        // Generate new token with linked accounts
+        // Get all linked user IDs for the primary account
+        const allLinkedAccounts = await prisma.linkedAccount.findMany({
+            where: {
+                AND: [
+                    {
+                        OR: [
+                            { primaryUserId: decoded.primaryUserId },
+                            { linkedUserId: decoded.primaryUserId }
+                        ]
+                    },
+                    { verified: true }
+                ]
+            }
+        });
+        
+        const allUserIds = new Set<string>([decoded.primaryUserId]);
+        allLinkedAccounts.forEach(link => {
+            allUserIds.add(link.primaryUserId);
+            allUserIds.add(link.linkedUserId);
+        });
+        
+        // Generate new token with all linked accounts
         const token = jwt.sign(
             {
                 userId: decoded.primaryUserId,
                 email: decoded.email,
-                linkedUserIds: [decoded.newUserId]
+                linkedUserIds: Array.from(allUserIds)
             },
             JWT_SECRET,
             { expiresIn: '7d' }
