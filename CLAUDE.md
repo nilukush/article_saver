@@ -72,11 +72,13 @@ npm run dev:clean       # Clean and restart development
 **Database Access:**
 - Backend: Always import Prisma directly with `import { prisma } from '../database'`
 - Desktop: Use file-based JSON storage via `database/database.ts` service
+- Enterprise connection pooling with global Prisma instance management
 - Never use `(req as any).prisma` pattern - causes runtime errors
 
 **Authentication Flow:**
-- JWT tokens with 7-day expiration
+- JWT tokens with 7-day expiration and linkedUserIds support
 - Support for email/password, Google OAuth, GitHub OAuth, and WebAuthn passkeys
+- Multi-tenant linked accounts architecture for enterprise use
 - Rate limiting: 100 requests per 15 minutes globally
 
 **Content Extraction:**
@@ -84,21 +86,25 @@ npm run dev:clean       # Clean and restart development
 - Fallback: JSDOM with minimal configuration to avoid CSS parsing errors
 - JSDOM config: Use URL-only, avoid `resources: "usable"` which causes CSS errors
 
-**Error Handling:**
-- Winston logging with file rotation (combined.log, error.log, debug.log)
+**Error Handling & Logging:**
+- Winston structured logging with file rotation (combined.log, error.log, debug.log)
+- Enterprise logging standards - no console.log in production code
 - Comprehensive try-catch blocks with proper error propagation
 - Progress endpoints excluded from rate limiting for real-time updates
+- Security-compliant logging (no sensitive data exposure)
 
 ## Directory Structure & Responsibilities
 
 ### `/backend/src/`
-- `routes/articles.ts` - Article CRUD with pagination and search
+- `routes/articles.ts` - Article CRUD with pagination, search, and linked accounts support
 - `routes/auth.ts` - Authentication (register, login, OAuth flows)
 - `routes/pocket.ts` - Pocket API integration and import processing
 - `routes/sync.ts` - Device synchronization endpoints
-- `routes/passkey.ts` - WebAuthn passkey authentication
-- `middleware/auth.ts` - JWT token verification middleware
-- `utils/logger.ts` - Winston logging configuration
+- `routes/accountLinking.ts` - Enterprise account linking and management
+- `middleware/auth.ts` - JWT token verification with linked accounts support
+- `utils/logger.ts` - Winston structured logging configuration
+- `utils/enterpriseAccountLinking.ts` - Multi-tenant account management
+- `database.ts` - Enterprise Prisma connection management
 
 ### `/desktop/src/`
 - `main/main.ts` - Electron main process entry point with security config
@@ -165,17 +171,25 @@ Article {
 
 ### Main Process Security
 ```typescript
-// Required security settings
+// Enterprise security settings
 contextIsolation: true,
 nodeIntegration: false,
 sandbox: false, // Required for preload scripts
-devTools: false // Completely disabled in production
+devTools: false // Completely disabled in production with enterprise controls
 ```
+
+### Security Controls
+- Developer tools completely blocked in production builds
+- All debugging shortcuts disabled in production
+- Context menu disabled for enterprise security
+- Custom menu bar with proper application branding
+- Security warnings disabled with proper enterprise configurations
 
 ### IPC Communication
 - All main/renderer communication through secure preload scripts
 - Context isolation prevents direct Node.js access from renderer
 - Type-safe IPC handlers with proper error boundaries
+- Secure net.fetch implementation for API calls
 
 ## State Management Patterns
 
@@ -199,14 +213,17 @@ devTools: false // Completely disabled in production
 
 ### Logging and Monitoring
 - All logs written to `/backend/logs/` with rotation
-- Error tracking with structured Winston logging
+- Enterprise structured logging with Winston (no console.log in production)
+- Security-compliant logging (no sensitive data exposure)
 - Debug mode available with detailed request/response logging
 
 ### Performance Optimizations
 - Content extraction uses minimal JSDOM configuration
 - Database queries use proper indexing and pagination
+- Enterprise Prisma connection pooling and management
 - Infinite scroll prevents loading all articles at once
 - Local caching for frequently accessed data
+- Optimized frontend logging (debug statements removed from production)
 
 ## Common Issues & Solutions
 

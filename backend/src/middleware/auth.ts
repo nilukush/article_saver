@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { createError } from './errorHandler';
+import logger from '../utils/logger';
 
 export interface AuthenticatedRequest extends Request {
     user: {
@@ -30,7 +31,7 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
         
         // Debug logging for linked accounts
         if (req.method === 'PUT' && req.path.includes('/articles/')) {
-            console.log('🔐 AUTH MIDDLEWARE: Token decoded for article update:', {
+            logger.debug('AUTH MIDDLEWARE: Token decoded for article update', {
                 userId: decoded.userId,
                 email: decoded.email,
                 hasLinkedUserIds: !!decoded.linkedUserIds,

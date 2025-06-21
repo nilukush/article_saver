@@ -8,7 +8,6 @@ import { ArticleService } from './services/articleService'
 // DISABLE DEV TOOLS AT CHROMIUM ENGINE LEVEL - MUST BE BEFORE app.ready
 app.commandLine.appendSwitch('--disable-dev-tools')
 app.commandLine.appendSwitch('--disable-extensions')
-// app.commandLine.appendSwitch('--disable-logging') // TEMPORARILY ENABLE LOGGING FOR DEBUG
 app.commandLine.appendSwitch('--disable-gpu-debug')
 // Remove --disable-web-security to allow WebAuthn
 // app.commandLine.appendSwitch('--disable-web-security')
@@ -19,7 +18,6 @@ app.name = 'Article Saver'
 
 // Set environment variables to disable debugging
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true'
-// process.env.ELECTRON_ENABLE_LOGGING = 'false' // TEMPORARILY ENABLE LOGGING FOR DEBUG
 
 // Register custom protocol for OAuth callbacks
 if (!app.isDefaultProtocolClient('article-saver')) {
@@ -88,10 +86,8 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
                         console.error('OAuth error:', error)
                         mainWindow.webContents.send('oauth-error', { provider, error })
                     } else if (action === 'link_account' && linkingToken) {
-                        console.log('Account linking required for provider:', provider)
                         // If we also have a token, save it first
                         if (token && email) {
-                            console.log('Saving auth token before showing link prompt')
                             mainWindow.webContents.send('oauth-success', { provider, token, email })
                         }
                         // Then show the linking prompt
@@ -106,19 +102,11 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
                             requiresVerification: url.searchParams.get('requiresVerification')
                         })
                     } else if (token && email) {
-                        console.log('OAuth success for provider:', provider, 'with token')
                         mainWindow.webContents.send('oauth-success', { provider, token, email })
                     } else if (code) {
-                        console.log('OAuth success for provider:', provider, 'with code:', code)
                         mainWindow.webContents.send('oauth-callback', { provider, code })
                     } else if (provider === 'pocket') {
                         // For Pocket, call backend to exchange request token for access token
-                        console.log('🔍 ELECTRON OAUTH: Pocket OAuth callback received - calling backend for token exchange')
-                        console.log('🔍 ELECTRON OAUTH: Provider detected as:', provider)
-                        console.log('🔍 ELECTRON OAUTH: URL pathname:', url.pathname)
-                        console.log('🔍 ELECTRON OAUTH: About to create HTTP request to backend...')
-
-                        // Use Node.js http module instead of fetch (which isn't available in main process)
                         const options = {
                             hostname: 'localhost',
                             port: 3003,
@@ -127,23 +115,14 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
                             timeout: 10000 // 10 second timeout
                         }
 
-                        console.log('🔍 ELECTRON OAUTH: HTTP request options:', JSON.stringify(options, null, 2))
-                        console.log('🔍 ELECTRON OAUTH: Creating HTTP request...')
-
                         const req = http.request(options, (response) => {
-                            console.log('🔍 ELECTRON OAUTH: ✅ HTTP REQUEST SUCCESSFUL! Backend response status:', response.statusCode)
-                            console.log('🔍 ELECTRON OAUTH: Response headers:', JSON.stringify(response.headers, null, 2))
-
                             let data = ''
                             response.on('data', (chunk) => {
-                                console.log('🔍 ELECTRON OAUTH: Received data chunk:', chunk.toString())
                                 data += chunk
                             })
 
                             response.on('end', () => {
-                                console.log('🔍 ELECTRON OAUTH: Response complete. Full data:', data)
                                 if (response.statusCode === 200) {
-                                    console.log('✅ ELECTRON OAUTH: Pocket token exchange initiated successfully')
                                     mainWindow.webContents.send('oauth-success', {
                                         provider: 'pocket',
                                         token: 'exchanged',
@@ -151,30 +130,25 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
                                     })
                                 } else if (response.statusCode === 302 && response.headers.location) {
                                     // Handle successful redirect with Pocket credentials
-                                    console.log('✅ ELECTRON OAUTH: Pocket OAuth redirect received with credentials')
                                     const locationUrl = new URL(response.headers.location)
                                     const pocketToken = locationUrl.searchParams.get('pocket_token')
                                     const pocketUsername = locationUrl.searchParams.get('pocket_username')
 
-                                    console.log('🔍 ELECTRON OAUTH: Extracted Pocket token:', pocketToken)
-                                    console.log('🔍 ELECTRON OAUTH: Extracted Pocket username:', pocketUsername)
-
                                     if (pocketToken && pocketUsername) {
-                                        console.log('✅ ELECTRON OAUTH: Pocket authentication successful!')
                                         mainWindow.webContents.send('oauth-success', {
                                             provider: 'pocket',
                                             token: pocketToken,
                                             email: pocketUsername
                                         })
                                     } else {
-                                        console.error('❌ ELECTRON OAUTH: Missing Pocket credentials in redirect')
+                                        console.error('Missing Pocket credentials in redirect')
                                         mainWindow.webContents.send('oauth-error', {
                                             provider: 'pocket',
                                             error: 'Missing credentials in OAuth redirect'
                                         })
                                     }
                                 } else {
-                                    console.error('❌ ELECTRON OAUTH: Pocket token exchange failed:', response.statusCode, data)
+                                    console.error('Pocket token exchange failed:', response.statusCode)
                                     mainWindow.webContents.send('oauth-error', {
                                         provider: 'pocket',
                                         error: `Token exchange failed: ${response.statusCode}`
@@ -184,15 +158,7 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
                         })
 
                         req.on('error', (error: any) => {
-                            console.error('❌ ELECTRON OAUTH: HTTP REQUEST ERROR:', error)
-                            console.error('❌ ELECTRON OAUTH: Error details:', {
-                                message: error.message,
-                                code: error.code || 'unknown',
-                                errno: error.errno || 'unknown',
-                                syscall: error.syscall || 'unknown',
-                                address: error.address || 'unknown',
-                                port: error.port || 'unknown'
-                            })
+                            console.error('OAuth HTTP request error:', error.message)
                             mainWindow.webContents.send('oauth-error', {
                                 provider: 'pocket',
                                 error: `Network error during token exchange: ${error.message}`
@@ -200,7 +166,7 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
                         })
 
                         req.on('timeout', () => {
-                            console.error('❌ ELECTRON OAUTH: HTTP REQUEST TIMEOUT')
+                            console.error('OAuth HTTP request timeout')
                             req.destroy()
                             mainWindow.webContents.send('oauth-error', {
                                 provider: 'pocket',
@@ -208,9 +174,7 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
                             })
                         })
 
-                        console.log('🔍 ELECTRON OAUTH: Sending HTTP request...')
                         req.end()
-                        console.log('🔍 ELECTRON OAUTH: HTTP request sent!')
                     }
 
                     // Focus the main window
@@ -383,13 +347,7 @@ if (!gotTheLock) {
         // Ultimate failsafe: if ANY development indicator is true, skip protocol interception
         const isDevelopmentMode = !isPackaged || hasElectronInPath || isDefaultApp
 
-        console.log('🔍 ULTIMATE DEBUG: app.isPackaged =', isPackaged)
-        console.log('🔍 ULTIMATE DEBUG: hasElectronInPath =', hasElectronInPath)
-        console.log('🔍 ULTIMATE DEBUG: isDefaultApp =', isDefaultApp)
-        console.log('🔍 ULTIMATE DEBUG: isDevelopmentMode =', isDevelopmentMode)
-
         // WebAuthn/Passkey functionality has been completely removed
-        console.log('✅ PASSKEY REMOVAL: No WebAuthn protocol interception needed - Passkey authentication disabled')
 
         // Initialize database first
         databaseService = new DatabaseService()
@@ -521,16 +479,11 @@ if (!gotTheLock) {
 
         // Smart fetch handler - uses regular fetch for localhost HTTP, net.fetch for others
         ipcMain.handle('net-fetch', async (_, url: string, options?: any) => {
-            console.log('🔍 NET-FETCH DEBUG: URL =', url)
-            console.log('🔍 NET-FETCH DEBUG: URL starts with http://localhost: =', url.startsWith('http://localhost:'))
-
             try {
                 // For localhost HTTP requests, use regular fetch to avoid SSL issues
                 if (url.startsWith('http://localhost:')) {
-                    console.log('✅ Using regular fetch for localhost HTTP')
                     const response = await fetch(url, options)
                     const data = await response.json()
-                    console.log(`📡 Response status: ${response.status}`)
                     
                     // Check if response is successful (2xx status codes)
                     if (response.ok) {
@@ -542,7 +495,6 @@ if (!gotTheLock) {
                         }
                     } else {
                         // Handle error responses (4xx, 5xx)
-                        console.error(`❌ HTTP Error: ${response.status} ${response.statusText}`)
                         return {
                             success: false,
                             error: data?.error?.message || data?.message || `${response.status} ${response.statusText}`,
@@ -552,7 +504,6 @@ if (!gotTheLock) {
                         }
                     }
                 } else {
-                    console.log('🌐 Using net.fetch for external request')
                     // For other requests, use Electron's net.fetch with bypass
                     const { net } = require('electron')
                     const response = await net.fetch(url, {
@@ -560,7 +511,6 @@ if (!gotTheLock) {
                         bypassCustomProtocolHandlers: true
                     })
                     const data = await response.json()
-                    console.log(`📡 Response status: ${response.status}`)
                     
                     // Check if response is successful (2xx status codes)
                     if (response.ok) {
@@ -572,7 +522,6 @@ if (!gotTheLock) {
                         }
                     } else {
                         // Handle error responses (4xx, 5xx)
-                        console.error(`❌ HTTP Error: ${response.status} ${response.statusText}`)
                         return {
                             success: false,
                             error: data?.error?.message || data?.message || `${response.status} ${response.statusText}`,
@@ -583,7 +532,7 @@ if (!gotTheLock) {
                     }
                 }
             } catch (error) {
-                console.error('❌ Net fetch error:', error)
+                console.error('Net fetch error:', error)
                 return {
                     success: false,
                     error: error instanceof Error ? error.message : 'Network request failed'

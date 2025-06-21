@@ -38,26 +38,7 @@ const getApiUrl = () => {
 
 // Get auth token from localStorage
 const getAuthToken = () => {
-    const token = localStorage.getItem('authToken')
-    
-    // Debug: Decode JWT to see what's in it
-    if (token) {
-        try {
-            const payload = JSON.parse(atob(token.split('.')[1]))
-            console.log('🔍 JWT TOKEN DEBUG: Current token contents:', {
-                userId: payload.userId,
-                email: payload.email,
-                hasLinkedUserIds: !!payload.linkedUserIds,
-                linkedUserIds: payload.linkedUserIds || 'none',
-                linkedCount: payload.linkedUserIds?.length || 0,
-                tokenExpiry: new Date(payload.exp * 1000)
-            })
-        } catch (e) {
-            console.log('🔍 JWT TOKEN DEBUG: Could not decode token')
-        }
-    }
-    
-    return token
+    return localStorage.getItem('authToken')
 }
 
 // Make authenticated API request using Electron's net module
@@ -107,9 +88,7 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
     loadArticles: async () => {
         set({ loading: true, error: null })
         try {
-            console.log('Loading articles from backend API...')
             const data = await apiRequest('/api/articles')
-            console.log('Articles loaded:', data)
 
             if (data.articles) {
                 set({ articles: data.articles, loading: false })
@@ -126,7 +105,6 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
     saveArticle: async (url: string, tags?: string[]) => {
         set({ loading: true, error: null })
         try {
-            console.log('Saving article to backend:', url)
             const article = await apiRequest('/api/articles', {
                 method: 'POST',
                 body: JSON.stringify({
@@ -141,7 +119,6 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
                     articles: [article, ...articles],
                     loading: false
                 })
-                console.log('Article saved successfully')
             } else {
                 throw new Error('Invalid response from server')
             }
@@ -154,51 +131,26 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
 
     updateArticle: async (id: string, updates: Partial<Article>) => {
         try {
-            console.log('📝 ARTICLE STORE: Starting article update:', {
-                articleId: id, 
-                updates,
-                timestamp: new Date().toISOString()
-            });
-            
-            // Debug: Check if this article exists in our local articles array
             const { articles } = get();
             const localArticle = articles.find(a => a.id === id);
-            console.log('📝 ARTICLE STORE: Local article check:', {
-                articleId: id,
-                foundLocally: !!localArticle,
-                localArticleUserId: localArticle?.userId || 'not found',
-                localIsRead: localArticle?.isRead
-            });
             
             // CRITICAL FIX: If local article has no userId, fetch it from backend first
             if (!localArticle?.userId) {
-                console.log('🔧 ARTICLE STORE: Local article missing userId, fetching from backend first...');
                 try {
                     const backendArticle = await apiRequest(`/api/articles/${id}`, {
                         method: 'GET'
                     });
-                    console.log('🔧 ARTICLE STORE: Backend article data:', {
-                        articleId: id,
-                        hasBackendArticle: !!backendArticle,
-                        backendUserId: backendArticle?.userId,
-                        backendIsRead: backendArticle?.isRead
-                    });
                     
                     // Update local cache with correct backend data
                     if (backendArticle && backendArticle.userId) {
-                        console.log('🔧 ARTICLE STORE: Updating local cache with backend data...');
                         const { articles } = get();
                         const updatedArticles = articles.map(article =>
                             article.id === id ? { ...article, ...backendArticle } : article
                         );
                         set({ articles: updatedArticles });
-                        console.log('✅ ARTICLE STORE: Local cache updated with correct userId');
-                        
-                        // Now try the API call again with refreshed cache
-                        console.log('🔧 ARTICLE STORE: Cache refreshed, now trying API call again...');
                     }
                 } catch (fetchError) {
-                    console.log('🔧 ARTICLE STORE: Failed to fetch from backend:', fetchError);
+                    console.error('Failed to refresh article from backend:', fetchError);
                 }
             }
 
@@ -207,31 +159,17 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
                 body: JSON.stringify(updates),
             })
 
-            console.log('📝 ARTICLE STORE: Backend response received:', {
-                articleId: id,
-                hasResponse: !!updatedArticle,
-                responseType: typeof updatedArticle
-            });
-
             if (updatedArticle) {
                 const { articles } = get()
                 const updatedArticles = articles.map(article =>
                     article.id === id ? updatedArticle : article
                 )
                 set({ articles: updatedArticles })
-                console.log('✅ ARTICLE STORE: Article updated successfully in local state:', {
-                    articleId: id,
-                    newReadStatus: updatedArticle.isRead
-                });
             } else {
                 throw new Error('Invalid response from server')
             }
         } catch (error) {
-            console.error('❌ ARTICLE STORE: Error updating article:', {
-                articleId: id,
-                error: error instanceof Error ? error.message : error,
-                errorDetails: error
-            });
+            console.error('Error updating article:', error instanceof Error ? error.message : 'Unknown error');
             const errorMessage = error instanceof Error ? error.message : 'Failed to update article'
             set({ error: errorMessage })
             throw error; // Re-throw to let caller handle it
@@ -240,7 +178,6 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
 
     deleteArticle: async (id: string) => {
         try {
-            console.log('Deleting article:', id)
             await apiRequest(`/api/articles/${id}`, {
                 method: 'DELETE',
             })
@@ -248,7 +185,6 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
             const { articles } = get()
             const filteredArticles = articles.filter(article => article.id !== id)
             set({ articles: filteredArticles })
-            console.log('Article deleted successfully')
         } catch (error) {
             console.error('Error deleting article:', error)
             const errorMessage = error instanceof Error ? error.message : 'Failed to delete article'
@@ -259,7 +195,6 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
     searchArticles: async (query: string) => {
         set({ loading: true, error: null })
         try {
-            console.log('Searching articles:', query)
             const data = await apiRequest(`/api/articles?search=${encodeURIComponent(query)}`)
 
             if (data.articles) {
@@ -267,7 +202,6 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
                     searchResults: data.articles,
                     loading: false
                 })
-                console.log('Search completed:', data.articles.length, 'results')
             } else {
                 set({ searchResults: [], loading: false })
             }
@@ -285,15 +219,12 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
     loadInitialArticles: async () => {
         const { preventAutoLoad } = get()
         if (preventAutoLoad) {
-            console.log('Auto-load prevented after bulk deletion')
             return
         }
         
         set({ loading: true, error: null })
         try {
-            console.log('Loading initial 100 articles...')
             const data = await apiRequest('/api/articles?page=1&limit=100')
-            console.log('Initial articles loaded:', data)
 
             if (data.articles && data.pagination) {
                 set({
@@ -304,7 +235,6 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
                     hasMore: data.pagination.page < data.pagination.pages,
                     loading: false
                 })
-                console.log(`Loaded ${data.articles.length} of ${data.pagination.total} articles`)
             } else {
                 set({
                     articles: [],
@@ -326,7 +256,6 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
         const { hasMore, loadingMore, currentPage } = get()
 
         if (!hasMore || loadingMore) {
-            console.log('Skipping load more - hasMore:', hasMore, 'loadingMore:', loadingMore)
             return
         }
 
@@ -334,10 +263,7 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
 
         try {
             const nextPage = currentPage + 1
-            console.log(`Loading more articles - page ${nextPage}...`)
-
             const data = await apiRequest(`/api/articles?page=${nextPage}&limit=50`)
-            console.log('More articles loaded:', data)
 
             if (data.articles && data.pagination) {
                 const { articles } = get()
@@ -347,7 +273,6 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
                     hasMore: nextPage < data.pagination.pages,
                     loadingMore: false
                 })
-                console.log(`Loaded ${data.articles.length} more articles. Total: ${articles.length + data.articles.length}`)
             } else {
                 set({ loadingMore: false })
             }
@@ -370,7 +295,6 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
             error: null,
             searchResults: null
         })
-        console.log('Articles reset')
     },
 
     setError: (error: string | null) => {
