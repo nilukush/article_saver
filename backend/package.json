@@ -15,7 +15,7 @@
         "logs:error": "tail -f logs/error.log",
         "logs:watch": "mkdir -p logs && touch logs/combined.log && tail -f logs/combined.log",
         "logs:all": "tail -f logs/*.log",
-        "clean:data": "npx ts-node scripts/clean-all-data.ts"
+        "clean:data": "npx ts-node dev-tools/clean-all-data.ts"
     },
     "keywords": [
         "article",
