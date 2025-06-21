@@ -73,7 +73,8 @@ export function EnterpriseAccountLinkingPrompt({
     const handleLink = async () => {
         setLinking(true)
         try {
-            // The linkAccount function handles token saving
+            // For OAuth-based linking, we might not need a verification code
+            // The backend should handle this based on trust level
             await linkAccount(linkingToken, linkingProvider, verificationCode || undefined)
             
             // Update the user email in localStorage if not already set
@@ -200,6 +201,9 @@ export function EnterpriseAccountLinkingPrompt({
                         />
                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                             For security, we've sent a verification code to {email}
+                        </p>
+                        <p className="mt-1 text-xs text-yellow-600 dark:text-yellow-400">
+                            Note: Email verification is not yet implemented. You can use "Keep Separate" for now.
                         </p>
                     </div>
                 )}
