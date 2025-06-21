@@ -768,6 +768,11 @@ export function Settings({ onClose }: SettingsProps) {
                     setIsLoggedIn(true)
                     setError(`Successfully logged in with ${data.provider}!`)
                     setLoading(false)
+                    
+                    // ENTERPRISE UX: Close modal after successful OAuth login
+                    setTimeout(() => {
+                        onClose()
+                    }, 1500) // Brief delay to show success message
                     // Don't close modal if we're expecting account linking
                     // The linking prompt will handle closing
                 }
