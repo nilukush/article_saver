@@ -21,8 +21,9 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     const skip = (Number(page) - 1) * Number(limit);
     const take = Number(limit);
 
-    // Get all linked user IDs
-    const userIds = await getAllLinkedUserIds(userId);
+    // Get all linked user IDs (with token optimization)
+    const tokenLinkedIds = (req as any).user.linkedUserIds;
+    const userIds = await getAllLinkedUserIds(userId, tokenLinkedIds);
 
     // Build where clause
     const where: any = { userId: { in: userIds } };
@@ -89,8 +90,9 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
     const userId = (req as any).user.userId;
     const { id } = req.params;
 
-    // Get all linked user IDs
-    const userIds = await getAllLinkedUserIds(userId);
+    // Get all linked user IDs (with token optimization)
+    const tokenLinkedIds = (req as any).user.linkedUserIds;
+    const userIds = await getAllLinkedUserIds(userId, tokenLinkedIds);
 
     const article = await prisma.article.findFirst({
         where: { 
@@ -522,21 +524,41 @@ router.post('/:id/re-extract', asyncHandler(async (req: Request, res: Response):
 router.get('/user/info', authenticateToken, asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const userId = (req as any).user.userId;
     const userEmail = (req as any).user.email;
+    const tokenLinkedIds = (req as any).user.linkedUserIds;
     
     try {
-        // Get article count for user
+        // Get all linked user IDs
+        const userIds = await getAllLinkedUserIds(userId, tokenLinkedIds);
+        
+        // Get article count for all linked users
         const articleCount = await prisma.article.count({
-            where: { userId }
+            where: { userId: { in: userIds } }
         });
+        
+        // Get breakdown by user
+        const breakdown: Record<string, number> = {};
+        for (const id of userIds) {
+            const count = await prisma.article.count({ where: { userId: id } });
+            const user = await prisma.user.findUnique({ 
+                where: { id },
+                select: { email: true, provider: true }
+            });
+            if (user) {
+                breakdown[`${user.email} (${user.provider || 'local'})`] = count;
+            }
+        }
         
         res.json({
             success: true,
             user: {
                 id: userId,
-                email: userEmail
+                email: userEmail,
+                linkedUserIds: userIds,
+                linkedAccountCount: userIds.length
             },
             stats: {
-                totalArticles: articleCount
+                totalArticles: articleCount,
+                articlesByAccount: breakdown
             },
             message: 'Token is valid and user authenticated'
         });
@@ -583,7 +605,8 @@ router.delete('/bulk/all', authenticateToken, asyncHandler(async (req: Request, 
             }
             
             // Get all linked user IDs
-            const userIds = await getAllLinkedUserIds(userId);
+            const tokenLinkedIds = (req as any).user.linkedUserIds;
+            const userIds = await getAllLinkedUserIds(userId, tokenLinkedIds);
             affectedAccounts = userIds;
             
             logger.info('🗑️ BULK DELETE: Cross-account deletion confirmed', { 
@@ -627,7 +650,8 @@ router.delete('/bulk/all', authenticateToken, asyncHandler(async (req: Request, 
             });
             
             // Check if there are articles in linked accounts
-            const allUserIds = await getAllLinkedUserIds(userId);
+            const tokenLinkedIds = (req as any).user.linkedUserIds;
+            const allUserIds = await getAllLinkedUserIds(userId, tokenLinkedIds);
             const linkedAccountsCount = allUserIds.length - 1;
             const articlesInLinkedAccounts = await prisma.article.count({
                 where: { 
@@ -1196,7 +1220,8 @@ router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
     const { id } = req.params;
 
     // Get all linked user IDs to ensure article can be deleted from any linked account
-    const userIds = await getAllLinkedUserIds(userId);
+    const tokenLinkedIds = (req as any).user.linkedUserIds;
+    const userIds = await getAllLinkedUserIds(userId, tokenLinkedIds);
 
     const article = await prisma.article.deleteMany({
         where: { 
@@ -1254,6 +1279,127 @@ router.get('/diagnostics/extraction-status', asyncHandler(async (req: Request, r
             error: 'Failed to get extraction statistics'
         });
         return;
+    }
+}));
+
+// CRITICAL: Diagnostic endpoint for linked account issues
+router.get('/diagnostics/linked-accounts', authenticateToken, asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const userId = (req as any).user.userId;
+    const tokenLinkedIds = (req as any).user.linkedUserIds;
+    const userEmail = (req as any).user.email;
+    
+    logger.info('🔍 DIAGNOSTICS: Checking linked accounts', { userId, userEmail, tokenLinkedIds });
+    
+    try {
+        // Get the current user
+        const currentUser = await prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                email: true,
+                provider: true,
+                primaryAccountId: true,
+                metadata: true,
+                createdAt: true
+            }
+        });
+        
+        // Get all linked accounts from database
+        const linkedAccounts = await prisma.linkedAccount.findMany({
+            where: {
+                OR: [
+                    { primaryUserId: userId },
+                    { linkedUserId: userId }
+                ]
+            },
+            include: {
+                primaryUser: {
+                    select: {
+                        id: true,
+                        email: true,
+                        provider: true,
+                        metadata: true
+                    }
+                },
+                linkedUser: {
+                    select: {
+                        id: true,
+                        email: true,
+                        provider: true,
+                        metadata: true
+                    }
+                }
+            }
+        });
+        
+        // Get actual linked user IDs
+        const dbUserIds = await getAllLinkedUserIds(userId);
+        
+        // Count articles for each user
+        const articleCounts: Record<string, any> = {};
+        for (const id of dbUserIds) {
+            const user = await prisma.user.findUnique({
+                where: { id },
+                select: { email: true, provider: true }
+            });
+            const count = await prisma.article.count({ where: { userId: id } });
+            articleCounts[id] = {
+                email: user?.email,
+                provider: user?.provider,
+                articleCount: count,
+                isInToken: tokenLinkedIds?.includes(id) || false
+            };
+        }
+        
+        res.json({
+            success: true,
+            diagnostics: {
+                currentUser,
+                tokenInfo: {
+                    userId,
+                    email: userEmail,
+                    linkedUserIds: tokenLinkedIds || [],
+                    hasLinkedIds: !!(tokenLinkedIds && tokenLinkedIds.length > 0)
+                },
+                databaseInfo: {
+                    linkedAccounts: linkedAccounts.map(la => ({
+                        id: la.id,
+                        verified: la.verified,
+                        primaryUser: {
+                            id: la.primaryUser.id,
+                            email: la.primaryUser.email,
+                            provider: la.primaryUser.provider
+                        },
+                        linkedUser: {
+                            id: la.linkedUser.id,
+                            email: la.linkedUser.email,
+                            provider: la.linkedUser.provider
+                        },
+                        linkedAt: la.linkedAt
+                    })),
+                    resolvedUserIds: dbUserIds,
+                    articleCounts
+                },
+                issues: {
+                    tokenMissingLinkedIds: !tokenLinkedIds || tokenLinkedIds.length === 0,
+                    mismatchBetweenTokenAndDb: tokenLinkedIds && 
+                        JSON.stringify(tokenLinkedIds.sort()) !== JSON.stringify(dbUserIds.sort()),
+                    unverifiedLinks: linkedAccounts.filter(la => !la.verified).length
+                }
+            },
+            recommendation: !tokenLinkedIds || tokenLinkedIds.length === 0 
+                ? 'Token is missing linked user IDs. User needs to log out and log in again to fix this.'
+                : 'Token contains linked user IDs properly.'
+        });
+    } catch (error) {
+        logger.error('❌ DIAGNOSTICS: Error checking linked accounts', {
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        
+        res.status(500).json({
+            error: 'Failed to diagnose linked accounts',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        });
     }
 }));
 

@@ -6,6 +6,7 @@ export interface AuthenticatedRequest extends Request {
     user: {
         userId: string;
         email: string;
+        linkedUserIds?: string[]; // Include linked user IDs from token
     };
 }
 
@@ -23,7 +24,8 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
         const decoded = jwt.verify(token, JWT_SECRET) as any;
         (req as any).user = {
             userId: decoded.userId,
-            email: decoded.email
+            email: decoded.email,
+            linkedUserIds: decoded.linkedUserIds // Pass through linked user IDs
         };
         next();
     } catch (error) {

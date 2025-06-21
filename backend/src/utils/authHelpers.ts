@@ -102,7 +102,13 @@ export async function handleOAuthLogin(userData: OAuthUserData, electronPort?: s
     };
 }
 
-export async function getAllLinkedUserIds(userId: string): Promise<string[]> {
+export async function getAllLinkedUserIds(userId: string, tokenLinkedIds?: string[]): Promise<string[]> {
+    // If linked IDs are already in the token, use those for performance
+    if (tokenLinkedIds && tokenLinkedIds.length > 0) {
+        return tokenLinkedIds;
+    }
+    
+    // Otherwise, query the database
     const linkedAccounts = await prisma.linkedAccount.findMany({
         where: {
             verified: true,
