@@ -135,11 +135,22 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
 
     updateArticle: async (id: string, updates: Partial<Article>) => {
         try {
-            console.log('Updating article:', id, updates)
+            console.log('📝 ARTICLE STORE: Starting article update:', {
+                articleId: id, 
+                updates,
+                timestamp: new Date().toISOString()
+            });
+            
             const updatedArticle = await apiRequest(`/api/articles/${id}`, {
                 method: 'PUT',
                 body: JSON.stringify(updates),
             })
+
+            console.log('📝 ARTICLE STORE: Backend response received:', {
+                articleId: id,
+                hasResponse: !!updatedArticle,
+                responseType: typeof updatedArticle
+            });
 
             if (updatedArticle) {
                 const { articles } = get()
@@ -147,14 +158,22 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
                     article.id === id ? updatedArticle : article
                 )
                 set({ articles: updatedArticles })
-                console.log('Article updated successfully')
+                console.log('✅ ARTICLE STORE: Article updated successfully in local state:', {
+                    articleId: id,
+                    newReadStatus: updatedArticle.isRead
+                });
             } else {
                 throw new Error('Invalid response from server')
             }
         } catch (error) {
-            console.error('Error updating article:', error)
+            console.error('❌ ARTICLE STORE: Error updating article:', {
+                articleId: id,
+                error: error instanceof Error ? error.message : error,
+                errorDetails: error
+            });
             const errorMessage = error instanceof Error ? error.message : 'Failed to update article'
             set({ error: errorMessage })
+            throw error; // Re-throw to let caller handle it
         }
     },
 
