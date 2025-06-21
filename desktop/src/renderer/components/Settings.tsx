@@ -273,8 +273,11 @@ export function Settings({ onClose }: SettingsProps) {
                 localStorage.setItem('userEmail', data.user?.email || email)
                 setIsLoggedIn(true)
                 setError(null)
-                // Close settings modal immediately after successful login
-                onClose()
+                // Don't close if we're expecting account linking
+                if (!accountLinkingData) {
+                    // Close settings modal immediately after successful login
+                    onClose()
+                }
             } else {
                 console.error('❌ LOGIN ERROR: Authentication failed:', response.error)
                 setError(response.error || 'Login failed')
@@ -820,9 +823,6 @@ export function Settings({ onClose }: SettingsProps) {
                     setAccountLinkingData(linkingData)
                     console.log('🔗 ACCOUNT LINKING: State set, accountLinkingData should now be:', linkingData)
                     
-                    // Add debug alert to confirm state was set
-                    alert(`Account linking state set!\nProvider: ${linkingData.linkingProvider}\nExisting: ${linkingData.existingProvider}\nEmail: ${linkingData.email}`)
-                    
                     // CRITICAL: Store in window for debugging
                     (window as any).debugAccountLinkingData = linkingData
                     console.log('🔗 ACCOUNT LINKING: Stored in window.debugAccountLinkingData')
@@ -859,7 +859,6 @@ export function Settings({ onClose }: SettingsProps) {
                     // The linking prompt will handle closing
                 }
             }
-        }
         
         // Register OAuth success handler
         if (window.electronAPI?.onOAuthSuccess) {
@@ -914,6 +913,14 @@ export function Settings({ onClose }: SettingsProps) {
         }
     }, [checkPocketAuth, onClose]) // Include dependencies
 
+    // Debug logging for account linking state changes
+    useEffect(() => {
+        console.log('🔍 ACCOUNT LINKING STATE CHANGED:', {
+            hasAccountLinkingData: !!accountLinkingData,
+            accountLinkingData
+        })
+    }, [accountLinkingData])
+    
     // Debug logging for account linking state
     console.log('🔍 SETTINGS RENDER: accountLinkingData state', {
         hasAccountLinkingData: !!accountLinkingData,
