@@ -16,9 +16,6 @@ app.commandLine.appendSwitch('--disable-gpu-debug')
 // Set app name early in the process - Multiple ways for macOS compatibility
 app.setName('Article Saver')
 app.name = 'Article Saver'
-if (process.platform === 'darwin') {
-    app.dock?.setIcon(path.join(__dirname, '../../../assets/icon.png'))
-}
 
 // Set environment variables to disable debugging
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true'
@@ -250,7 +247,7 @@ const createWindow = (): void => {
         height: 800,
         width: 1200,
         title: 'Article Saver',
-        icon: process.platform === 'darwin' ? undefined : path.join(__dirname, '../../public/logo.svg'),
+        icon: process.platform === 'darwin' ? undefined : path.join(__dirname, '../../../public/logo.svg'),
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
