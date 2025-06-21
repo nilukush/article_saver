@@ -350,9 +350,54 @@ export function Settings({ onClose }: SettingsProps) {
         }
     }
 
-    const handleDeleteAllArticles = async () => {
-        if (!confirm(`Are you sure you want to delete all ${totalArticles} articles? This cannot be undone.`)) {
-            return
+    const handleDeleteAllArticles = async (scope: 'current' | 'all-linked' = 'current') => {
+        // Check if user has linked accounts
+        const checkResponse = await window.electronAPI.netFetch(`${serverUrl}/api/articles/bulk/all?scope=current`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            },
+            body: JSON.stringify({ dryRun: true }) // Just check, don't delete
+        })
+        
+        const hasLinkedAccounts = checkResponse.data?.linkedAccountsInfo?.hasLinkedAccounts || false
+        const articlesInLinked = checkResponse.data?.linkedAccountsInfo?.articlesInLinkedAccounts || 0
+        
+        // Show appropriate confirmation based on context
+        if (hasLinkedAccounts && articlesInLinked > 0 && scope === 'current') {
+            const choice = confirm(
+                `You have ${totalArticles} articles in this account and ${articlesInLinked} articles in linked accounts.\n\n` +
+                `Delete from:\n` +
+                `• This account only (${totalArticles} articles)\n` +
+                `• All linked accounts (${totalArticles + articlesInLinked} articles)\n\n` +
+                `Click OK to delete from this account only, or Cancel to choose a different option.`
+            )
+            
+            if (!choice) {
+                // Show options for linked account deletion
+                const deleteAll = confirm(
+                    `Would you like to delete articles from ALL linked accounts?\n\n` +
+                    `This will permanently delete ${totalArticles + articlesInLinked} articles across all your linked accounts.`
+                )
+                
+                if (deleteAll) {
+                    return handleDeleteAllArticles('all-linked')
+                }
+                return // User cancelled
+            }
+        } else if (scope === 'all-linked') {
+            if (!confirm(
+                `⚠️ WARNING: Delete from ALL linked accounts?\n\n` +
+                `This will permanently delete articles from ALL your linked accounts.\n` +
+                `This action cannot be undone.\n\n` +
+                `Are you absolutely sure?`
+            )) {
+                return
+            }
+        } else {
+            if (!confirm(`Are you sure you want to delete all ${totalArticles} articles? This cannot be undone.`)) {
+                return
+            }
         }
 
         setLoading(true)
@@ -360,17 +405,34 @@ export function Settings({ onClose }: SettingsProps) {
 
         try {
             const token = localStorage.getItem('authToken')
-            const response = await window.electronAPI.netFetch(`${serverUrl}/api/articles/bulk/all`, {
+            const url = `${serverUrl}/api/articles/bulk/all?scope=${scope}`
+            
+            // Generate confirmation token for cross-account deletion
+            const confirmationToken = scope === 'all-linked' ? 
+                btoa(Date.now() + ':' + Math.random()) : undefined
+            
+            const response = await window.electronAPI.netFetch(url, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
                 },
+                body: JSON.stringify({ confirmationToken })
             })
 
             if (response.success) {
                 const data = response.data
                 console.log('[DELETE ALL] Response:', data)
-                setError(`✅ Successfully deleted ${data.deletedCount} articles!`)
+                
+                const message = scope === 'all-linked'
+                    ? `✅ Deleted ${data.deletedCount} articles from all linked accounts!`
+                    : `✅ Deleted ${data.deletedCount} articles from current account!`
+                    
+                if (data.linkedAccountsInfo?.articlesInLinkedAccounts > 0) {
+                    setError(message + `\n\n${data.linkedAccountsInfo.articlesInLinkedAccounts} articles remain in linked accounts.`)
+                } else {
+                    setError(message)
+                }
                 
                 // Clear import timestamp since we deleted everything
                 localStorage.removeItem('lastPocketImport')
@@ -391,10 +453,10 @@ export function Settings({ onClose }: SettingsProps) {
                     setPreventAutoLoad(false)
                 }, 5000) // Increased to 5 seconds for safety
                 
-                // Close modal after 2 seconds
+                // Close modal after 3 seconds to allow reading the message
                 setTimeout(() => {
                     onClose()
-                }, 2000)
+                }, 3000)
             } else {
                 setError(response.error || 'Failed to delete articles')
             }

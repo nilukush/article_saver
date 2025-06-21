@@ -33,7 +33,8 @@
       "Bash(npx tsx:*)",
       "Bash(true)",
       "Bash(cat:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(psql:*)"
     ],
     "deny": []
   }
