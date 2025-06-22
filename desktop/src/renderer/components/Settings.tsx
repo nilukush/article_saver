@@ -26,7 +26,7 @@ export function Settings({ onClose }: SettingsProps) {
         email: string
         trustLevel?: 'high' | 'medium' | 'low'
         requiresVerification?: boolean
-    } | null>(globalAccountLinkingData)
+    } | null>(null)
     
     // Debug: Track component lifecycle
     useEffect(() => {
@@ -822,7 +822,6 @@ export function Settings({ onClose }: SettingsProps) {
                         requiresVerification: data.requiresVerification === 'true'
                     }
                     logger.debug('Setting account linking data state', { linkingData }, 'OAuth', 'Settings')
-                    globalAccountLinkingData = linkingData // Persist globally
                     setAccountLinkingData(linkingData)
                     logger.debug('Account linking data state set', { linkingData }, 'OAuth', 'Settings')
                     
@@ -907,7 +906,6 @@ export function Settings({ onClose }: SettingsProps) {
                     trustLevel: data.trustLevel as 'high' | 'medium' | 'low' | undefined,
                     requiresVerification: data.requiresVerification === 'true'
                 }
-                globalAccountLinkingData = linkingData // Persist globally
                 setAccountLinkingData(linkingData)
             })
         }
@@ -1189,7 +1187,7 @@ export function Settings({ onClose }: SettingsProps) {
                             {/* Delete All Articles Button */}
                             {hasImportedArticles && (
                                 <button
-                                    onClick={handleDeleteAllArticles}
+                                    onClick={() => handleDeleteAllArticles('current')}
                                     disabled={loading}
                                     className="w-full bg-yellow-600 text-white py-2 px-4 rounded-md hover:bg-yellow-700 disabled:opacity-50 flex items-center justify-center space-x-2 transition-colors"
                                 >
@@ -1236,7 +1234,6 @@ export function Settings({ onClose }: SettingsProps) {
                     trustLevel={accountLinkingData.trustLevel}
                     requiresVerification={accountLinkingData.requiresVerification}
                     onClose={() => {
-                        globalAccountLinkingData = null // Clear global state
                         setAccountLinkingData(null)
                         // Also close the Settings modal after account linking is handled
                         onClose()

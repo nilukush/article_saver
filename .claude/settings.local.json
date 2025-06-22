@@ -43,7 +43,8 @@
       "Bash(brew:*)",
       "Bash(git stash:*)",
       "Bash(git checkout:*)",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "Bash(npm run stop:*)"
     ],
     "deny": []
   }
