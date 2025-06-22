@@ -38,7 +38,12 @@
       "Bash(mv:*)",
       "Bash(echo:*)",
       "Bash(npm run test:email:*)",
-      "Bash(npm run dev-tools:*)"
+      "Bash(npm run dev-tools:*)",
+      "Bash(npm --version)",
+      "Bash(brew:*)",
+      "Bash(git stash:*)",
+      "Bash(git checkout:*)",
+      "Bash(cp:*)"
     ],
     "deny": []
   }

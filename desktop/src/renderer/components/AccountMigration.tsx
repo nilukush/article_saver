@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { AlertCircle, ArrowRight, CheckCircle, Users, Database } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { logger } from '../utils/logger'
 
 interface LinkedAccount {
     id: string
@@ -53,7 +54,7 @@ export const AccountMigration: React.FC = () => {
             }
         } catch (err) {
             setError('Failed to load migration options')
-            console.error('Migration options error:', err)
+            logger.error('Migration options error', err, 'Auth', 'AccountMigration')
         } finally {
             setLoading(false)
         }
@@ -92,7 +93,7 @@ export const AccountMigration: React.FC = () => {
             }, 2000)
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Migration failed')
-            console.error('Migration error:', err)
+            logger.error('Migration error', err, 'Auth', 'AccountMigration')
         } finally {
             setMigrating(false)
         }
@@ -119,7 +120,7 @@ export const AccountMigration: React.FC = () => {
             fetchMigrationOptions()
         } catch (err) {
             setError('Failed to set primary account')
-            console.error('Set primary error:', err)
+            logger.error('Set primary error', err, 'Auth', 'AccountMigration')
         }
     }
 

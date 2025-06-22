@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAccountLinkingStore } from '../stores/accountLinkingStore'
 import { useArticleStore } from '../stores/articleStore'
+import { logger } from '../utils/logger'
 
 interface EnterpriseAccountLinkingPromptProps {
     existingProvider: string
@@ -21,14 +22,14 @@ export function EnterpriseAccountLinkingPrompt({
     requiresVerification = false,
     onClose
 }: EnterpriseAccountLinkingPromptProps) {
-    console.log('🔗 ENTERPRISE ACCOUNT LINKING PROMPT: Component rendered', {
+    logger.info('Enterprise account linking prompt rendered', {
         existingProvider,
         linkingProvider,
         email,
         trustLevel,
         requiresVerification,
         hasLinkingToken: !!linkingToken
-    })
+    }, 'UI', 'EnterpriseAccountLinking')
     
     const [linking, setLinking] = useState(false)
     const [verificationCode, setVerificationCode] = useState('')
@@ -73,13 +74,13 @@ export function EnterpriseAccountLinkingPrompt({
     const handleLink = async () => {
         setLinking(true)
         try {
-            console.log('[ENTERPRISE DEBUG] Starting account linking process...')
+            logger.debug('Starting account linking process', undefined, 'Auth', 'EnterpriseAccountLinking')
             
             // For OAuth-based linking, we might not need a verification code
             // The backend should handle this based on trust level
             await linkAccount(linkingToken, linkingProvider, verificationCode || undefined)
             
-            console.log('[ENTERPRISE DEBUG] Account linking API call completed')
+            logger.debug('Account linking API call completed', undefined, 'Auth', 'EnterpriseAccountLinking')
             
             // Update the user email in localStorage if not already set
             if (!localStorage.getItem('userEmail') && email) {
@@ -87,15 +88,15 @@ export function EnterpriseAccountLinkingPrompt({
             }
             
             // Log for audit trail
-            console.log('[ENTERPRISE AUDIT] Account linking completed:', {
+            logger.info('Account linking completed', {
                 email,
                 existingProvider,
                 linkingProvider,
                 trustLevel,
                 timestamp: new Date().toISOString()
-            })
+            }, 'Auth', 'EnterpriseAccountLinking')
             
-            console.log('[ENTERPRISE DEBUG] Closing prompt and refreshing articles...')
+            logger.debug('Closing prompt and refreshing articles', undefined, 'Auth', 'EnterpriseAccountLinking')
             
             // Close the prompt FIRST to avoid component lifecycle issues
             onClose()
@@ -103,32 +104,32 @@ export function EnterpriseAccountLinkingPrompt({
             // ENTERPRISE SOLUTION: Delayed article refresh to ensure proper token propagation
             setTimeout(async () => {
                 try {
-                    console.log('[ENTERPRISE DEBUG] Refreshing articles with new linked token...')
+                    logger.debug('Refreshing articles with new linked token', undefined, 'Store', 'EnterpriseAccountLinking')
                     // Force article refresh with the updated token
                     await loadArticles()
-                    console.log('[ENTERPRISE DEBUG] Article refresh completed successfully')
+                    logger.info('Article refresh completed successfully', undefined, 'Store', 'EnterpriseAccountLinking')
                 } catch (error) {
-                    console.error('[ENTERPRISE ERROR] Failed to refresh articles:', error)
+                    logger.error('Failed to refresh articles', error, 'Store', 'EnterpriseAccountLinking')
                     // Fallback: reload page if article refresh fails
                     window.location.reload()
                 }
             }, 1000) // 1 second delay to ensure token propagation
             
         } catch (err) {
-            console.error('Failed to link accounts:', err)
+            logger.error('Failed to link accounts', err, 'Auth', 'EnterpriseAccountLinking')
             setLinking(false)
         }
     }
 
     const handleSkip = () => {
         // User chose not to link - they're already authenticated with new account
-        console.log('[ENTERPRISE AUDIT] Account linking skipped:', {
+        logger.info('Account linking skipped', {
             email,
             existingProvider,
             linkingProvider,
             trustLevel,
             timestamp: new Date().toISOString()
-        })
+        }, 'Auth', 'EnterpriseAccountLinking')
         onClose()
     }
 

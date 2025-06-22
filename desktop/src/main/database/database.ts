@@ -2,6 +2,7 @@ import path from 'path'
 import fs from 'fs/promises'
 import { app } from 'electron'
 import type { Article } from '../../../../shared/types'
+import { logger } from '../utils/logger'
 
 export class DatabaseService {
     private dbPath: string
@@ -21,18 +22,18 @@ export class DatabaseService {
             try {
                 const data = await fs.readFile(this.dbPath, 'utf-8')
                 this.articles = JSON.parse(data)
-                console.log(`Loaded ${this.articles.length} articles from database`)
+                logger.database(`Loaded ${this.articles.length} articles from database`)
             } catch (error) {
                 // File doesn't exist, start with empty array
                 this.articles = []
-                console.log('Creating new database file')
+                logger.database('Creating new database file')
                 await this.saveToFile()
             }
 
             this.isInitialized = true
-            console.log('Database initialized successfully')
+            logger.database('Database initialized successfully')
         } catch (error) {
-            console.error('Failed to initialize database:', error)
+            logger.error('Failed to initialize database', error, 'Database')
             throw error
         }
     }
@@ -41,7 +42,7 @@ export class DatabaseService {
         try {
             await fs.writeFile(this.dbPath, JSON.stringify(this.articles, null, 2))
         } catch (error) {
-            console.error('Failed to save database:', error)
+            logger.error('Failed to save database', error, 'Database')
             throw error
         }
     }
@@ -60,7 +61,7 @@ export class DatabaseService {
         this.articles.unshift(newArticle) // Add to beginning for newest first
         await this.saveToFile()
 
-        console.log('Article saved:', newArticle.title)
+            logger.database(`Article saved: ${newArticle.title}`)
         return newArticle
     }
 
@@ -170,7 +171,7 @@ export class DatabaseService {
             await this.saveToFile()
             this.isInitialized = true
         } catch (error) {
-            console.error('Failed to import database:', error)
+            logger.error('Failed to import database', error, 'Database')
             throw error
         }
     }

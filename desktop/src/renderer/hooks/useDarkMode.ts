@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { logger } from '../utils/logger'
 
 export type DarkModePreference = 'light' | 'dark' | 'system'
 
@@ -30,7 +31,7 @@ export function useDarkMode(): UseDarkModeReturn {
                 return stored
             }
         } catch (error) {
-            console.warn('Failed to read theme preference from localStorage:', error)
+            logger.warn('Failed to read theme preference from localStorage', error, 'UI', 'useDarkMode')
         }
         
         return 'system'
@@ -76,15 +77,15 @@ export function useDarkMode(): UseDarkModeReturn {
                 document.head.appendChild(meta)
             }
 
-            console.log('🌙 DARK MODE APPLIED:', {
+            logger.debug('Dark mode applied', {
                 isDark: dark,
                 preference,
                 systemPreference,
                 htmlClass: htmlElement.className,
                 bodyClass: bodyElement.className
-            })
+            }, 'UI', 'useDarkMode')
         } catch (error) {
-            console.error('Failed to apply dark mode:', error)
+            logger.error('Failed to apply dark mode', error, 'UI', 'useDarkMode')
         }
     }
 
@@ -94,13 +95,13 @@ export function useDarkMode(): UseDarkModeReturn {
             localStorage.setItem('article-saver-theme', newPreference)
             setPreferenceState(newPreference)
             
-            console.log('🎨 THEME PREFERENCE CHANGED:', {
+            logger.debug('Theme preference changed', {
                 from: preference,
                 to: newPreference,
                 systemPreference
-            })
+            }, 'UI', 'useDarkMode')
         } catch (error) {
-            console.error('Failed to save theme preference:', error)
+            logger.error('Failed to save theme preference', error, 'UI', 'useDarkMode')
             setPreferenceState(newPreference) // Still update state even if localStorage fails
         }
     }
@@ -117,7 +118,7 @@ export function useDarkMode(): UseDarkModeReturn {
         
         const handleSystemChange = (e: MediaQueryListEvent) => {
             setSystemPreference(e.matches)
-            console.log('🖥️ SYSTEM PREFERENCE CHANGED:', e.matches)
+            logger.debug('System preference changed', { isDark: e.matches }, 'UI', 'useDarkMode')
         }
 
         mediaQuery.addEventListener('change', handleSystemChange)

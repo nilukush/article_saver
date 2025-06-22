@@ -9,6 +9,7 @@
  */
 
 import React, { Component, ErrorInfo, ReactNode } from 'react'
+import { logger } from '../utils/logger'
 
 interface Props {
     children: ReactNode
@@ -43,8 +44,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
     componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         // Enterprise pattern: comprehensive error logging
-        console.error('🚨 ErrorBoundary caught an error:', error)
-        console.error('🚨 Component stack trace:', errorInfo.componentStack)
+        logger.error('ErrorBoundary caught an error', { error, componentStack: errorInfo.componentStack }, 'UI', 'ErrorBoundary')
 
         this.setState({
             error,
@@ -57,11 +57,11 @@ export class ErrorBoundary extends Component<Props, State> {
         // In production, send to error tracking service
         if (process.env.NODE_ENV === 'production') {
             // Note: Error tracking service (Sentry/LogRocket) would be integrated here
-            console.error('Production error captured:', {
+            logger.error('Production error captured', {
                 error: error.message,
                 stack: error.stack,
                 componentStack: errorInfo.componentStack
-            })
+            }, 'UI', 'ErrorBoundary')
         }
     }
 

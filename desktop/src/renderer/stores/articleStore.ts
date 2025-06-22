@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { Article } from '../../../shared/types'
+import { logger } from '../utils/logger'
 
 interface ArticleStore {
     articles: Article[]
@@ -96,7 +97,7 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
                 set({ articles: [], loading: false })
             }
         } catch (error) {
-            console.error('Error loading articles:', error)
+            logger.error('Error loading articles', error, 'Store', 'ArticleStore')
             const errorMessage = error instanceof Error ? error.message : 'Failed to load articles'
             set({ error: errorMessage, loading: false })
         }
@@ -123,7 +124,7 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
                 throw new Error('Invalid response from server')
             }
         } catch (error) {
-            console.error('Error saving article:', error)
+            logger.error('Error saving article', error, 'Store', 'ArticleStore')
             const errorMessage = error instanceof Error ? error.message : 'Failed to save article'
             set({ error: errorMessage, loading: false })
         }
@@ -150,7 +151,7 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
                         set({ articles: updatedArticles });
                     }
                 } catch (fetchError) {
-                    console.error('Failed to refresh article from backend:', fetchError);
+                    logger.error('Failed to refresh article from backend', fetchError, 'Store', 'ArticleStore');
                 }
             }
 
@@ -169,7 +170,7 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
                 throw new Error('Invalid response from server')
             }
         } catch (error) {
-            console.error('Error updating article:', error instanceof Error ? error.message : 'Unknown error');
+            logger.error('Error updating article', { message: error instanceof Error ? error.message : 'Unknown error' }, 'Store', 'ArticleStore');
             const errorMessage = error instanceof Error ? error.message : 'Failed to update article'
             set({ error: errorMessage })
             throw error; // Re-throw to let caller handle it
@@ -186,7 +187,7 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
             const filteredArticles = articles.filter(article => article.id !== id)
             set({ articles: filteredArticles })
         } catch (error) {
-            console.error('Error deleting article:', error)
+            logger.error('Error deleting article', error, 'Store', 'ArticleStore')
             const errorMessage = error instanceof Error ? error.message : 'Failed to delete article'
             set({ error: errorMessage })
         }
@@ -206,7 +207,7 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
                 set({ searchResults: [], loading: false })
             }
         } catch (error) {
-            console.error('Error searching articles:', error)
+            logger.error('Error searching articles', error, 'Store', 'ArticleStore')
             const errorMessage = error instanceof Error ? error.message : 'Failed to search articles'
             set({ error: errorMessage, loading: false })
         }
@@ -246,7 +247,7 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
                 })
             }
         } catch (error) {
-            console.error('Error loading initial articles:', error)
+            logger.error('Error loading initial articles', error, 'Store', 'ArticleStore')
             const errorMessage = error instanceof Error ? error.message : 'Failed to load articles'
             set({ error: errorMessage, loading: false })
         }
@@ -277,7 +278,7 @@ export const useArticleStore = create<ArticleStore>((set, get) => ({
                 set({ loadingMore: false })
             }
         } catch (error) {
-            console.error('Error loading more articles:', error)
+            logger.error('Error loading more articles', error, 'Store', 'ArticleStore')
             const errorMessage = error instanceof Error ? error.message : 'Failed to load more articles'
             set({ error: errorMessage, loadingMore: false })
         }

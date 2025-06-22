@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { logger } from '../utils/logger'
 
 interface LinkedAccount {
     id: string
@@ -54,7 +55,7 @@ export const useAccountLinkingStore = create<AccountLinkingState>((set, get) => 
                 }
             })
             
-            console.log('Account linking response:', response)
+            logger.info('Account linking response received', { response }, 'Store', 'AccountLinkingStore')
             
             if (response.success && response.data) {
                 set({
@@ -64,7 +65,7 @@ export const useAccountLinkingStore = create<AccountLinkingState>((set, get) => 
                 })
             } else {
                 const errorMessage = response.error || response.data?.error || response.data?.message || 'Failed to load linked accounts'
-                console.error('Account linking error:', errorMessage, 'Status:', response.status)
+                logger.error('Account linking error', { errorMessage, status: response.status }, 'Store', 'AccountLinkingStore')
                 
                 // If token is invalid/expired, prompt to re-login
                 if (response.status === 403 || response.status === 401) {
