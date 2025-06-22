@@ -9,6 +9,8 @@ dist/
 build/
 release/
 out/
+backend/dist/
+desktop/dist/
 
 # Environment variables
 .env
@@ -36,6 +38,8 @@ Thumbs.db
 # Logs
 logs
 *.log
+backend/logs/
+logs/
 
 # Runtime data
 pids
