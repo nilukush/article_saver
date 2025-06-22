@@ -53,10 +53,10 @@ class RendererLogger {
             console.log(`${color}[${level.toUpperCase()}]${reset} ${prefixes} ${message}`, data || '')
         }
 
-        // Send to main process for file logging (if electron API is available)
-        if (typeof window !== 'undefined' && window.electronAPI?.log) {
-            window.electronAPI.log(entry)
-        }
+        // TODO: Send to main process for file logging when IPC method is implemented
+        // if (typeof window !== 'undefined' && window.electronAPI?.log) {
+        //     window.electronAPI.log(entry)
+        // }
     }
 
     debug(message: string, data?: any, source?: string, component?: string): void {
