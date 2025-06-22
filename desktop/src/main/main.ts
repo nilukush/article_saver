@@ -397,6 +397,30 @@ if (!gotTheLock) {
         setupIpcHandlers()
 
         createWindow()
+        
+        // Enable keyboard shortcuts for developer tools in development
+        if (!app.isPackaged) {
+            const { globalShortcut } = require('electron')
+            
+            // F12 to toggle DevTools
+            globalShortcut.register('F12', () => {
+                if (mainWindow && mainWindow.webContents) {
+                    mainWindow.webContents.toggleDevTools()
+                }
+            })
+            
+            // Cmd+Option+I (Mac) or Ctrl+Shift+I (Windows/Linux)
+            globalShortcut.register('CommandOrControl+Shift+I', () => {
+                if (mainWindow && mainWindow.webContents) {
+                    mainWindow.webContents.toggleDevTools()
+                }
+            })
+            
+            // Open DevTools automatically in development
+            if (mainWindow && mainWindow.webContents) {
+                mainWindow.webContents.openDevTools()
+            }
+        }
 
         // Focus window when app is activated
         app.on('open-url', (event, url) => {
