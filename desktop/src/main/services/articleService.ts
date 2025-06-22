@@ -3,44 +3,45 @@ import { JSDOM } from 'jsdom'
 import { Readability } from '@mozilla/readability'
 import type { Article } from '../../../../shared/types'
 import { DatabaseService } from '../database/database'
+import { logger } from '../utils/logger'
 
 export class ArticleService {
     constructor(private db: DatabaseService) { }
 
     async saveArticle(url: string, tags: string[] = []): Promise<Article> {
-        console.log('🚀 SAVE ARTICLE: Starting article save process for URL:', url)
+        logger.info('Starting article save process', { url }, 'ArticleService')
 
         try {
             // Validate URL
             new URL(url)
-            console.log('🚀 SAVE ARTICLE: URL validation passed')
+            logger.debug('URL validation passed', undefined, 'ArticleService')
 
             // Fetch article content
             const response = await fetch(url)
             if (!response.ok) {
                 throw new Error(`Failed to fetch article: ${response.statusText}`)
             }
-            console.log('🚀 SAVE ARTICLE: Article fetched successfully, status:', response.status)
+            logger.debug('Article fetched successfully', { status: response.status }, 'ArticleService')
 
             const html = await response.text()
-            console.log('🚀 SAVE ARTICLE: HTML content length:', html.length)
+            logger.debug('HTML content retrieved', { length: html.length }, 'ArticleService')
 
             const dom = new JSDOM(html, { url })
             const document = dom.window.document
-            console.log('🚀 SAVE ARTICLE: JSDOM document created')
+            logger.debug('JSDOM document created', undefined, 'ArticleService')
 
             // Simple content extraction
-            console.log('🚀 SAVE ARTICLE: Starting title extraction')
+            logger.debug('Starting title extraction', undefined, 'ArticleService')
             const title = this.extractTitle(document)
-            console.log('🚀 SAVE ARTICLE: Title extracted:', title)
+            logger.debug('Title extracted', { title }, 'ArticleService')
 
-            console.log('🚀 SAVE ARTICLE: Starting content extraction')
+            logger.debug('Starting content extraction', undefined, 'ArticleService')
             const content = this.extractContent(document)
-            console.log('🚀 SAVE ARTICLE: Content extracted, length:', content.length)
+            logger.debug('Content extracted', { length: content.length }, 'ArticleService')
 
-            console.log('🚀 SAVE ARTICLE: Generating excerpt')
+            logger.debug('Generating excerpt', undefined, 'ArticleService')
             const excerpt = this.generateExcerpt(content)
-            console.log('🚀 SAVE ARTICLE: Excerpt generated, length:', excerpt.length)
+            logger.debug('Excerpt generated', { length: excerpt.length }, 'ArticleService')
 
             // Create article object
             const articleData: Omit<Article, 'createdAt' | 'updatedAt'> = {
@@ -61,7 +62,7 @@ export class ArticleService {
             // Save to database
             return this.db.insertArticle(articleData)
         } catch (error) {
-            console.error('Error saving article:', error)
+            logger.error('Error saving article', error, 'ArticleService')
             throw new Error(`Failed to save article: ${error instanceof Error ? error.message : 'Unknown error'}`)
         }
     }
@@ -152,7 +153,7 @@ export class ArticleService {
                 return article.title.trim()
             }
         } catch (error) {
-            console.warn('Mozilla Readability title extraction failed:', error)
+            logger.warn('Mozilla Readability title extraction failed', error, 'ArticleService')
         }
 
         // Fallback to manual title extraction
@@ -177,7 +178,7 @@ export class ArticleService {
     }
 
     private extractContent(document: Document): string {
-        console.log('🔍 CONTENT EXTRACTION: Starting enterprise-grade multi-layer extraction')
+        logger.info('Starting enterprise-grade multi-layer content extraction', undefined, 'ArticleService')
 
         // Multi-layer extraction approach based on enterprise solutions
         const extractionMethods = [
@@ -190,24 +191,24 @@ export class ArticleService {
         for (let i = 0; i < extractionMethods.length; i++) {
             try {
                 const methodName = ['Enhanced Readability', 'Boilerplate Method', 'Semantic Analysis', 'Basic Extraction'][i]
-                console.log(`🔍 CONTENT EXTRACTION: Attempting ${methodName}`)
+                logger.debug(`Attempting ${methodName}`, undefined, 'ArticleService')
                 
                 const content = extractionMethods[i]()
                 const textContent = content.replace(/<[^>]*>/g, '').trim()
                 
                 // Quality validation - ensure we have substantial content
                 if (textContent.length > 500 && this.validateContentQuality(textContent)) {
-                    console.log(`✅ CONTENT EXTRACTION: ${methodName} SUCCESS - Content length:`, content.length)
+                    logger.info(`${methodName} successful`, { contentLength: content.length }, 'ArticleService')
                     return content
                 }
                 
-                console.warn(`⚠️ CONTENT EXTRACTION: ${methodName} produced insufficient content (${textContent.length} chars)`)
+                logger.warn(`${methodName} produced insufficient content`, { chars: textContent.length }, 'ArticleService')
             } catch (error) {
-                console.error(`❌ CONTENT EXTRACTION: Method ${i + 1} failed:`, error)
+                logger.error(`Extraction method ${i + 1} failed`, error, 'ArticleService')
             }
         }
 
-        console.error('❌ CONTENT EXTRACTION: All extraction methods failed')
+        logger.error('All content extraction methods failed', undefined, 'ArticleService')
         return '<div class="extraction-failed">Content extraction failed. Please try viewing the original article.</div>'
     }
 
@@ -252,7 +253,7 @@ export class ArticleService {
 
     private extractWithBoilerplateMethod(document: Document): string {
         // Implement Boilerplate-style extraction based on research
-        console.log('🔍 BOILERPLATE: Starting boilerplate-style extraction')
+        logger.debug('Starting boilerplate-style extraction', undefined, 'ArticleService')
         
         // Look for main content containers using Pocket/Instapaper heuristics
         const contentSelectors = [
@@ -275,7 +276,7 @@ export class ArticleService {
             for (const element of elements) {
                 const content = this.scoreAndExtractContent(element as Element)
                 if (content && content.length > 500) {
-                    console.log(`✅ BOILERPLATE: Found content with selector: ${selector}`)
+                    logger.debug('Found content with boilerplate selector', { selector }, 'ArticleService')
                     return content
                 }
             }
@@ -287,7 +288,7 @@ export class ArticleService {
 
     private extractWithSemanticAnalysis(document: Document): string {
         // Advanced semantic analysis similar to Diffbot
-        console.log('🔍 SEMANTIC: Starting semantic content analysis')
+        logger.debug('Starting semantic content analysis', undefined, 'ArticleService')
         
         const body = document.body
         if (!body) throw new Error('No body element found')
@@ -326,7 +327,7 @@ export class ArticleService {
                 const elements = document.querySelectorAll(selector)
                 elements.forEach(el => el.remove())
             } catch (error) {
-                console.warn(`Failed to remove elements with selector ${selector}:`, error)
+                logger.warn('Failed to remove elements', { selector, error }, 'ArticleService')
             }
         })
     }
@@ -349,7 +350,7 @@ export class ArticleService {
         // Score based on content richness
         const score = (textLength * 0.3) + (paragraphs * 50) + (headings * 30) + (lists * 20) + (density * 100)
         
-        console.log(`🔍 SCORING: Element score: ${score}, text length: ${textLength}`)
+        logger.debug('Element scoring', { score, textLength }, 'ArticleService')
         
         if (score > 200 && textLength > 300) {
             return html
@@ -493,7 +494,7 @@ export class ArticleService {
     }
 
     private extractContentBasic(document: Document): string {
-        console.log('🔧 BASIC EXTRACTION: Starting basic fallback extraction')
+        logger.debug('Starting basic fallback extraction', undefined, 'ArticleService')
 
         // Basic fallback extraction
         const contentSelectors = [
@@ -509,18 +510,18 @@ export class ArticleService {
         for (const selector of contentSelectors) {
             const element = document.querySelector(selector)
             if (element) {
-                console.log(`🔧 BASIC EXTRACTION: Found content with selector: ${selector}`)
+                logger.debug('Found content with basic selector', { selector }, 'ArticleService')
                 // Remove script and style elements
                 const scripts = element.querySelectorAll('script, style')
                 scripts.forEach(script => script.remove())
 
                 const content = element.innerHTML || element.textContent || ''
-                console.log(`🔧 BASIC EXTRACTION: Content length from ${selector}:`, content.length)
+                logger.debug('Content length from selector', { selector, length: content.length }, 'ArticleService')
                 return content
             }
         }
 
-        console.log('🔧 BASIC EXTRACTION: No content selectors found, falling back to body')
+        logger.debug('No content selectors found, falling back to body', undefined, 'ArticleService')
         // Fallback to body content
         const body = document.querySelector('body')
         if (body) {
@@ -529,11 +530,11 @@ export class ArticleService {
             scripts.forEach(script => script.remove())
 
             const content = body.innerHTML || body.textContent || ''
-            console.log('🔧 BASIC EXTRACTION: Body content length:', content.length)
+            logger.debug('Body content length', { length: content.length }, 'ArticleService')
             return content
         }
 
-        console.log('🔧 BASIC EXTRACTION: No content found at all')
+        logger.warn('No content found in basic extraction', undefined, 'ArticleService')
         return ''
     }
 

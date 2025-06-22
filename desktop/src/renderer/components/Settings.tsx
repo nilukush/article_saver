@@ -4,14 +4,13 @@ import { useImportStore } from '../stores/importStore'
 import { ImportStatusSection } from './ImportStatusSection'
 import { AccountLinking } from './AccountLinking'
 import { EnterpriseAccountLinkingPrompt } from './EnterpriseAccountLinkingPrompt'
+import { logger } from '../utils/logger'
 // Simplified imports - removed unused hooks
 
 interface SettingsProps {
     onClose: () => void
 }
 
-// Global state to persist account linking data across re-renders
-let globalAccountLinkingData: any = null
 
 export function Settings({ onClose }: SettingsProps) {
     const [email, setEmail] = useState('')
@@ -31,9 +30,9 @@ export function Settings({ onClose }: SettingsProps) {
     
     // Debug: Track component lifecycle
     useEffect(() => {
-        console.log('🔍 SETTINGS COMPONENT: Mounted')
+        logger.ui('Settings component mounted', undefined, 'Settings')
         return () => {
-            console.log('🔍 SETTINGS COMPONENT: Unmounted')
+            logger.ui('Settings component unmounted', undefined, 'Settings')
         }
     }, [])
 
@@ -84,14 +83,14 @@ export function Settings({ onClose }: SettingsProps) {
     
     // Debug: Log active imports
     useEffect(() => {
-        console.log('🔍 Active imports:', activeImports)
+        logger.debug('Active imports', { activeImports }, 'Import', 'Settings')
         // Clear any stuck imports that are older than 10 minutes
         const now = Date.now()
         activeImports.forEach(imp => {
             const importTime = new Date(imp.startTime).getTime()
             const age = now - importTime
             if (age > 10 * 60 * 1000 && imp.status === 'running') {
-                console.log('🧹 Clearing stuck import:', imp.id)
+                logger.info('Clearing stuck import', { importId: imp.id }, 'Import', 'Settings')
                 removeImport(imp.id)
             }
         })
@@ -131,7 +130,7 @@ export function Settings({ onClose }: SettingsProps) {
                 return false
             }
         } catch (error) {
-            console.error('Failed to check Pocket auth status:', error)
+            logger.error('Failed to check Pocket auth status', error, 'Auth', 'Settings')
             setPocketAuthorized(false)
             return false
         } finally {
@@ -155,7 +154,7 @@ export function Settings({ onClose }: SettingsProps) {
             }
             
             const isAuthorized = await checkPocketAuth()
-            console.log(`[POCKET POLL ${pollCount}] Authorization status:`, isAuthorized)
+            logger.debug(`Pocket poll ${pollCount} - Authorization status`, { isAuthorized }, 'Auth', 'Settings')
             
             if (isAuthorized) {
                 clearInterval(pollInterval)
@@ -192,12 +191,12 @@ export function Settings({ onClose }: SettingsProps) {
             const shouldImportFlag = localStorage.getItem('pocketImportAfterAuth') === 'true'
             
             const debugMsg = `URL: ${window.location.href}, pocket_authorized: ${pocketAuthorizedParam}, shouldImport: ${shouldImportFlag}`
-            console.log('[POCKET AUTH DEBUG]', debugMsg)
+            logger.debug(debugMsg, undefined, 'Auth', 'Settings')
             
-            console.log('[POCKET AUTH CHECK] URL:', window.location.href)
-            console.log('[POCKET AUTH CHECK] pocket_authorized param:', pocketAuthorizedParam)
-            console.log('[POCKET AUTH CHECK] isLoggedIn:', isLoggedIn)
-            console.log('[POCKET AUTH CHECK] shouldImportFlag from localStorage:', shouldImportFlag)
+            logger.debug('Pocket auth check URL', { url: window.location.href }, 'Auth', 'Settings')
+            logger.debug('Pocket auth check param', { pocketAuthorizedParam }, 'Auth', 'Settings')
+            logger.debug('Pocket auth check login status', { isLoggedIn }, 'Auth', 'Settings')
+            logger.debug('Pocket auth check import flag', { shouldImportFlag }, 'Auth', 'Settings')
             
             if (pocketAuthorizedParam === 'true') {
                 // Pocket authorization completed - refresh auth status
@@ -207,14 +206,14 @@ export function Settings({ onClose }: SettingsProps) {
                 window.history.replaceState({}, document.title, window.location.pathname)
                 
                 checkPocketAuth().then((authSuccessful) => {
-                    console.log('[POCKET AUTH CHECK] After checkPocketAuth, authSuccessful:', authSuccessful)
-                    console.log('[POCKET AUTH CHECK] pocketAuthorized state:', pocketAuthorized)
+                    logger.debug('Pocket auth check result', { authSuccessful }, 'Auth', 'Settings')
+                    logger.debug('Pocket authorized state', { pocketAuthorized }, 'Auth', 'Settings')
                     
                     // Check the flag from localStorage since state might have been reset
                     if (shouldImportFlag) {
                         localStorage.removeItem('pocketImportAfterAuth')
                         setError('Starting Pocket import...')
-                        console.log('[POCKET AUTH CHECK] Starting import after auth...')
+                        logger.info('Starting Pocket import after auth', undefined, 'Import', 'Settings')
                         // Give a slight delay to ensure Pocket auth state is updated
                         setTimeout(() => {
                             // Check if we're actually authorized before importing
@@ -267,7 +266,7 @@ export function Settings({ onClose }: SettingsProps) {
                 body: JSON.stringify({ email, password }),
             })
 
-            console.log('🔍 LOGIN DEBUG: Response from netFetch:', response)
+            logger.debug('Login response received', { response }, 'Auth', 'Settings')
 
             if (response.success) {
                 const data = response.data
@@ -282,11 +281,11 @@ export function Settings({ onClose }: SettingsProps) {
                     onClose()
                 }
             } else {
-                console.error('❌ LOGIN ERROR: Authentication failed:', response.error)
+                logger.error('Authentication failed', { error: response.error }, 'Auth', 'Settings')
                 setError(response.error || 'Login failed')
             }
         } catch (err) {
-            console.error('❌ LOGIN ERROR: Network/connection error:', err)
+            logger.error('Login network error', err, 'Auth', 'Settings')
             setError(err instanceof Error ? err.message : 'Failed to connect to server')
         } finally {
             setLoading(false)
@@ -307,7 +306,7 @@ export function Settings({ onClose }: SettingsProps) {
                 body: JSON.stringify({ email, password }),
             })
 
-            console.log('🔍 REGISTER DEBUG: Response from netFetch:', response)
+            logger.debug('Register response received', { response }, 'Auth', 'Settings')
 
             if (response.success) {
                 const data = response.data
@@ -319,11 +318,11 @@ export function Settings({ onClose }: SettingsProps) {
                 // Close settings modal immediately after successful registration
                 onClose()
             } else {
-                console.error('❌ REGISTER ERROR: Registration failed:', response.error)
+                logger.error('Registration failed', { error: response.error }, 'Auth', 'Settings')
                 setError(response.error || 'Registration failed')
             }
         } catch (err) {
-            console.error('❌ REGISTER ERROR: Network/connection error:', err)
+            logger.error('Register network error', err, 'Auth', 'Settings')
             setError(err instanceof Error ? err.message : 'Failed to connect to server')
         } finally {
             setLoading(false)
@@ -336,7 +335,7 @@ export function Settings({ onClose }: SettingsProps) {
 
         try {
             const token = localStorage.getItem('authToken')
-            console.log('🔄 FIX LIMITED CONTENT: Starting fix for articles with limited content')
+            logger.info('Starting fix for articles with limited content', undefined, 'Maintenance', 'Settings')
             
             // First, use the new fix endpoint to mark limited content articles
             const fixResponse = await window.electronAPI.netFetch(`${serverUrl}/api/articles/fix/limited-content`, {
@@ -347,7 +346,7 @@ export function Settings({ onClose }: SettingsProps) {
                 }
             })
             
-            console.log('🔄 FIX LIMITED CONTENT: Response received:', fixResponse)
+            logger.info('Fix limited content response', { response: fixResponse }, 'Maintenance', 'Settings')
 
             if (fixResponse && fixResponse.success) {
                 const data = fixResponse.data
@@ -444,7 +443,7 @@ export function Settings({ onClose }: SettingsProps) {
 
             if (response.success) {
                 const data = response.data
-                console.log('[DELETE ALL] Response:', data)
+                logger.info('Delete all articles response', { data }, 'Maintenance', 'Settings')
                 
                 const message = scope === 'all-linked'
                     ? `✅ Deleted ${data.deletedCount} articles from all linked accounts!`
@@ -461,17 +460,17 @@ export function Settings({ onClose }: SettingsProps) {
                 setLastImportTime(null)
                 
                 // Prevent auto-loading for a short time to avoid race conditions
-                console.log('[DELETE ALL] Setting preventAutoLoad flag...')
+                logger.debug('Setting preventAutoLoad flag', undefined, 'Maintenance', 'Settings')
                 setPreventAutoLoad(true)
                 
                 // Reset and reload articles to show empty state
-                console.log('[DELETE ALL] Resetting article store...')
+                logger.debug('Resetting article store', undefined, 'Maintenance', 'Settings')
                 resetArticles()
                 
                 // Clear the prevent flag after a longer delay to ensure UI stability
                 // This prevents any race conditions with component mounting/unmounting
                 setTimeout(() => {
-                    console.log('[DELETE ALL] Clearing preventAutoLoad flag')
+                    logger.debug('Clearing preventAutoLoad flag', undefined, 'Maintenance', 'Settings')
                     setPreventAutoLoad(false)
                 }, 5000) // Increased to 5 seconds for safety
                 
@@ -546,7 +545,7 @@ export function Settings({ onClose }: SettingsProps) {
 
             // OAuth callback will be handled by the localhost server
         } catch (err) {
-            console.error('Google login error:', err)
+            logger.error('Google login error', err, 'OAuth', 'Settings')
             setError(err instanceof Error ? err.message : 'Google login failed')
             setLoading(false)
         }
@@ -585,7 +584,7 @@ export function Settings({ onClose }: SettingsProps) {
 
             // OAuth callback will be handled by the localhost server
         } catch (err) {
-            console.error('GitHub login error:', err)
+            logger.error('GitHub login error', err, 'OAuth', 'Settings')
             setError(err instanceof Error ? err.message : 'GitHub login failed')
             setLoading(false)
         }
@@ -624,7 +623,7 @@ export function Settings({ onClose }: SettingsProps) {
                 },
             })
 
-            console.log('Pocket auth URL response:', response)
+            logger.debug('Pocket auth URL response', { response }, 'OAuth', 'Settings')
             
             if (response.success) {
                 const data = response.data
@@ -638,7 +637,7 @@ export function Settings({ onClose }: SettingsProps) {
                 setError(response.error || 'Failed to get Pocket authorization URL')
             }
         } catch (err) {
-            console.error('Pocket authorization error:', err)
+            logger.error('Pocket authorization error', err, 'OAuth', 'Settings')
             setError(err instanceof Error ? err.message : 'Failed to connect to Pocket')
         } finally {
             setLoading(false)
@@ -647,28 +646,28 @@ export function Settings({ onClose }: SettingsProps) {
 
     // Handle Pocket import using stored authorization - memoized
     const handlePocketImport = useCallback(async () => {
-        console.log('🚀 handlePocketImport: Starting import process')
+        logger.info('Starting Pocket import process', undefined, 'Import', 'Settings')
         setLoading(true)
         setError(null)
 
         try {
             const token = localStorage.getItem('authToken')
-            console.log('🔑 handlePocketImport: Token exists:', !!token)
+            logger.debug('Pocket import token check', { hasToken: !!token }, 'Import', 'Settings')
             
             // Verify Pocket authorization
-            console.log('🔍 handlePocketImport: Checking Pocket authorization...')
+            logger.debug('Checking Pocket authorization', undefined, 'Import', 'Settings')
             const isAuthorized = await checkPocketAuth()
-            console.log('✅ handlePocketImport: Pocket authorized:', isAuthorized)
+            logger.info('Pocket authorization status', { isAuthorized }, 'Import', 'Settings')
             
             if (!isAuthorized) {
-                console.log('❌ handlePocketImport: Not authorized, stopping')
+                logger.warn('Pocket not authorized, stopping import', undefined, 'Import', 'Settings')
                 setError('Please authorize Pocket access first')
                 setLoading(false)
                 return
             }
 
             // Start import with backend
-            console.log('📡 handlePocketImport: Making import request to backend...')
+            logger.info('Making Pocket import request to backend', undefined, 'Import', 'Settings')
             const response = await window.electronAPI.netFetch(`${serverUrl}/api/pocket/import/stored`, {
                 method: 'POST',
                 headers: {
@@ -681,18 +680,18 @@ export function Settings({ onClose }: SettingsProps) {
                 }),
             })
             
-            console.log('📡 handlePocketImport: Backend response received:', response)
+            logger.debug('Pocket import backend response', { response }, 'Import', 'Settings')
 
             if (response.success) {
                 const data = response.data
-                console.log('📦 handlePocketImport: Response data:', data)
-                console.log('🆔 handlePocketImport: Session ID:', data?.sessionId)
+                logger.debug('Pocket import response data', { data }, 'Import', 'Settings')
+                logger.debug('Pocket import session ID', { sessionId: data?.sessionId }, 'Import', 'Settings')
                 
                 setError(`Import started successfully! Session ID: ${data.sessionId}`)
                 
                 // Create import job in store with session tracking
                 const userId = localStorage.getItem('userEmail') || 'unknown'
-                console.log('🏪 handlePocketImport: Creating import job with sessionId:', data.sessionId)
+                logger.info('Creating import job', { sessionId: data.sessionId }, 'Import', 'Settings')
                 
                 const importJobId = startImport({
                     sessionId: data.sessionId,
@@ -708,7 +707,7 @@ export function Settings({ onClose }: SettingsProps) {
                     }
                 })
                 
-                console.log('✨ handlePocketImport: Import job created with ID:', importJobId)
+                logger.info('Import job created', { importJobId }, 'Import', 'Settings')
                 
                 // Update last import time
                 const importTimestamp = new Date().toISOString()
@@ -775,7 +774,7 @@ export function Settings({ onClose }: SettingsProps) {
 
     // OAuth event listeners - separate effect to avoid nesting
     useEffect(() => {
-        console.log('🔍 SETTINGS: Setting up OAuth event listeners')
+        logger.debug('Setting up OAuth event listeners', undefined, 'OAuth', 'Settings')
         
         // Define OAuth success handler
         const handleOAuthSuccess = async (data: { 
@@ -789,23 +788,23 @@ export function Settings({ onClose }: SettingsProps) {
             trustLevel?: string;
             requiresVerification?: string;
         }) => {
-                console.log('🔍 OAUTH SUCCESS: Event received', {
+                logger.info('OAuth success event received', {
                     ...data,
                     hasAction: !!data.action,
                     hasLinkingToken: !!data.linkingToken,
                     requiresVerification: data.requiresVerification
-                })
+                }, 'OAuth', 'Settings')
                 
                 // Check if this is an account linking response
                 if (data.action === 'link_account' || data.action === 'verify_existing_link') {
-                    console.log('🔗 ACCOUNT LINKING: Detected in OAuth success event', { 
+                    logger.info('Account linking detected in OAuth success', { 
                         action: data.action,
                         existingProvider: data.existingProvider,
                         linkingProvider: data.provider,
                         hasLinkingToken: !!data.linkingToken,
                         trustLevel: data.trustLevel,
                         requiresVerification: data.requiresVerification
-                    })
+                    }, 'OAuth', 'Settings')
                     setLoading(false)
                     
                     // Set auth token first so user is authenticated
@@ -822,19 +821,21 @@ export function Settings({ onClose }: SettingsProps) {
                         trustLevel: data.trustLevel as 'high' | 'medium' | 'low' | undefined,
                         requiresVerification: data.requiresVerification === 'true'
                     }
-                    console.log('🔗 ACCOUNT LINKING: Setting accountLinkingData state to:', linkingData)
+                    logger.debug('Setting account linking data state', { linkingData }, 'OAuth', 'Settings')
                     globalAccountLinkingData = linkingData // Persist globally
                     setAccountLinkingData(linkingData)
-                    console.log('🔗 ACCOUNT LINKING: State set, accountLinkingData should now be:', linkingData)
+                    logger.debug('Account linking data state set', { linkingData }, 'OAuth', 'Settings')
                     
                     // CRITICAL: Store in window for debugging
                     (window as any).debugAccountLinkingData = linkingData
-                    console.log('🔗 ACCOUNT LINKING: Stored in window.debugAccountLinkingData')
+                    logger.debug('Account linking data stored in window debug', undefined, 'OAuth', 'Settings')
                     
                     // Force a re-render by using setTimeout
                     setTimeout(() => {
-                        console.log('🔗 ACCOUNT LINKING: Checking state after timeout, current accountLinkingData:', accountLinkingData)
-                        console.log('🔗 ACCOUNT LINKING: Window data:', (window as any).debugAccountLinkingData)
+                        logger.debug('Checking account linking state after timeout', { 
+                            accountLinkingData, 
+                            windowData: (window as any).debugAccountLinkingData 
+                        }, 'OAuth', 'Settings')
                     }, 100)
                     return
                 }
@@ -921,17 +922,17 @@ export function Settings({ onClose }: SettingsProps) {
 
     // Debug logging for account linking state changes
     useEffect(() => {
-        console.log('🔍 ACCOUNT LINKING STATE CHANGED:', {
+        logger.debug('Account linking state changed', {
             hasAccountLinkingData: !!accountLinkingData,
             accountLinkingData
-        })
+        }, 'OAuth', 'Settings')
     }, [accountLinkingData])
     
     // Debug logging for account linking state
-    console.log('🔍 SETTINGS RENDER: accountLinkingData state', {
+    logger.debug('Settings render - account linking state', {
         hasAccountLinkingData: !!accountLinkingData,
         accountLinkingData
-    })
+    }, 'UI', 'Settings')
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

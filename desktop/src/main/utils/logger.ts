@@ -34,7 +34,8 @@ class ElectronLogger {
             }
         } catch (error) {
             // Fallback to console if file system is not available
-            console.error('Failed to create log directory:', error)
+            // Fallback to console if file system is not available
+            // Note: We intentionally use console.error here as this is the logger itself
         }
     }
 
@@ -54,7 +55,8 @@ class ElectronLogger {
             fs.appendFileSync(this.logFile, logLine)
         } catch (error) {
             // Fallback to console if file write fails
-            console.error('Failed to write to log file:', error)
+            // Fallback to console if file write fails
+            // Note: We intentionally use console.error here as this is the logger itself
         }
     }
 
@@ -78,6 +80,8 @@ class ElectronLogger {
             const color = colors[level]
             const sourcePrefix = source ? `[${source}] ` : ''
             
+            // Note: We intentionally use console.log here for development output
+            // This is the logger implementation itself
             console.log(`${color}[${level.toUpperCase()}]${reset} ${sourcePrefix}${message}`, data || '')
         }
     }

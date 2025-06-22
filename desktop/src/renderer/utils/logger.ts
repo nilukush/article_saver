@@ -48,6 +48,8 @@ class RendererLogger {
                 source && `[${source}]`
             ].filter(Boolean).join(' ')
             
+            // Note: We intentionally use console.log here for development output
+            // This is the logger implementation itself
             console.log(`${color}[${level.toUpperCase()}]${reset} ${prefixes} ${message}`, data || '')
         }
 

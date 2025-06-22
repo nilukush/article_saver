@@ -2,6 +2,7 @@ import React from 'react'
 import { useArticleStore } from '../stores/articleStore'
 import { useDarkModeContext } from '../contexts/DarkModeContext'
 import type { Article } from '../../../shared/types'
+import { logger } from '../utils/logger'
 
 interface ArticleReaderProps {
     article: Article
@@ -14,24 +15,24 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
 
     const handleMarkAsRead = async () => {
         if (!article.isRead) {
-            console.log('🔍 MARK AS READ: Attempting to mark article as read:', {
+            logger.info('Attempting to mark article as read', {
                 articleId: article.id,
                 currentlyRead: article.isRead,
                 articleTitle: article.title?.substring(0, 50)
-            });
+            }, 'UI', 'ArticleReader');
             
             try {
                 await updateArticle(article.id, { isRead: true })
-                console.log('✅ MARK AS READ: Successfully marked article as read:', article.id);
+                logger.info('Successfully marked article as read', { articleId: article.id }, 'UI', 'ArticleReader');
             } catch (error) {
-                console.error('❌ MARK AS READ: Failed to mark article as read:', {
+                logger.error('Failed to mark article as read', {
                     articleId: article.id,
                     error: error instanceof Error ? error.message : error
-                });
+                }, 'UI', 'ArticleReader');
                 // Don't throw the error to avoid breaking the component
             }
         } else {
-            console.log('ℹ️ MARK AS READ: Article already marked as read:', article.id);
+            logger.debug('Article already marked as read', { articleId: article.id }, 'UI', 'ArticleReader');
         }
     }
 
@@ -42,7 +43,7 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
             // Redirect to home page after archiving for better UX
             onBack()
         } catch (error) {
-            console.error('Failed to update archive status:', error)
+            logger.error('Failed to update archive status', error, 'UI', 'ArticleReader')
         }
     }
 
@@ -82,7 +83,7 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
             window.location.reload()
             
         } catch (error) {
-            console.error('Content re-extraction failed:', error)
+            logger.error('Content re-extraction failed', error, 'UI', 'ArticleReader')
             alert('Failed to re-extract content. Please try again or use "View Original" to read the article.')
         }
     }
@@ -95,14 +96,14 @@ export function ArticleReader({ article, onBack }: ArticleReaderProps) {
                     await window.electronAPI.openOAuthUrl(article.url)
                     return
                 } catch (error) {
-                    console.warn('electronAPI failed, falling back to window.open:', error)
+                    logger.warn('electronAPI failed, falling back to window.open', error, 'UI', 'ArticleReader')
                 }
             }
             
             // Fallback to standard browser behavior
             window.open(article.url, '_blank', 'noopener,noreferrer')
         } catch (error) {
-            console.error('Failed to open original URL:', error)
+            logger.error('Failed to open original URL', error, 'UI', 'ArticleReader')
             // Final fallback - copy to clipboard as last resort
             if (navigator.clipboard) {
                 try {

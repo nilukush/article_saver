@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAccountLinkingStore } from '../stores/accountLinkingStore'
 import { useArticleStore } from '../stores/articleStore'
+import { logger } from '../utils/logger'
 
 interface AccountLinkingPromptProps {
     existingProvider: string
@@ -49,7 +50,7 @@ export function AccountLinkingPrompt({
             // Close the prompt
             onClose()
         } catch (err) {
-            console.error('Failed to link accounts:', err)
+            logger.error('Failed to link accounts', err, 'Auth', 'AccountLinkingPrompt')
             setLinking(false)
         }
     }
