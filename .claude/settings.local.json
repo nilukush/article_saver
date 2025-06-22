@@ -50,7 +50,9 @@
       "Bash(railway status:*)",
       "Bash(railway up:*)",
       "Bash(railway logs:*)",
-      "Bash(railway domain:*)"
+      "Bash(railway domain:*)",
+      "Bash(./scripts/update-railway-oauth.sh:*)",
+      "Bash(git rm:*)"
     ],
     "deny": []
   }

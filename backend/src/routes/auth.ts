@@ -243,8 +243,8 @@ router.get('/google/url', asyncHandler(async (req: Request, res: Response) => {
         throw createError('OAuth server port not provided', 400);
     }
 
-    // Use fixed backend redirect URI that matches Google OAuth config
-    const redirectUri = 'http://localhost:3003/api/auth/google/callback';
+    // Use environment-based redirect URI for Google OAuth
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3003/api/auth/google/callback';
     const scope = 'openid email profile';
     const responseType = 'code';
     const state = `${Math.random().toString(36).substring(2, 15)}_${port}`;
@@ -284,7 +284,7 @@ router.get('/google/callback', asyncHandler(async (req: Request, res: Response) 
             client_secret: process.env.GOOGLE_CLIENT_SECRET!,
             code: code as string,
             grant_type: 'authorization_code',
-            redirect_uri: 'http://localhost:3003/api/auth/google/callback',
+            redirect_uri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3003/api/auth/google/callback',
         }),
     });
 
@@ -335,7 +335,7 @@ router.get('/github/url', asyncHandler(async (req: Request, res: Response) => {
     }
 
     // Use the backend's callback URL instead of dynamic port
-    const redirectUri = `http://localhost:3003/api/auth/github/callback`;
+    const redirectUri = process.env.GITHUB_REDIRECT_URI || `http://localhost:3003/api/auth/github/callback`;
     const scope = 'user:email';
     // Include the Electron port in the state for later redirect
     const state = `electron_${port}_${Math.random().toString(36).substring(2, 15)}`;
