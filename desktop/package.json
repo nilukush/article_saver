@@ -74,22 +74,58 @@
             "node_modules/**/*",
             "public/**/*"
         ],
+        "publish": {
+            "provider": "github",
+            "owner": "nilukush",
+            "repo": "article_saver",
+            "releaseType": "release"
+        },
         "mac": {
             "category": "public.app-category.productivity",
             "icon": "resources/icons/icon.icns",
             "hardenedRuntime": true,
             "gatekeeperAssess": false,
             "entitlements": "resources/entitlements.mac.plist",
-            "entitlementsInherit": "resources/entitlements.mac.plist"
+            "entitlementsInherit": "resources/entitlements.mac.plist",
+            "target": [
+                {
+                    "target": "dmg",
+                    "arch": ["x64", "arm64"]
+                },
+                {
+                    "target": "zip",
+                    "arch": ["x64", "arm64"]
+                }
+            ]
         },
         "win": {
-            "target": "nsis",
+            "target": [
+                {
+                    "target": "nsis",
+                    "arch": ["x64"]
+                },
+                {
+                    "target": "portable",
+                    "arch": ["x64"]
+                }
+            ],
             "icon": "resources/icons/icon.ico"
         },
         "linux": {
-            "target": "AppImage",
+            "target": [
+                "AppImage",
+                "deb",
+                "rpm"
+            ],
             "icon": "resources/icons",
             "category": "Office"
+        },
+        "nsis": {
+            "oneClick": false,
+            "allowToChangeInstallationDirectory": true,
+            "allowElevation": true,
+            "perMachine": false,
+            "deleteAppDataOnUninstall": false
         }
     }
 }

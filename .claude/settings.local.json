@@ -44,7 +44,13 @@
       "Bash(git stash:*)",
       "Bash(git checkout:*)",
       "Bash(cp:*)",
-      "Bash(npm run stop:*)"
+      "Bash(npm run stop:*)",
+      "Bash(git clean:*)",
+      "Bash(./scripts/railway-dashboard-deploy.sh:*)",
+      "Bash(railway status:*)",
+      "Bash(railway up:*)",
+      "Bash(railway logs:*)",
+      "Bash(railway domain:*)"
     ],
     "deny": []
   }

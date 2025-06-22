@@ -176,7 +176,7 @@ export const useImportStore = create<ImportState>()(
     discoverAndRecoverSessions: async () => {
         try {
             const token = localStorage.getItem('authToken')
-            const serverUrl = 'http://localhost:3003'
+            const serverUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3003'
             
             if (!token) {
                 return
