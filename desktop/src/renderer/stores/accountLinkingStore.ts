@@ -42,7 +42,7 @@ export const useAccountLinkingStore = create<AccountLinkingState>((set, get) => 
         
         try {
             const token = localStorage.getItem('authToken')
-            const serverUrl = 'http://localhost:3003' // Backend runs on port 3003
+            const serverUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3003' // Use configured API URL
             
             if (!token) {
                 set({ error: 'Not authenticated. Please log in.', loading: false })
@@ -86,7 +86,7 @@ export const useAccountLinkingStore = create<AccountLinkingState>((set, get) => 
         set({ loading: true, error: null })
         
         try {
-            const serverUrl = 'http://localhost:3003' // Backend runs on port 3003
+            const serverUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3003' // Use configured API URL
             
             const response = await window.electronAPI.netFetch(`${serverUrl}/api/account-linking/complete-oauth`, {
                 method: 'POST',
@@ -135,7 +135,7 @@ export const useAccountLinkingStore = create<AccountLinkingState>((set, get) => 
         
         try {
             const token = localStorage.getItem('authToken')
-            const serverUrl = 'http://localhost:3003' // Backend runs on port 3003
+            const serverUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3003' // Use configured API URL
             
             const response = await window.electronAPI.netFetch(`${serverUrl}/api/account-linking/unlink/${linkId}`, {
                 method: 'DELETE',

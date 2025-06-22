@@ -1,0 +1,228 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # Run tests and linting
+  test:
+    name: Test and Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm run install:all
+      
+      - name: Run linter
+        run: |
+          cd backend && npm run lint
+          cd ../desktop && npm run lint
+      
+      - name: Run type checking
+        run: |
+          cd backend && npm run type-check || true
+          cd ../desktop && npm run type-check
+      
+      # Add tests when available
+      # - name: Run tests
+      #   run: npm test
+
+  # Deploy backend to Railway (only on main branch)
+  deploy-backend:
+    name: Deploy Backend to Railway
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          cd backend
+          railway up --service backend
+      
+      - name: Health Check
+        run: |
+          sleep 30
+          curl -f ${{ secrets.BACKEND_URL }}/api/health || exit 1
+
+  # Build desktop apps for all platforms
+  build-desktop:
+    name: Build Desktop App
+    needs: test
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            platform: mac
+            arch: universal
+          - os: windows-latest
+            platform: win
+            arch: x64
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm run install:all
+      
+      - name: Build desktop app
+        env:
+          # Code signing for macOS (optional)
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          CSC_LINK: ${{ secrets.MAC_CERTS }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
+          # Code signing for Windows (optional)
+          WIN_CSC_LINK: ${{ secrets.WIN_CERTS }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CERTS_PASSWORD }}
+          # GitHub token for auto-updater
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd desktop
+          npm run dist
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}-${{ matrix.arch }}-build
+          path: |
+            desktop/release/*.exe
+            desktop/release/*.dmg
+            desktop/release/*.AppImage
+            desktop/release/*.deb
+            desktop/release/*.rpm
+            desktop/release/*.zip
+            desktop/release/*.tar.gz
+          retention-days: 30
+
+  # Create GitHub Release (only on version tags)
+  release:
+    name: Create Release
+    needs: build-desktop
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            release-artifacts/**/*.exe
+            release-artifacts/**/*.dmg
+            release-artifacts/**/*.AppImage
+            release-artifacts/**/*.deb
+            release-artifacts/**/*.rpm
+            release-artifacts/**/*.zip
+            release-artifacts/**/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Optional: Deploy documentation to GitHub Pages
+  deploy-docs:
+    name: Deploy Documentation
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      
+      - name: Build documentation site
+        run: |
+          mkdir -p docs-site
+          cp README.md docs-site/index.md
+          cp API.md docs-site/api.md
+          cp DEVELOPMENT.md docs-site/development.md
+          cp DEPLOYMENT.md docs-site/deployment.md
+          cp CONTRIBUTING.md docs-site/contributing.md
+          cp SECURITY.md docs-site/security.md
+          
+          # Create a simple index.html
+          cat > docs-site/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>Article Saver Documentation</title>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+          </head>
+          <body>
+              <main class="container">
+                  <h1>Article Saver Documentation</h1>
+                  <p>Enterprise-grade article management system</p>
+                  <nav>
+                      <ul>
+                          <li><a href="https://github.com/nilukush/article_saver">GitHub Repository</a></li>
+                          <li><a href="https://github.com/nilukush/article_saver/blob/main/README.md">README</a></li>
+                          <li><a href="https://github.com/nilukush/article_saver/blob/main/API.md">API Documentation</a></li>
+                          <li><a href="https://github.com/nilukush/article_saver/blob/main/DEVELOPMENT.md">Development Guide</a></li>
+                          <li><a href="https://github.com/nilukush/article_saver/blob/main/DEPLOYMENT.md">Deployment Guide</a></li>
+                      </ul>
+                  </nav>
+                  <section>
+                      <h2>Download Latest Release</h2>
+                      <p><a href="https://github.com/nilukush/article_saver/releases/latest" class="contrast">Download for Windows, macOS, and Linux</a></p>
+                  </section>
+              </main>
+          </body>
+          </html>
+          EOF
+      
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs-site
+      
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
