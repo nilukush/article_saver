@@ -1,0 +1,23 @@
+{
+  "DATABASE_URL": "${{shared.DATABASE_URL}}",
+  "JWT_SECRET": "${{shared.JWT_SECRET}}",
+  "JWT_EXPIRES_IN": "${{shared.JWT_EXPIRES_IN}}",
+  "NODE_ENV": "${{shared.NODE_ENV}}",
+  "PORT": "${{shared.PORT}}",
+  "LOG_LEVEL": "${{shared.LOG_LEVEL}}",
+  "CORS_ORIGIN": "${{shared.CORS_ORIGIN}}",
+  "GOOGLE_CLIENT_ID": "${{shared.GOOGLE_CLIENT_ID}}",
+  "GOOGLE_CLIENT_SECRET": "${{shared.GOOGLE_CLIENT_SECRET}}",
+  "GOOGLE_REDIRECT_URI": "${{shared.GOOGLE_REDIRECT_URI}}",
+  "GITHUB_CLIENT_ID": "${{shared.GITHUB_CLIENT_ID}}",
+  "GITHUB_CLIENT_SECRET": "${{shared.GITHUB_CLIENT_SECRET}}",
+  "GITHUB_REDIRECT_URI": "${{shared.GITHUB_REDIRECT_URI}}",
+  "POCKET_CONSUMER_KEY": "${{shared.POCKET_CONSUMER_KEY}}",
+  "POCKET_REDIRECT_URI": "${{shared.POCKET_REDIRECT_URI}}",
+  "SMTP_HOST": "${{shared.SMTP_HOST}}",
+  "SMTP_PORT": "${{shared.SMTP_PORT}}",
+  "SMTP_USER": "${{shared.SMTP_USER}}",
+  "SMTP_PASS": "${{shared.SMTP_PASS}}",
+  "EMAIL_FROM": "${{shared.EMAIL_FROM}}",
+  "EMAIL_ENABLED": "${{shared.EMAIL_ENABLED}}"
+}
