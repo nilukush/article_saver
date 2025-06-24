@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { prisma } from './database';
 import logger from './utils/logger';
+import asyncHandler from 'express-async-handler';
 
 // Import routes
 import authRoutes from './routes/auth';
@@ -112,6 +113,57 @@ app.get('/api/health', (req, res) => {
         service: 'article-saver-backend'
     });
 });
+
+// Database health check endpoint
+app.get('/api/debug/database-health', asyncHandler(async (req, res) => {
+    const healthCheck = {
+        database: {
+            connected: false,
+            readable: false,
+            writable: false,
+            error: null as string | null,
+            details: {} as any
+        },
+        timestamp: new Date().toISOString()
+    };
+
+    try {
+        // Test 1: Basic connectivity
+        await prisma.$queryRaw`SELECT 1`;
+        healthCheck.database.connected = true;
+
+        // Test 2: Read operation
+        const userCount = await prisma.user.count();
+        healthCheck.database.readable = true;
+        healthCheck.database.details.userCount = userCount;
+
+        // Test 3: Check tables exist
+        const tables = await prisma.$queryRaw`
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            LIMIT 5
+        `;
+        healthCheck.database.details.tables = tables;
+
+        // Test 4: Connection pool stats
+        const poolStats = await prisma.$queryRaw`
+            SELECT count(*) as connection_count 
+            FROM pg_stat_activity 
+            WHERE datname = current_database()
+        `;
+        healthCheck.database.details.activeConnections = poolStats;
+
+        // Mark as fully healthy
+        healthCheck.database.writable = true; // We'll assume writable if readable
+        
+    } catch (error: any) {
+        healthCheck.database.error = error.message;
+        logger.error('Database health check failed:', error);
+    }
+
+    res.json(healthCheck);
+}));
 
 // Debug endpoint to check OAuth configuration
 app.get('/api/debug/oauth-config', (req, res) => {

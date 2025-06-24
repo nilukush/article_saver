@@ -53,7 +53,8 @@
       "Bash(railway domain:*)",
       "Bash(./scripts/update-railway-oauth.sh:*)",
       "Bash(git rm:*)",
-      "Bash(./scripts/railway-update-complete.sh:*)"
+      "Bash(./scripts/railway-update-complete.sh:*)",
+      "WebFetch(domain:docs.railway.com)"
     ],
     "deny": []
   }
