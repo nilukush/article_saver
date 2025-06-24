@@ -113,6 +113,28 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// Debug endpoint to check OAuth configuration
+app.get('/api/debug/oauth-config', (req, res) => {
+    res.json({
+        googleOAuth: {
+            hasClientId: !!process.env.GOOGLE_CLIENT_ID,
+            hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+            redirectUri: process.env.GOOGLE_REDIRECT_URI || 'not set'
+        },
+        githubOAuth: {
+            hasClientId: !!process.env.GITHUB_CLIENT_ID,
+            hasClientSecret: !!process.env.GITHUB_CLIENT_SECRET,
+            redirectUri: process.env.GITHUB_REDIRECT_URI || 'not set'
+        },
+        pocketOAuth: {
+            hasConsumerKey: !!process.env.POCKET_CONSUMER_KEY,
+            redirectUri: process.env.POCKET_REDIRECT_URI || 'not set'
+        },
+        environment: process.env.NODE_ENV,
+        totalEnvVars: Object.keys(process.env).length
+    });
+});
+
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/articles', articlesRoutes);
@@ -139,6 +161,16 @@ app.listen(PORT, () => {
     logger.info(`🚀 Article Saver API server running on port ${PORT}`);
     logger.info(`📊 Health check: http://localhost:${PORT}/health`);
     logger.info(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    
+    // Debug: Check OAuth configuration
+    logger.info(`🔐 OAuth Configuration Check:`, {
+        googleConfigured: !!process.env.GOOGLE_CLIENT_ID,
+        githubConfigured: !!process.env.GITHUB_CLIENT_ID,
+        pocketConfigured: !!process.env.POCKET_CONSUMER_KEY,
+        googleRedirectUri: process.env.GOOGLE_REDIRECT_URI || 'not set',
+        githubRedirectUri: process.env.GITHUB_REDIRECT_URI || 'not set',
+        totalEnvVars: Object.keys(process.env).length
+    });
 });
 
 export default app;
