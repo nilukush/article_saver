@@ -115,6 +115,18 @@ app.get('/api/health', (req, res) => {
 
 // Debug endpoint to check OAuth configuration
 app.get('/api/debug/oauth-config', (req, res) => {
+    // Get all env var names that might be OAuth related
+    const envVarNames = Object.keys(process.env);
+    const oauthRelatedVars = envVarNames.filter(name => 
+        name.includes('GOOGLE') || 
+        name.includes('GITHUB') || 
+        name.includes('POCKET') || 
+        name.includes('CLIENT') ||
+        name.includes('SECRET') ||
+        name.includes('OAUTH') ||
+        name.includes('AUTH')
+    );
+    
     res.json({
         googleOAuth: {
             hasClientId: !!process.env.GOOGLE_CLIENT_ID,
@@ -131,7 +143,12 @@ app.get('/api/debug/oauth-config', (req, res) => {
             redirectUri: process.env.POCKET_REDIRECT_URI || 'not set'
         },
         environment: process.env.NODE_ENV,
-        totalEnvVars: Object.keys(process.env).length
+        totalEnvVars: Object.keys(process.env).length,
+        oauthRelatedVarNames: oauthRelatedVars,
+        // Check for common Railway vars
+        hasDatabase: !!process.env.DATABASE_URL,
+        hasJwtSecret: !!process.env.JWT_SECRET,
+        port: process.env.PORT
     });
 });
 
