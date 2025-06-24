@@ -5,7 +5,6 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { prisma } from './database';
 import logger from './utils/logger';
-import asyncHandler from 'express-async-handler';
 
 // Import routes
 import authRoutes from './routes/auth';
@@ -115,7 +114,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Database health check endpoint
-app.get('/api/debug/database-health', asyncHandler(async (req, res) => {
+app.get('/api/debug/database-health', async (req, res) => {
     const healthCheck = {
         database: {
             connected: false,
@@ -163,7 +162,7 @@ app.get('/api/debug/database-health', asyncHandler(async (req, res) => {
     }
 
     res.json(healthCheck);
-}));
+});
 
 // Debug endpoint to check OAuth configuration
 app.get('/api/debug/oauth-config', (req, res) => {
