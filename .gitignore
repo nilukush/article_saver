@@ -113,3 +113,10 @@ memory-bank/
 *.sqlite3
 articles.json
 settings.json
+
+# Railway environment files (contain secrets)
+scripts/railway-env-complete.json
+railway-env.json
+oauth-production-vars.json
+railway-complete-env.json
+railway-complete-config.json

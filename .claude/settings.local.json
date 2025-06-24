@@ -52,7 +52,8 @@
       "Bash(railway logs:*)",
       "Bash(railway domain:*)",
       "Bash(./scripts/update-railway-oauth.sh:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(./scripts/railway-update-complete.sh:*)"
     ],
     "deny": []
   }
