@@ -41,7 +41,8 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Trust proxy for Railway deployment
-app.set('trust proxy', true);
+// Set to 1 for Railway's single proxy layer
+app.set('trust proxy', 1);
 
 // Security middleware with enterprise configuration
 app.use(helmet({
@@ -89,6 +90,18 @@ const limiter = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
+    // Key generator that handles Railway's proxy properly
+    keyGenerator: (req) => {
+        // Use req.ip which respects the trust proxy setting
+        if (!req.ip) {
+            logger.warn('Request IP is missing, using socket address', { 
+                remoteAddress: req.socket.remoteAddress 
+            });
+            return req.socket.remoteAddress || 'unknown';
+        }
+        // Strip port if present (some proxies append :port)
+        return req.ip.replace(/:\d+[^:]*$/, '');
+    },
     handler: (req, res) => {
         res.status(429).json({
             error: 'Too Many Requests',
