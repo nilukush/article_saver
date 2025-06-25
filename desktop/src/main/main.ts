@@ -393,8 +393,7 @@ if (!gotTheLock) {
         if (isPackaged) {
             updateElectronApp({
                 repo: 'nilukush/article_saver',
-                updateInterval: '1 hour',
-                logger: logger
+                updateInterval: '1 hour'
             })
         }
 

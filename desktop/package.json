@@ -3,6 +3,7 @@
     "productName": "Article Saver",
     "version": "1.0.0",
     "description": "Desktop application for Article Saver",
+    "author": "Article Saver Team",
     "main": "./dist/main/desktop/src/main/main.js",
     "scripts": {
         "dev": "concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
@@ -48,7 +49,7 @@
         "@vitejs/plugin-react": "^4.2.1",
         "autoprefixer": "^10.4.16",
         "concurrently": "^8.2.2",
-        "electron": "^28.1.0",
+        "electron": "28.3.3",
         "electron-builder": "^24.9.1",
         "electron-rebuild": "^3.2.9",
         "eslint": "^8.55.0",
@@ -74,8 +75,20 @@
         "files": [
             "dist/**/*",
             "node_modules/**/*",
-            "public/**/*"
+            "public/**/*",
+            "!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+            "!node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+            "!node_modules/*.d.ts",
+            "!node_modules/.bin",
+            "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+            "!.editorconfig",
+            "!**/._*",
+            "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
+            "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
+            "!**/{appveyor.yml,.travis.yml,circle.yml}",
+            "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
         ],
+        "electronDist": "../node_modules/electron/dist",
         "publish": {
             "provider": "github",
             "owner": "nilukush",
