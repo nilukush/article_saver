@@ -26,7 +26,7 @@
         "build:clean": "npm run clean && npm run build",
         "restart": "scripts/restart-desktop.sh",
         "restart:enterprise": "scripts/restart-desktop.sh",
-        "postinstall": "electron-builder install-app-deps || true"
+        "postinstall": "node -e \"const {execSync}=require('child_process');try{execSync('electron-builder install-app-deps',{stdio:'inherit'})}catch(e){console.log('Postinstall failed, continuing...')}\""
     },
     "dependencies": {
         "@mozilla/readability": "^0.6.0",
