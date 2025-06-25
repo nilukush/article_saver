@@ -10,6 +10,7 @@ on:
 
 env:
   NODE_VERSION: '18.19.0'  # Use LTS version
+  NPM_VERSION: '10.2.5'    # Stable npm version for workspaces
 
 jobs:
   # Run tests and linting
@@ -17,32 +18,66 @@ jobs:
     name: Test and Lint
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Setup CI environment
-        run: |
-          # Copy CI-specific npmrc
-          cp .github/.npmrc .npmrc
-          # Set npm config
-          npm config set fund false
-          npm config set audit false
-          # Set memory limit for npm
-          export NODE_OPTIONS="--max-old-space-size=4096"
-          echo "NODE_OPTIONS=--max-old-space-size=4096" >> $GITHUB_ENV
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
       
-      - name: Install dependencies
+      - name: Setup npm and environment
         run: |
-          echo "Installing monorepo dependencies..."
-          # Force npm to use install since we don't have lock files
-          npm install --no-audit --no-fund --force
-          cd backend && npm install --no-audit --no-fund --force
-          cd ../desktop && npm install --no-audit --no-fund --ignore-scripts --force
+          # Update npm to specific version for stability
+          npm install -g npm@${{ env.NPM_VERSION }}
+          
+          # Set memory limits
+          echo "NODE_OPTIONS=--max-old-space-size=6144" >> $GITHUB_ENV
+          
+          # Configure npm for CI
+          npm config set audit false
+          npm config set fund false
+          npm config set progress false
+          npm config set loglevel error
+          
+          # Ensure no global workspaces setting
+          npm config delete workspaces --location=global || true
+          npm config delete workspaces --location=user || true
+      
+      - name: Generate package-lock files
+        run: |
+          # Generate lock files if they don't exist
+          if [ ! -f "package-lock.json" ]; then
+            echo "Generating root package-lock.json..."
+            npm install --package-lock-only --workspaces-update=false
+          fi
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            backend/node_modules
+            desktop/node_modules
+            shared/node_modules
+          key: ${{ runner.os }}-node-${{ env.NODE_VERSION }}-${{ hashFiles('**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ env.NODE_VERSION }}-
+            ${{ runner.os }}-node-
+      
+      - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          echo "Installing dependencies..."
+          # Install all workspace dependencies at once
+          npm install --no-audit --no-fund --prefer-offline
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+          ELECTRON_BUILDER_CACHE: ~/.cache/electron-builder
       
       - name: Run linter
         run: |
@@ -109,13 +144,40 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
       
+      - name: Setup npm and environment
+        run: |
+          # Update npm
+          npm install -g npm@${{ env.NPM_VERSION }}
+          
+          # Set memory limits
+          echo "NODE_OPTIONS=--max-old-space-size=6144" >> $GITHUB_ENV
+          
+          # Configure npm
+          npm config set audit false
+          npm config set fund false
+          npm config set progress false
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            backend/node_modules
+            desktop/node_modules
+            shared/node_modules
+            ~/.cache/electron
+            ~/.cache/electron-builder
+          key: ${{ runner.os }}-build-${{ env.NODE_VERSION }}-${{ hashFiles('**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.NODE_VERSION }}-
+            ${{ runner.os }}-build-
+      
       - name: Install dependencies
         run: |
-          echo "Installing monorepo dependencies..."
-          # Force npm to use install since we don't have lock files
-          npm install --no-audit --no-fund --force
-          cd backend && npm install --no-audit --no-fund --force
-          cd ../desktop && npm install --no-audit --no-fund --ignore-scripts --force
+          npm install --no-audit --no-fund --prefer-offline
+        env:
+          ELECTRON_BUILDER_CACHE: ~/.cache/electron-builder
       
       - name: Setup desktop build environment
         run: |
