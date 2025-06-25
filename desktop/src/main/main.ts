@@ -5,6 +5,7 @@ import url from 'url'
 import { DatabaseService } from './database/database'
 import { ArticleService } from './services/articleService'
 import { logger } from './utils/logger'
+import { updateElectronApp } from 'update-electron-app'
 
 // DISABLE DEV TOOLS AT CHROMIUM ENGINE LEVEL - MUST BE BEFORE app.ready
 app.commandLine.appendSwitch('--disable-dev-tools')
@@ -387,6 +388,15 @@ if (!gotTheLock) {
         const isDevelopmentMode = !isPackaged || hasElectronInPath || isDefaultApp
 
         // WebAuthn/Passkey functionality has been completely removed
+
+        // Configure auto-updates for production builds
+        if (isPackaged) {
+            updateElectronApp({
+                repo: 'nilukush/article_saver',
+                updateInterval: '1 hour',
+                logger: logger
+            })
+        }
 
         // Initialize database first
         databaseService = new DatabaseService()

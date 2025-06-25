@@ -9,6 +9,7 @@
         "dev:vite": "vite",
         "dev:electron": "wait-on http://localhost:19858 && npx tsc -p tsconfig.main.json && NODE_ENV=development electron .",
         "build": "npm run clean && tsc -p tsconfig.main.json && vite build",
+        "build:prod": "NODE_ENV=production npm run build",
         "build:vite": "vite build",
         "build:electron": "tsc -p tsconfig.main.json",
         "dist": "npm run build && electron-builder",
@@ -33,6 +34,7 @@
         "jsdom": "^23.0.1",
         "lucide-react": "^0.518.0",
         "sqlite3": "^5.1.6",
+        "update-electron-app": "^3.1.1",
         "uuid": "^9.0.1"
     },
     "devDependencies": {
@@ -90,11 +92,17 @@
             "target": [
                 {
                     "target": "dmg",
-                    "arch": ["x64", "arm64"]
+                    "arch": [
+                        "x64",
+                        "arm64"
+                    ]
                 },
                 {
                     "target": "zip",
-                    "arch": ["x64", "arm64"]
+                    "arch": [
+                        "x64",
+                        "arm64"
+                    ]
                 }
             ]
         },
@@ -102,11 +110,15 @@
             "target": [
                 {
                     "target": "nsis",
-                    "arch": ["x64"]
+                    "arch": [
+                        "x64"
+                    ]
                 },
                 {
                     "target": "portable",
-                    "arch": ["x64"]
+                    "arch": [
+                        "x64"
+                    ]
                 }
             ],
             "icon": "resources/icons/icon.ico"
