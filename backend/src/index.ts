@@ -21,6 +21,17 @@ import { requestLogger } from './middleware/requestLogger';
 // Load environment variables
 dotenv.config();
 
+// Debug environment variables
+console.log('=== ENVIRONMENT DEBUG ===');
+console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+if (process.env.DATABASE_URL) {
+  const url = process.env.DATABASE_URL;
+  const hostMatch = url.match(/@(.+?):/);
+  console.log('DATABASE_URL host:', hostMatch?.[1]);
+  console.log('Is using pooler:', url.includes('pooler.supabase.com'));
+}
+console.log('=== END DEBUG ===');
+
 // Create Express app
 const app = express();
 const PORT = process.env.PORT || 3001;
