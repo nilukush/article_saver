@@ -6,11 +6,11 @@ import logger from '../utils/logger';
 export const responseTimeTracking = (req: Request, res: Response, next: NextFunction) => {
     const start = Date.now();
 
-    // Store original end function
-    const originalEnd = res.end;
+    // Store original end function with proper typing
+    const originalEnd = res.end as any;
 
     // Override end function
-    res.end = function(...args: any[]) {
+    res.end = ((...args: any[]) => {
         // Calculate response time
         const duration = Date.now() - start;
         
@@ -32,9 +32,9 @@ export const responseTimeTracking = (req: Request, res: Response, next: NextFunc
             });
         }
 
-        // Call original end
+        // Call original end with all arguments
         return originalEnd.apply(res, args);
-    };
+    }) as any;
 
     next();
 };
@@ -55,10 +55,11 @@ export const errorTracking = (err: Error, req: Request, res: Response, next: Nex
 };
 
 // Metrics endpoint middleware
-export const metricsEndpoint = (req: Request, res: Response) => {
+export const metricsEndpoint = (req: Request, res: Response): void => {
     // Only allow in non-production or with auth
     if (process.env.NODE_ENV === 'production' && !req.headers['x-metrics-key']) {
-        return res.status(403).json({ error: 'Forbidden' });
+        res.status(403).json({ error: 'Forbidden' });
+        return;
     }
 
     const summary = metrics.getMetricsSummary();
