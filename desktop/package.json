@@ -25,7 +25,8 @@
         "dev:clean": "npm run clean && npm run dev",
         "build:clean": "npm run clean && npm run build",
         "restart": "scripts/restart-desktop.sh",
-        "restart:enterprise": "scripts/restart-desktop.sh"
+        "restart:enterprise": "scripts/restart-desktop.sh",
+        "postinstall": "electron-builder install-app-deps || true"
     },
     "dependencies": {
         "@mozilla/readability": "^0.6.0",
