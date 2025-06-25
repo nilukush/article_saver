@@ -10,4 +10,3 @@
     "restartPolicyMaxRetries": 3
   }
 }
-EOF < /dev/null
