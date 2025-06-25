@@ -9,7 +9,7 @@ on:
     branches: [main]
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '18.19.0'  # Use LTS version
 
 jobs:
   # Run tests and linting
@@ -27,18 +27,22 @@ jobs:
           # Set npm config
           npm config set fund false
           npm config set audit false
+          # Set memory limit for npm
+          export NODE_OPTIONS="--max-old-space-size=4096"
+          echo "NODE_OPTIONS=--max-old-space-size=4096" >> $GITHUB_ENV
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'  # Use stable version instead of 20
+          node-version: ${{ env.NODE_VERSION }}
       
-      - name: Install all dependencies
+      - name: Install dependencies
         run: |
-          # Install with specific flags to avoid issues
-          npm install --no-audit --no-fund --ignore-scripts
-          cd backend && npm install --no-audit --no-fund
-          cd ../desktop && npm install --no-audit --no-fund --ignore-scripts
+          echo "Installing monorepo dependencies..."
+          # Force npm to use install since we don't have lock files
+          npm install --no-audit --no-fund --force
+          cd backend && npm install --no-audit --no-fund --force
+          cd ../desktop && npm install --no-audit --no-fund --ignore-scripts --force
       
       - name: Run linter
         run: |
@@ -103,14 +107,15 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'  # Use stable version instead of 20
+          node-version: ${{ env.NODE_VERSION }}
       
-      - name: Install all dependencies
+      - name: Install dependencies
         run: |
-          # Install with specific flags to avoid issues
-          npm install --no-audit --no-fund --ignore-scripts
-          cd backend && npm install --no-audit --no-fund
-          cd ../desktop && npm install --no-audit --no-fund --ignore-scripts
+          echo "Installing monorepo dependencies..."
+          # Force npm to use install since we don't have lock files
+          npm install --no-audit --no-fund --force
+          cd backend && npm install --no-audit --no-fund --force
+          cd ../desktop && npm install --no-audit --no-fund --ignore-scripts --force
       
       - name: Setup desktop build environment
         run: |
