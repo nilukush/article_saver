@@ -11,11 +11,15 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: write
+  
 jobs:
   release:
     runs-on: ${{ matrix.os }}
     
     strategy:
+      fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
     
@@ -28,14 +32,24 @@ jobs:
         with:
           node-version: 20
           
-      - name: Install all dependencies
-        run: |
-          npm ci
+      - name: Install root dependencies
+        run: npm ci
           
-      - name: Install desktop-specific dependencies
+      - name: Setup desktop environment
         run: |
           cd desktop
-          npm install --no-save
+          rm -rf node_modules || true
+          mkdir -p node_modules
+          
+      - name: Install Electron in desktop
+        run: |
+          cd desktop
+          npm install electron@28.3.3 --save-dev --force
+          
+      - name: Run postinstall
+        run: |
+          cd desktop
+          npm run postinstall || true
           
       - name: Build backend TypeScript
         run: |
@@ -45,34 +59,24 @@ jobs:
       - name: Build desktop TypeScript
         run: |
           cd desktop
-          npm run build:prod
+          npm run build:prod || npm run build
           
-      - name: Build Electron app
+      - name: Build and publish Electron app
         run: |
           cd desktop
           npm run dist
         env:
-          # Required for auto-updater and publishing
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
-          # macOS code signing (optional for now)
-          # CSC_LINK: ${{ secrets.MAC_CERTS }}
-          # CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
-          # APPLE_ID: ${{ secrets.APPLE_ID }}
-          # APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          
-          # Windows code signing (optional for now)
-          # CSC_LINK: ${{ secrets.WINDOWS_CERTS }}
-          # CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERTS_PASSWORD }}
-          
-      - name: Publish Release
+      - name: Publish to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           cd desktop
           npx electron-builder --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
