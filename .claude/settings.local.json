@@ -61,7 +61,9 @@
       "Bash(./scripts/prepare-release.sh)",
       "Bash(npm run dist:*)",
       "Bash(npm ls:*)",
-      "Bash(git tag:*)"
+      "Bash(git tag:*)",
+      "WebFetch(domain:articlesaver-production.up.railway.app)",
+      "Bash(npm run lint)"
     ],
     "deny": []
   }

@@ -18,6 +18,8 @@ import accountMigrationRoutes from './routes/account-migration';
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
 import { requestLogger } from './middleware/requestLogger';
+import { productionConfig } from './config/production';
+import { responseTimeTracking, errorTracking, metricsEndpoint, detailedHealthCheck } from './middleware/monitoring';
 
 // Load environment variables
 dotenv.config();
@@ -66,18 +68,23 @@ app.use(helmet({
     }
 }));
 
-// CORS configuration
-app.use(cors({
-    origin: [
-        'http://localhost:5173',
-        'http://localhost:19858',
-        'http://localhost', // Add this for Electron protocol interception
-        ...(process.env.CORS_ORIGIN ? [process.env.CORS_ORIGIN] : [])
-    ],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
+// CORS configuration - use production config in production
+if (process.env.NODE_ENV === 'production') {
+    app.use(cors(productionConfig.cors as any));
+} else {
+    // Development CORS settings
+    app.use(cors({
+        origin: [
+            'http://localhost:5173',
+            'http://localhost:19858',
+            'http://localhost', // Add this for Electron protocol interception
+            ...(process.env.CORS_ORIGIN ? [process.env.CORS_ORIGIN] : [])
+        ],
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+        allowedHeaders: ['Content-Type', 'Authorization']
+    }));
+}
 
 // Rate limiting with JSON responses
 const limiter = rateLimit({
@@ -125,6 +132,9 @@ app.use(express.urlencoded({ extended: true }));
 // Request logging
 app.use(requestLogger);
 
+// Response time tracking
+app.use(responseTimeTracking);
+
 // Health check endpoints
 app.get('/health', (req, res) => {
     res.json({
@@ -144,98 +154,108 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-// Database health check endpoint
-app.get('/api/debug/database-health', async (req, res) => {
-    const healthCheck = {
-        database: {
-            connected: false,
-            readable: false,
-            writable: false,
-            error: null as string | null,
-            details: {} as any
-        },
-        timestamp: new Date().toISOString()
-    };
+// Detailed health check with metrics
+app.get('/api/health/detailed', detailedHealthCheck);
 
-    try {
-        // Test 1: Basic connectivity
-        await prisma.$queryRaw`SELECT 1`;
-        healthCheck.database.connected = true;
+// Metrics endpoint (protected in production)
+app.get('/api/metrics', metricsEndpoint);
 
-        // Test 2: Read operation
-        const userCount = await prisma.user.count();
-        healthCheck.database.readable = true;
-        healthCheck.database.details.userCount = Number(userCount);
+// Production-only database health check endpoint with authentication
+if (process.env.NODE_ENV !== 'production') {
+    app.get('/api/debug/database-health', async (req, res) => {
+        const healthCheck = {
+            database: {
+                connected: false,
+                readable: false,
+                writable: false,
+                error: null as string | null,
+                details: {} as any
+            },
+            timestamp: new Date().toISOString()
+        };
 
-        // Test 3: Check tables exist
-        const tables = await prisma.$queryRaw`
-            SELECT table_name 
-            FROM information_schema.tables 
-            WHERE table_schema = 'public' 
-            LIMIT 5
-        `;
-        healthCheck.database.details.tables = tables;
+        try {
+            // Test 1: Basic connectivity
+            await prisma.$queryRaw`SELECT 1`;
+            healthCheck.database.connected = true;
 
-        // Test 4: Connection pool stats
-        const poolStats = await prisma.$queryRaw`
-            SELECT count(*) as connection_count 
-            FROM pg_stat_activity 
-            WHERE datname = current_database()
-        ` as any[];
-        // Convert BigInt to number for JSON serialization
-        healthCheck.database.details.activeConnections = poolStats.map((row: any) => ({
-            connection_count: Number(row.connection_count)
-        }));
+            // Test 2: Read operation
+            const userCount = await prisma.user.count();
+            healthCheck.database.readable = true;
+            healthCheck.database.details.userCount = Number(userCount);
 
-        // Mark as fully healthy
-        healthCheck.database.writable = true; // We'll assume writable if readable
-        
-    } catch (error: any) {
-        healthCheck.database.error = error.message;
-        logger.error('Database health check failed:', error);
-    }
+            // Test 3: Check tables exist
+            const tables = await prisma.$queryRaw`
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'public' 
+                LIMIT 5
+            `;
+            healthCheck.database.details.tables = tables;
 
-    res.json(serializeBigInt(healthCheck));
-});
+            // Test 4: Connection pool stats
+            const poolStats = await prisma.$queryRaw`
+                SELECT count(*) as connection_count 
+                FROM pg_stat_activity 
+                WHERE datname = current_database()
+            ` as any[];
+            // Convert BigInt to number for JSON serialization
+            healthCheck.database.details.activeConnections = poolStats.map((row: any) => ({
+                connection_count: Number(row.connection_count)
+            }));
 
-// Debug endpoint to check OAuth configuration
-app.get('/api/debug/oauth-config', (req, res) => {
-    // Get all env var names that might be OAuth related
-    const envVarNames = Object.keys(process.env);
-    const oauthRelatedVars = envVarNames.filter(name => 
-        name.includes('GOOGLE') || 
-        name.includes('GITHUB') || 
-        name.includes('POCKET') || 
-        name.includes('CLIENT') ||
-        name.includes('SECRET') ||
-        name.includes('OAUTH') ||
-        name.includes('AUTH')
-    );
-    
-    res.json({
-        googleOAuth: {
-            hasClientId: !!process.env.GOOGLE_CLIENT_ID,
-            hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
-            redirectUri: process.env.GOOGLE_REDIRECT_URI || 'not set'
-        },
-        githubOAuth: {
-            hasClientId: !!process.env.GITHUB_CLIENT_ID,
-            hasClientSecret: !!process.env.GITHUB_CLIENT_SECRET,
-            redirectUri: process.env.GITHUB_REDIRECT_URI || 'not set'
-        },
-        pocketOAuth: {
-            hasConsumerKey: !!process.env.POCKET_CONSUMER_KEY,
-            redirectUri: process.env.POCKET_REDIRECT_URI || 'not set'
-        },
-        environment: process.env.NODE_ENV,
-        totalEnvVars: Object.keys(process.env).length,
-        oauthRelatedVarNames: oauthRelatedVars,
-        // Check for common Railway vars
-        hasDatabase: !!process.env.DATABASE_URL,
-        hasJwtSecret: !!process.env.JWT_SECRET,
-        port: process.env.PORT
+            // Mark as fully healthy
+            healthCheck.database.writable = true; // We'll assume writable if readable
+            
+        } catch (error: any) {
+            healthCheck.database.error = error.message;
+            logger.error('Database health check failed:', error);
+        }
+
+        res.json(serializeBigInt(healthCheck));
     });
-});
+}
+
+// Debug endpoint to check OAuth configuration - disabled in production
+if (process.env.NODE_ENV !== 'production') {
+    app.get('/api/debug/oauth-config', (req, res) => {
+        // Get all env var names that might be OAuth related
+        const envVarNames = Object.keys(process.env);
+        const oauthRelatedVars = envVarNames.filter(name => 
+            name.includes('GOOGLE') || 
+            name.includes('GITHUB') || 
+            name.includes('POCKET') || 
+            name.includes('CLIENT') ||
+            name.includes('SECRET') ||
+            name.includes('OAUTH') ||
+            name.includes('AUTH')
+        );
+        
+        res.json({
+            googleOAuth: {
+                hasClientId: !!process.env.GOOGLE_CLIENT_ID,
+                hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+                redirectUri: process.env.GOOGLE_REDIRECT_URI || 'not set'
+            },
+            githubOAuth: {
+                hasClientId: !!process.env.GITHUB_CLIENT_ID,
+                hasClientSecret: !!process.env.GITHUB_CLIENT_SECRET,
+                redirectUri: process.env.GITHUB_REDIRECT_URI || 'not set'
+            },
+            pocketOAuth: {
+                hasConsumerKey: !!process.env.POCKET_CONSUMER_KEY,
+                redirectUri: process.env.POCKET_REDIRECT_URI || 'not set'
+            },
+            environment: process.env.NODE_ENV,
+            totalEnvVars: Object.keys(process.env).length,
+            oauthRelatedVarNames: oauthRelatedVars,
+            // Check for common Railway vars
+            hasDatabase: !!process.env.DATABASE_URL,
+            hasJwtSecret: !!process.env.JWT_SECRET,
+            port: process.env.PORT
+        });
+    });
+}
 
 // API routes
 app.use('/api/auth', authRoutes);
@@ -253,6 +273,9 @@ app.use('*', (req, res) => {
         message: `Route ${req.originalUrl} not found`
     });
 });
+
+// Error tracking middleware
+app.use(errorTracking);
 
 // Error handling middleware (must be last)
 app.use(errorHandler);
