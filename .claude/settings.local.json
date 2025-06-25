@@ -56,7 +56,12 @@
       "Bash(./scripts/railway-update-complete.sh:*)",
       "WebFetch(domain:docs.railway.com)",
       "Bash(cd ../desktop)",
-      "Bash(grep -n \"app.on.*ready\\|whenReady\\|createMainWindow()\" src/main/main.ts)"
+      "Bash(grep -n \"app.on.*ready\\|whenReady\\|createMainWindow()\" src/main/main.ts)",
+      "Bash(cd /Users/nileshkumar/gh/article_saver/desktop)",
+      "Bash(./scripts/prepare-release.sh)",
+      "Bash(npm run dist:*)",
+      "Bash(npm ls:*)",
+      "Bash(git tag:*)"
     ],
     "deny": []
   }
