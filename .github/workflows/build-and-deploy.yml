@@ -23,10 +23,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
       
-      - name: Install dependencies
-        run: npm run install:all
+      - name: Install all dependencies
+        run: |
+          # Use npm install instead of ci since we don't have package-lock.json files
+          npm install
+          cd backend && npm install
+          cd ../desktop && npm install
       
       - name: Run linter
         run: |
@@ -92,10 +95,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
       
-      - name: Install dependencies
-        run: npm run install:all
+      - name: Install all dependencies
+        run: |
+          # Use npm install instead of ci since we don't have package-lock.json files
+          npm install
+          cd backend && npm install
+          cd ../desktop && npm install
       
       - name: Setup desktop build environment
         run: |
