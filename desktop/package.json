@@ -1,7 +1,7 @@
 {
     "name": "article-saver-desktop",
     "productName": "Article Saver",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Desktop application for Article Saver",
     "author": "Article Saver Team",
     "main": "./dist/main/desktop/src/main/main.js",
