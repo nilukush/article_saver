@@ -250,6 +250,7 @@ app.listen(PORT, () => {
     logger.info(`🚀 Article Saver API server running on port ${PORT}`);
     logger.info(`📊 Health check: http://localhost:${PORT}/health`);
     logger.info(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    logger.info(`🔄 Version: 2.0.0 - BigInt fix + Trust proxy enabled`);
     
     // Debug: Check OAuth configuration
     logger.info(`🔐 OAuth Configuration Check:`, {
