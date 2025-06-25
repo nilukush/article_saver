@@ -89,7 +89,6 @@
             "!**/{appveyor.yml,.travis.yml,circle.yml}",
             "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
         ],
-        "electronDist": "../node_modules/electron/dist",
         "publish": {
             "provider": "github",
             "owner": "nilukush",
