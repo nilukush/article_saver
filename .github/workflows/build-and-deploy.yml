@@ -16,20 +16,29 @@ jobs:
   test:
     name: Test and Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Setup CI environment
+        run: |
+          # Copy CI-specific npmrc
+          cp .github/.npmrc .npmrc
+          # Set npm config
+          npm config set fund false
+          npm config set audit false
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: '18'  # Use stable version instead of 20
       
       - name: Install all dependencies
         run: |
-          # Use npm install instead of ci since we don't have package-lock.json files
-          npm install
-          cd backend && npm install
-          cd ../desktop && npm install
+          # Install with specific flags to avoid issues
+          npm install --no-audit --no-fund --ignore-scripts
+          cd backend && npm install --no-audit --no-fund
+          cd ../desktop && npm install --no-audit --no-fund --ignore-scripts
       
       - name: Run linter
         run: |
@@ -94,19 +103,19 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: '18'  # Use stable version instead of 20
       
       - name: Install all dependencies
         run: |
-          # Use npm install instead of ci since we don't have package-lock.json files
-          npm install
-          cd backend && npm install
-          cd ../desktop && npm install
+          # Install with specific flags to avoid issues
+          npm install --no-audit --no-fund --ignore-scripts
+          cd backend && npm install --no-audit --no-fund
+          cd ../desktop && npm install --no-audit --no-fund --ignore-scripts
       
       - name: Setup desktop build environment
         run: |
           cd desktop
-          npm install electron@28.3.3 --save-dev --force
+          # Run postinstall if it exists
           npm run postinstall || true
       
       - name: Build TypeScript
