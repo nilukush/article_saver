@@ -38,7 +38,8 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction): 
     // Log request at debug level for development visibility
     logger.debug('HTTP Request', {
         method: req.method,
-        url: req.url,
+        url: req.originalUrl || req.url,
+        path: req.path,
         ip: req.ip
     });
 
@@ -49,7 +50,8 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction): 
         
         logger[logLevel as keyof typeof logger]('HTTP Response', {
             method: req.method,
-            url: req.url,
+            url: req.originalUrl || req.url,
+            path: req.path,
             statusCode: res.statusCode,
             duration: `${duration}ms`
         });
