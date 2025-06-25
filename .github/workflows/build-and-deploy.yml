@@ -33,14 +33,21 @@ jobs:
           # Update npm to specific version for stability
           npm install -g npm@${{ env.NPM_VERSION }}
           
-          # Set memory limits
+          # Set memory limits and timeout configurations
           echo "NODE_OPTIONS=--max-old-space-size=6144" >> $GITHUB_ENV
+          echo "SEGMENT_DOWNLOAD_TIMEOUT_MINS=15" >> $GITHUB_ENV
           
-          # Configure npm for CI
+          # Configure npm for CI with extended timeouts
           npm config set audit false
           npm config set fund false
           npm config set progress false
           npm config set loglevel error
+          npm config set fetch-retries 5
+          npm config set fetch-retry-mintimeout 20000
+          npm config set fetch-retry-maxtimeout 120000
+          npm config set cache-min 3600
+          npm config set prefer-offline true
+          npm config set network-timeout 300000
           
           # Ensure no global workspaces setting
           npm config delete workspaces --location=global || true
@@ -54,30 +61,92 @@ jobs:
             npm install --package-lock-only --workspaces-update=false
           fi
       
-      - name: Cache dependencies
+      - name: Get npm cache directory
+        id: npm-cache-dir
+        run: echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
+      
+      - name: Cache npm dependencies
         uses: actions/cache@v3
         id: cache
         with:
-          path: |
-            ~/.npm
-            node_modules
-            backend/node_modules
-            desktop/node_modules
-            shared/node_modules
-          key: ${{ runner.os }}-node-${{ env.NODE_VERSION }}-${{ hashFiles('**/package.json') }}
+          path: ${{ steps.npm-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-npm-${{ env.NODE_VERSION }}-${{ hashFiles('**/package-lock.json', '**/package.json') }}
           restore-keys: |
-            ${{ runner.os }}-node-${{ env.NODE_VERSION }}-
-            ${{ runner.os }}-node-
+            ${{ runner.os }}-npm-${{ env.NODE_VERSION }}-
+            ${{ runner.os }}-npm-
       
+      - name: Verify npm cache
+        run: |
+          # Always verify npm cache to prevent corruption issues
+          echo "Verifying npm cache..."
+          npm cache verify || {
+            echo "Cache verification failed, cleaning..."
+            npm cache clean --force
+          }
+          
       - name: Install dependencies
-        if: steps.cache.outputs.cache-hit != 'true'
+        timeout-minutes: 25
         run: |
           echo "Installing dependencies..."
-          # Install all workspace dependencies at once
-          npm install --no-audit --no-fund --prefer-offline
+          echo "Memory info:"
+          free -h || true
+          echo "Disk space:"
+          df -h || true
+          
+          # Clear any potential lock files
+          rm -f /home/runner/.npm/_locks/* || true
+          
+          # First attempt - use the project's install:all script
+          echo "Using npm run install:all..."
+          npm run install:all || {
+            echo "install:all failed, trying alternative approach..."
+            
+            # Alternative approach - install with reduced concurrency
+            export JOBS=1
+            
+            # Install root first
+            echo "Installing root dependencies with reduced concurrency..."
+            npm install --no-audit --no-fund --no-save --legacy-peer-deps --maxsockets=15 || {
+              echo "Root install failed, clearing everything and retrying..."
+              rm -rf node_modules package-lock.json ~/.npm/_locks
+              npm cache clean --force
+              npm install --no-audit --no-fund --no-save --legacy-peer-deps --maxsockets=10
+            }
+            
+            # Install workspaces sequentially with delays
+            echo "Installing backend dependencies..."
+            cd backend
+            sleep 2
+            npm install --no-audit --no-fund --no-save --legacy-peer-deps --maxsockets=15 || {
+              echo "Backend install failed, clearing and retrying..."
+              rm -rf node_modules package-lock.json
+              npm cache verify
+              npm install --no-audit --no-fund --no-save --legacy-peer-deps --maxsockets=10
+            }
+            
+            echo "Installing desktop dependencies..."
+            cd ../desktop
+            sleep 2
+            npm install --no-audit --no-fund --no-save --legacy-peer-deps --maxsockets=15 || {
+              echo "Desktop install failed, clearing and retrying..."
+              rm -rf node_modules package-lock.json
+              npm cache verify
+              npm install --no-audit --no-fund --no-save --legacy-peer-deps --maxsockets=10
+            }
+            
+            cd ..
+          }
+          
+          echo "All dependencies installed successfully"
+          echo "Final disk space:"
+          df -h || true
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: 1
           ELECTRON_BUILDER_CACHE: ~/.cache/electron-builder
+          FORCE_COLOR: 0
+          HUSKY: 0
+          NODE_NO_WARNINGS: 1
+          JOBS: 1
       
       - name: Run linter
         run: |
@@ -149,35 +218,63 @@ jobs:
           # Update npm
           npm install -g npm@${{ env.NPM_VERSION }}
           
-          # Set memory limits
+          # Set memory limits and timeout configurations
           echo "NODE_OPTIONS=--max-old-space-size=6144" >> $GITHUB_ENV
+          echo "SEGMENT_DOWNLOAD_TIMEOUT_MINS=15" >> $GITHUB_ENV
           
-          # Configure npm
+          # Configure npm with extended timeouts
           npm config set audit false
           npm config set fund false
           npm config set progress false
+          npm config set fetch-retries 5
+          npm config set fetch-retry-mintimeout 20000
+          npm config set fetch-retry-maxtimeout 120000
+          npm config set cache-min 3600
+          npm config set prefer-offline true
+          npm config set network-timeout 300000
+      
+      - name: Get npm cache directory
+        id: npm-cache-dir
+        run: echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
       
       - name: Cache dependencies
         uses: actions/cache@v3
         with:
           path: |
-            ~/.npm
-            node_modules
-            backend/node_modules
-            desktop/node_modules
-            shared/node_modules
+            ${{ steps.npm-cache-dir.outputs.dir }}
             ~/.cache/electron
             ~/.cache/electron-builder
-          key: ${{ runner.os }}-build-${{ env.NODE_VERSION }}-${{ hashFiles('**/package.json') }}
+          key: ${{ runner.os }}-build-${{ env.NODE_VERSION }}-${{ hashFiles('**/package-lock.json', '**/package.json') }}
           restore-keys: |
             ${{ runner.os }}-build-${{ env.NODE_VERSION }}-
             ${{ runner.os }}-build-
       
-      - name: Install dependencies
+      - name: Clear npm cache if needed
         run: |
-          npm install --no-audit --no-fund --prefer-offline
+          # Clear npm cache to prevent corruption issues
+          npm cache verify || npm cache clean --force
+          
+      - name: Install dependencies
+        timeout-minutes: 15
+        run: |
+          # Use npm ci for faster, reliable installs
+          if [ -f "package-lock.json" ]; then
+            npm ci --no-audit --no-fund --prefer-offline || {
+              echo "npm ci failed, clearing cache and retrying..."
+              npm cache clean --force
+              npm ci --no-audit --no-fund
+            }
+          else
+            npm install --no-audit --no-fund --prefer-offline || {
+              echo "npm install failed, clearing cache and retrying..."
+              npm cache clean --force
+              npm install --no-audit --no-fund
+            }
+          fi
         env:
           ELECTRON_BUILDER_CACHE: ~/.cache/electron-builder
+          FORCE_COLOR: 0
+          HUSKY: 0
       
       - name: Setup desktop build environment
         run: |

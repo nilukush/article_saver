@@ -67,7 +67,8 @@
       "Bash(npx eslint:*)",
       "Bash(npm run lint:*)",
       "Bash(npm config get:*)",
-      "Bash(npm config:*)"
+      "Bash(npm config:*)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": []
   }
