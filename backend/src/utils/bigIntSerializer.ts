@@ -18,7 +18,7 @@ export function serializeBigInt(obj: any): any {
   if (typeof obj === 'object') {
     const result: any = {};
     for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
         result[key] = serializeBigInt(obj[key]);
       }
     }

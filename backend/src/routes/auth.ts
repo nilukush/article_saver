@@ -6,6 +6,7 @@ import { prisma } from '../database';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { signJWT, handleOAuthLogin } from '../utils/authHelpers';
 import { handleEnterpriseOAuthLogin } from '../utils/enterpriseAccountLinking';
+import { oauthRateLimiter, oauthBotProtection, oauthSecurityHeaders } from '../middleware/oauthProtection';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -262,12 +263,40 @@ router.get('/google/url', asyncHandler(async (req: Request, res: Response) => {
     });
 }));
 
-// Google OAuth callback endpoint
-router.get('/google/callback', asyncHandler(async (req: Request, res: Response) => {
-    const { code, state } = req.query;
+// Google OAuth callback endpoint with bot protection
+router.get('/google/callback', 
+    oauthSecurityHeaders,
+    oauthRateLimiter,
+    oauthBotProtection,
+    asyncHandler(async (req: Request, res: Response) => {
+    const { code, state, error } = req.query;
 
-    if (!code) {
-        throw createError('Authorization code not provided', 400);
+    // Handle OAuth errors (user denied access, etc.)
+    if (error) {
+        logger.info('OAuth error response', { error, state });
+        const electronPort = state ? (state as string).split('_')[1] : null;
+        const redirectUrl = electronPort 
+            ? `http://localhost:${electronPort}/auth/callback?error=${encodeURIComponent(error as string)}`
+            : `/auth/error?error=${encodeURIComponent(error as string)}`;
+        return res.redirect(redirectUrl);
+    }
+
+    // Validate required parameters
+    if (!code || !state) {
+        logger.info('OAuth callback missing parameters', { 
+            hasCode: !!code, 
+            hasState: !!state,
+            userAgent: req.get('user-agent'),
+            ip: req.ip 
+        });
+        // Don't throw error for bots/scanners, just return 404
+        return res.status(404).send('Not Found');
+    }
+
+    // Validate state format
+    if (typeof state !== 'string' || !state.includes('_')) {
+        logger.warn('Invalid OAuth state format', { state });
+        return res.status(404).send('Not Found');
     }
 
     // Extract Electron port from state parameter
@@ -352,12 +381,43 @@ router.get('/github/url', asyncHandler(async (req: Request, res: Response) => {
     });
 }));
 
-// GitHub OAuth callback endpoint
-router.get('/github/callback', asyncHandler(async (req: Request, res: Response) => {
-    const { code, state } = req.query;
+// GitHub OAuth callback endpoint with bot protection
+router.get('/github/callback', 
+    oauthSecurityHeaders,
+    oauthRateLimiter,
+    oauthBotProtection,
+    asyncHandler(async (req: Request, res: Response) => {
+    const { code, state, error } = req.query;
 
-    if (!code) {
-        throw createError('Authorization code not provided', 400);
+    // Handle OAuth errors (user denied access, etc.)
+    if (error) {
+        logger.info('GitHub OAuth error response', { error, state });
+        const stateStr = state as string;
+        const electronPort = stateStr && stateStr.startsWith('electron_') 
+            ? stateStr.split('_')[1] 
+            : null;
+        const redirectUrl = electronPort 
+            ? `http://localhost:${electronPort}/auth/callback?error=${encodeURIComponent(error as string)}`
+            : `/auth/error?error=${encodeURIComponent(error as string)}`;
+        return res.redirect(redirectUrl);
+    }
+
+    // Validate required parameters
+    if (!code || !state) {
+        logger.info('GitHub OAuth callback missing parameters', { 
+            hasCode: !!code, 
+            hasState: !!state,
+            userAgent: req.get('user-agent'),
+            ip: req.ip 
+        });
+        // Don't throw error for bots/scanners, just return 404
+        return res.status(404).send('Not Found');
+    }
+
+    // Validate state format for GitHub
+    if (typeof state !== 'string' || !state.startsWith('electron_')) {
+        logger.warn('Invalid GitHub OAuth state format', { state });
+        return res.status(404).send('Not Found');
     }
 
     // Exchange code for access token

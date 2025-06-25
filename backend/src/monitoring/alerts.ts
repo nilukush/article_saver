@@ -70,6 +70,21 @@ class MetricsCollector {
 
     // Track errors
     trackError(error: Error, context: any) {
+        // Skip tracking for OAuth bot scans (404 responses)
+        if (context.statusCode === 404 && 
+            (context.path?.includes('/auth/google/callback') || 
+             context.path?.includes('/auth/github/callback'))) {
+            logger.debug('Skipping error tracking for OAuth bot scan', context);
+            return;
+        }
+
+        // Skip tracking for "Authorization code not provided" from bots
+        if (error.message === 'Authorization code not provided' && 
+            context.userAgent?.match(/bot|crawler|spider|scan|slurp|curl|wget|python|java|go-http-client/i)) {
+            logger.debug('Skipping error tracking for bot OAuth attempt', context);
+            return;
+        }
+
         const now = Date.now();
         const windowStart = now - alertConfig.errorRate.windowSize;
 

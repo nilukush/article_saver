@@ -12,7 +12,8 @@
         "db:push": "prisma db push",
         "db:migrate": "prisma migrate dev",
         "db:studio": "prisma studio",
-        "lint": "eslint . --ext .ts,.tsx --max-warnings 0 || true",
+        "lint": "eslint . --ext .ts,.tsx",
+        "lint:ci": "eslint . --ext .ts,.tsx || true",
         "type-check": "tsc --noEmit || true"
     },
     "keywords": [

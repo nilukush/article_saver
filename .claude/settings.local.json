@@ -63,7 +63,9 @@
       "Bash(npm ls:*)",
       "Bash(git tag:*)",
       "WebFetch(domain:articlesaver-production.up.railway.app)",
-      "Bash(npm run lint)"
+      "Bash(npm run lint)",
+      "Bash(npx eslint:*)",
+      "Bash(npm run lint:*)"
     ],
     "deny": []
   }
