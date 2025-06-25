@@ -36,6 +36,9 @@ console.log('=== END DEBUG ===');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust proxy for Railway deployment
+app.set('trust proxy', true);
+
 // Security middleware with enterprise configuration
 app.use(helmet({
     contentSecurityPolicy: {
@@ -145,7 +148,7 @@ app.get('/api/debug/database-health', async (req, res) => {
         // Test 2: Read operation
         const userCount = await prisma.user.count();
         healthCheck.database.readable = true;
-        healthCheck.database.details.userCount = userCount;
+        healthCheck.database.details.userCount = Number(userCount);
 
         // Test 3: Check tables exist
         const tables = await prisma.$queryRaw`
@@ -161,8 +164,11 @@ app.get('/api/debug/database-health', async (req, res) => {
             SELECT count(*) as connection_count 
             FROM pg_stat_activity 
             WHERE datname = current_database()
-        `;
-        healthCheck.database.details.activeConnections = poolStats;
+        ` as any[];
+        // Convert BigInt to number for JSON serialization
+        healthCheck.database.details.activeConnections = poolStats.map((row: any) => ({
+            connection_count: Number(row.connection_count)
+        }));
 
         // Mark as fully healthy
         healthCheck.database.writable = true; // We'll assume writable if readable
