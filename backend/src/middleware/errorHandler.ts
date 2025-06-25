@@ -42,13 +42,14 @@ export const createError = (message: string, statusCode: number = 500): ApiError
     return error;
 };
 
-type AsyncRequestHandler = (
-    req: Request,
+type AsyncRequestHandler<T = Request> = (
+    req: T,
     res: Response,
     next: NextFunction
 ) => Promise<void | Response>;
 
-export const asyncHandler = (fn: AsyncRequestHandler) => 
-    (req: Request, res: Response, next: NextFunction): void => {
+export function asyncHandler<T = Request>(fn: AsyncRequestHandler<T>) {
+    return (req: T, res: Response, next: NextFunction): void => {
         Promise.resolve(fn(req, res, next)).catch(next);
     };
+}

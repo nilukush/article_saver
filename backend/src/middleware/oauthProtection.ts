@@ -36,7 +36,7 @@ export const oauthRateLimiter = rateLimit({
 });
 
 // Bot detection middleware for OAuth callbacks
-export const oauthBotProtection = (req: Request, res: Response, next: NextFunction) => {
+export const oauthBotProtection = (req: Request, res: Response, next: NextFunction): void => {
     const userAgent = req.get('user-agent') || '';
     const { code, state } = req.query;
     
@@ -72,7 +72,8 @@ export const oauthBotProtection = (req: Request, res: Response, next: NextFuncti
         
         // For bots, return 404 immediately without processing
         if (isBot && (!code || !state)) {
-            return res.status(404).send('Not Found');
+            res.status(404).send('Not Found');
+            return;
         }
     }
     

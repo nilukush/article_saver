@@ -101,8 +101,9 @@ router.get('/linked', authenticateEnterpriseToken, resolveLinkedAccounts, asyncH
 }));
 
 // Initiate account linking
-router.post('/link', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { userId } = req.user;
+router.post('/link', authenticateToken, asyncHandler(async (req, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    const { userId } = authReq.user;
     const { targetEmail, targetProvider } = req.body;
 
     if (!targetEmail || !targetProvider) {
@@ -221,9 +222,10 @@ router.post('/link', authenticateToken, asyncHandler(async (req: AuthenticatedRe
 }));
 
 // Verify account linking
-router.post('/verify', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+router.post('/verify', authenticateToken, asyncHandler(async (req, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     const { linkId, verificationCode } = req.body;
-    const { userId } = req.user;
+    const { userId } = authReq.user;
 
     if (!linkId || !verificationCode) {
         throw createError('Link ID and verification code are required', 400);
@@ -507,8 +509,9 @@ router.post('/oauth/link', asyncHandler(async (req: any, res: Response) => {
 }));
 
 // Unlink accounts
-router.delete('/unlink/:linkId', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { userId } = req.user;
+router.delete('/unlink/:linkId', authenticateToken, asyncHandler(async (req, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    const { userId } = authReq.user;
     const { linkId } = req.params;
 
     const linkedAccount = await prisma.linkedAccount.findUnique({
