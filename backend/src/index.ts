@@ -135,6 +135,17 @@ app.use(requestLogger);
 // Response time tracking
 app.use(responseTimeTracking);
 
+// Robots.txt to discourage bots
+app.get('/robots.txt', (req, res) => {
+    res.type('text/plain');
+    res.send(`User-agent: *
+Disallow: /api/auth/
+Disallow: /api/pocket/
+Disallow: /api/sync/
+Disallow: /api/account-linking/
+Crawl-delay: 10`);
+});
+
 // Health check endpoints
 app.get('/health', (req, res) => {
     res.json({
@@ -194,11 +205,11 @@ if (process.env.NODE_ENV !== 'production') {
             healthCheck.database.details.tables = tables;
 
             // Test 4: Connection pool stats
-            const poolStats = await prisma.$queryRaw`
+            const poolStats = await prisma.$queryRaw<Array<{ connection_count: bigint }>>`
                 SELECT count(*) as connection_count 
                 FROM pg_stat_activity 
                 WHERE datname = current_database()
-            ` as any[];
+            `;
             // Convert BigInt to number for JSON serialization
             healthCheck.database.details.activeConnections = poolStats.map((row: any) => ({
                 connection_count: Number(row.connection_count)

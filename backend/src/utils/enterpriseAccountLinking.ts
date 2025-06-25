@@ -231,17 +231,12 @@ export async function handleEnterpriseOAuthLogin(
         
         // Since we're using getAllLinkedUserIds which handles transitivity correctly,
         // we can now return success in all cases for existing provider accounts
-        if (true) {
-            return {
-                type: 'success',
-                user: existingProviderAccount,
-                token,
-                redirectUrl: buildRedirectUrl(electronPort, provider, { token, email })
-            };
-        }
-        
-        // If we have other providers but no verified links, continue to linking flow below
-        logger.info('ENTERPRISE AUTH: Existing provider account found but needs linking with other providers');
+        return {
+            type: 'success',
+            user: existingProviderAccount,
+            token,
+            redirectUrl: buildRedirectUrl(electronPort, provider, { token, email })
+        };
     }
     
     logger.info('ENTERPRISE AUTH: Found existing accounts with email', { 
