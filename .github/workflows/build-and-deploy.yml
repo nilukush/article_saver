@@ -26,7 +26,7 @@ jobs:
           cache: 'npm'
       
       - name: Install dependencies
-        run: npm run install:all
+        run: npm ci
       
       - name: Run linter
         run: |
@@ -95,7 +95,20 @@ jobs:
           cache: 'npm'
       
       - name: Install dependencies
-        run: npm run install:all
+        run: npm ci
+      
+      - name: Setup desktop build environment
+        run: |
+          cd desktop
+          npm install electron@28.3.3 --save-dev --force
+          npm run postinstall || true
+      
+      - name: Build TypeScript
+        run: |
+          cd backend
+          npm run build
+          cd ../desktop
+          npm run build
       
       - name: Build desktop app
         env:
