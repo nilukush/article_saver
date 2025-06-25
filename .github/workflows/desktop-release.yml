@@ -1,0 +1,92 @@
+name: Desktop App Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  release:
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v4
+        
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+          
+      - name: Install desktop dependencies
+        run: |
+          cd desktop
+          npm ci
+          
+      - name: Build backend TypeScript
+        run: |
+          cd backend
+          npm run build
+          
+      - name: Build desktop TypeScript
+        run: |
+          cd desktop
+          npm run build:prod
+          
+      - name: Build/release Electron app
+        uses: samuelmeuli/action-electron-builder@v1
+        with:
+          # GitHub token, automatically provided to the action
+          github_token: ${{ secrets.github_token }}
+          
+          # If the commit is tagged with a version (e.g. "v1.0.0"),
+          # release the app after building
+          release: ${{ startsWith(github.ref, 'refs/tags/v') }}
+          
+          # Work in desktop directory
+          package_root: desktop
+          
+          # Build arguments
+          args: "--publish always"
+          
+        env:
+          # macOS code signing (optional for now)
+          # CSC_LINK: ${{ secrets.MAC_CERTS }}
+          # CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
+          # APPLE_ID: ${{ secrets.APPLE_ID }}
+          # APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          
+          # Windows code signing (optional for now)
+          # CSC_LINK: ${{ secrets.WINDOWS_CERTS }}
+          # CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERTS_PASSWORD }}
+          
+          # Required for auto-updater
+          GH_TOKEN: ${{ secrets.github_token }}
+          
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: ${{ matrix.os }}-dist
+          path: |
+            desktop/release/*.exe
+            desktop/release/*.dmg
+            desktop/release/*.AppImage
+            desktop/release/*.deb
+            desktop/release/*.snap

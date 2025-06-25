@@ -54,7 +54,9 @@
       "Bash(./scripts/update-railway-oauth.sh:*)",
       "Bash(git rm:*)",
       "Bash(./scripts/railway-update-complete.sh:*)",
-      "WebFetch(domain:docs.railway.com)"
+      "WebFetch(domain:docs.railway.com)",
+      "Bash(cd ../desktop)",
+      "Bash(grep -n \"app.on.*ready\\|whenReady\\|createMainWindow()\" src/main/main.ts)"
     ],
     "deny": []
   }
