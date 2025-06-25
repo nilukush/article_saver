@@ -7,6 +7,7 @@
         "dev": "nodemon src/index.ts",
         "build": "tsc",
         "start": "node dist/index.js",
+        "debug:db": "ts-node src/debug-db.ts",
         "db:generate": "prisma generate",
         "db:push": "prisma db push",
         "db:migrate": "prisma migrate dev",
@@ -36,6 +37,7 @@
         "jsdom": "^23.2.0",
         "jsonwebtoken": "^9.0.2",
         "nodemailer": "^7.0.3",
+        "pg": "^8.16.2",
         "uuid": "^9.0.1",
         "winston": "^3.17.0"
     },
