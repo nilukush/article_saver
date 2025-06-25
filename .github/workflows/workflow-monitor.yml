@@ -1,0 +1,263 @@
+name: Workflow Monitor
+
+on:
+  workflow_run:
+    workflows: ["Build and Deploy"]
+    types:
+      - completed
+      - requested
+      - in_progress
+  schedule:
+    # Run health check every hour
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+env:
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+  DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+  DATADOG_APP_KEY: ${{ secrets.DATADOG_APP_KEY }}
+
+jobs:
+  monitor-workflow:
+    name: Monitor Workflow Status
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup monitoring environment
+        run: |
+          # Install monitoring tools
+          pip install datadog requests
+          
+      - name: Get workflow run details
+        id: workflow-details
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get the latest workflow run details
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            RUN_ID="${{ github.event.workflow_run.id }}"
+            WORKFLOW_NAME="${{ github.event.workflow_run.name }}"
+            STATUS="${{ github.event.workflow_run.status }}"
+            CONCLUSION="${{ github.event.workflow_run.conclusion }}"
+          else
+            # For scheduled runs, get the latest run
+            RESPONSE=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/runs?per_page=1")
+            RUN_ID=$(echo $RESPONSE | jq -r '.workflow_runs[0].id')
+            WORKFLOW_NAME=$(echo $RESPONSE | jq -r '.workflow_runs[0].name')
+            STATUS=$(echo $RESPONSE | jq -r '.workflow_runs[0].status')
+            CONCLUSION=$(echo $RESPONSE | jq -r '.workflow_runs[0].conclusion')
+          fi
+          
+          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+          echo "workflow_name=$WORKFLOW_NAME" >> $GITHUB_OUTPUT
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          echo "conclusion=$CONCLUSION" >> $GITHUB_OUTPUT
+          
+      - name: Collect workflow metrics
+        id: metrics
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RUN_ID="${{ steps.workflow-details.outputs.run_id }}"
+          
+          # Get workflow timing data
+          TIMING=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN_ID/timing")
+          
+          # Extract metrics
+          TOTAL_MS=$(echo $TIMING | jq '.run_duration_ms // 0')
+          BILLABLE_MS=$(echo $TIMING | jq '.billable.UBUNTU.total_ms // 0')
+          
+          # Get job details
+          JOBS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN_ID/jobs")
+          
+          TOTAL_JOBS=$(echo $JOBS | jq '.total_count')
+          FAILED_JOBS=$(echo $JOBS | jq '[.jobs[] | select(.conclusion == "failure")] | length')
+          
+          echo "total_duration_seconds=$((TOTAL_MS / 1000))" >> $GITHUB_OUTPUT
+          echo "billable_seconds=$((BILLABLE_MS / 1000))" >> $GITHUB_OUTPUT
+          echo "total_jobs=$TOTAL_JOBS" >> $GITHUB_OUTPUT
+          echo "failed_jobs=$FAILED_JOBS" >> $GITHUB_OUTPUT
+          
+      - name: Send metrics to Datadog
+        if: env.DATADOG_API_KEY != ''
+        run: |
+          python3 << 'EOF'
+          import os
+          from datadog import initialize, api
+          import time
+          
+          options = {
+              'api_key': os.environ['DATADOG_API_KEY'],
+              'app_key': os.environ.get('DATADOG_APP_KEY', '')
+          }
+          
+          initialize(**options)
+          
+          # Send metrics
+          metrics = [
+              {
+                  'metric': 'github.actions.workflow.duration',
+                  'points': [[time.time(), ${{ steps.metrics.outputs.total_duration_seconds }}]],
+                  'tags': [
+                      'workflow:${{ steps.workflow-details.outputs.workflow_name }}',
+                      'status:${{ steps.workflow-details.outputs.conclusion }}',
+                      'repository:${{ github.repository }}'
+                  ]
+              },
+              {
+                  'metric': 'github.actions.workflow.billable_time',
+                  'points': [[time.time(), ${{ steps.metrics.outputs.billable_seconds }}]],
+                  'tags': [
+                      'workflow:${{ steps.workflow-details.outputs.workflow_name }}',
+                      'repository:${{ github.repository }}'
+                  ]
+              },
+              {
+                  'metric': 'github.actions.workflow.failed_jobs',
+                  'points': [[time.time(), ${{ steps.metrics.outputs.failed_jobs }}]],
+                  'tags': [
+                      'workflow:${{ steps.workflow-details.outputs.workflow_name }}',
+                      'repository:${{ github.repository }}'
+                  ]
+              }
+          ]
+          
+          api.Metric.send(metrics)
+          
+          # Send event for failures
+          if '${{ steps.workflow-details.outputs.conclusion }}' == 'failure':
+              api.Event.create(
+                  title='GitHub Actions Workflow Failed',
+                  text=f'Workflow ${{ steps.workflow-details.outputs.workflow_name }} failed in ${{ github.repository }}',
+                  tags=['github_actions', 'failure'],
+                  alert_type='error'
+              )
+          EOF
+          
+      - name: Send Slack notification
+        if: env.SLACK_WEBHOOK != '' && (steps.workflow-details.outputs.conclusion == 'failure' || github.event_name == 'workflow_dispatch')
+        run: |
+          EMOJI="❌"
+          COLOR="danger"
+          if [ "${{ steps.workflow-details.outputs.conclusion }}" = "success" ]; then
+            EMOJI="✅"
+            COLOR="good"
+          elif [ "${{ steps.workflow-details.outputs.status }}" = "in_progress" ]; then
+            EMOJI="🔄"
+            COLOR="warning"
+          fi
+          
+          curl -X POST $SLACK_WEBHOOK \
+            -H 'Content-type: application/json' \
+            -d @- << EOF
+          {
+            "attachments": [{
+              "color": "$COLOR",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "$EMOJI GitHub Actions: ${{ steps.workflow-details.outputs.workflow_name }}"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Repository:*\n${{ github.repository }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Status:*\n${{ steps.workflow-details.outputs.conclusion || steps.workflow-details.outputs.status }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Duration:*\n${{ steps.metrics.outputs.total_duration_seconds }}s"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Failed Jobs:*\n${{ steps.metrics.outputs.failed_jobs }}/${{ steps.metrics.outputs.total_jobs }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Run"
+                      },
+                      "url": "https://github.com/${{ github.repository }}/actions/runs/${{ steps.workflow-details.outputs.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }]
+          }
+          EOF
+          
+  check-workflow-health:
+    name: Check Workflow Health
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Analyze workflow performance
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get last 50 workflow runs
+          RUNS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs?per_page=50")
+          
+          # Calculate success rate
+          TOTAL_RUNS=$(echo $RUNS | jq '.total_count')
+          SUCCESS_RUNS=$(echo $RUNS | jq '[.workflow_runs[] | select(.conclusion == "success")] | length')
+          FAILURE_RUNS=$(echo $RUNS | jq '[.workflow_runs[] | select(.conclusion == "failure")] | length')
+          
+          SUCCESS_RATE=$((SUCCESS_RUNS * 100 / (SUCCESS_RUNS + FAILURE_RUNS)))
+          
+          echo "## Workflow Health Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total Runs (last 50):** $TOTAL_RUNS" >> $GITHUB_STEP_SUMMARY
+          echo "- **Success Rate:** $SUCCESS_RATE%" >> $GITHUB_STEP_SUMMARY
+          echo "- **Failed Runs:** $FAILURE_RUNS" >> $GITHUB_STEP_SUMMARY
+          
+          # Alert if success rate is low
+          if [ $SUCCESS_RATE -lt 80 ]; then
+            echo "⚠️ **Warning:** Success rate is below 80%" >> $GITHUB_STEP_SUMMARY
+            
+            if [ -n "$SLACK_WEBHOOK" ]; then
+              curl -X POST $SLACK_WEBHOOK \
+                -H 'Content-type: application/json' \
+                -d "{\"text\": \"⚠️ GitHub Actions health alert: Success rate is $SUCCESS_RATE% for ${{ github.repository }}\"}"
+            fi
+          fi
+          
+      - name: Check for stuck workflows
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Check for workflows running longer than 2 hours
+          LONG_RUNNING=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs?status=in_progress" | \
+            jq -r '.workflow_runs[] | select((now - (.created_at | fromdateiso8601)) > 7200) | .id')
+          
+          if [ -n "$LONG_RUNNING" ]; then
+            echo "⚠️ **Long Running Workflows Detected:**" >> $GITHUB_STEP_SUMMARY
+            for RUN_ID in $LONG_RUNNING; do
+              echo "- Run ID: $RUN_ID" >> $GITHUB_STEP_SUMMARY
+            done
+          fi
