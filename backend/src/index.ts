@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { prisma } from './database';
 import logger from './utils/logger';
+import { configureBigIntSerialization, serializeBigInt } from './utils/bigIntSerializer';
 
 // Import routes
 import authRoutes from './routes/auth';
@@ -20,6 +21,9 @@ import { requestLogger } from './middleware/requestLogger';
 
 // Load environment variables
 dotenv.config();
+
+// Configure BigInt serialization
+configureBigIntSerialization();
 
 // Debug environment variables
 console.log('=== ENVIRONMENT DEBUG ===');
@@ -178,7 +182,7 @@ app.get('/api/debug/database-health', async (req, res) => {
         logger.error('Database health check failed:', error);
     }
 
-    res.json(healthCheck);
+    res.json(serializeBigInt(healthCheck));
 });
 
 // Debug endpoint to check OAuth configuration
