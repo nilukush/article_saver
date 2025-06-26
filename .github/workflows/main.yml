@@ -90,27 +90,12 @@ jobs:
           HUSKY: 0
           NX_DAEMON: false
         run: |
-          # Clear cache to prevent corruption issues
-          npm cache clean --force
-          
-          # Install all dependencies including workspaces
-          npm install --no-audit --no-fund || {
-            echo "npm install failed, trying with clean slate..."
-            rm -rf node_modules package-lock.json
-            rm -rf backend/node_modules desktop/node_modules
+          # Use npm ci for faster, more reliable installs
+          npm ci --no-audit --no-fund || {
+            echo "npm ci failed, falling back to npm install..."
+            npm cache clean --force
             npm install --no-audit --no-fund
           }
-          
-          # Verify installation
-          if [ ! -d "node_modules" ]; then
-            echo "ERROR: node_modules directory not created"
-            exit 1
-          fi
-          
-          if [ ! -d "desktop/node_modules" ]; then
-            echo "ERROR: desktop/node_modules not created"
-            exit 1
-          fi
       
       - name: Generate Prisma client
         env:

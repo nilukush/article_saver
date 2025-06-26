@@ -34,7 +34,6 @@
     "homepage": "https://github.com/nilukush/article_saver#readme",
     "workspaces": [
         "desktop",
-        "backend",
-        "shared"
+        "backend"
     ]
 }
