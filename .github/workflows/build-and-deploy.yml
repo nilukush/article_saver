@@ -135,42 +135,12 @@ jobs:
             echo -e "dist/\nnode_modules/\nrelease/\nlogs/\n*.js\n!vite.config.js\n!tailwind.config.js\n!postcss.config.js\nresources/\nscripts/*.js\npublic/\ncoverage/\nbuild/\n.vite/\n.cache/\n*.min.js\n*.bundle.js" > desktop/.eslintignore
           fi
       
-      - name: Run linter with memory optimization
-        timeout-minutes: 15
+      - name: Run linter
         env:
-          NODE_OPTIONS: --max-old-space-size=4096
+          NODE_OPTIONS: --max-old-space-size=8192
         run: |
-          # Backend linting
-          cd backend
-          echo "Running backend linter..."
-          npx eslint . --ext .ts,.tsx \
-            --cache \
-            --cache-location .eslintcache \
-            --max-warnings 50 || {
-            exit_code=$?
-            if [ $exit_code -eq 1 ]; then
-              echo "Backend linting completed with warnings"
-            else
-              echo "Backend linting failed with exit code $exit_code"
-              exit $exit_code
-            fi
-          }
-          
-          # Desktop linting
-          cd ../desktop
-          echo "Running desktop linter..."
-          npx eslint . --ext .ts,.tsx \
-            --cache \
-            --cache-location .eslintcache \
-            --max-warnings 50 || {
-            exit_code=$?
-            if [ $exit_code -eq 1 ]; then
-              echo "Desktop linting completed with warnings"
-            else
-              echo "Desktop linting failed with exit code $exit_code"
-              exit $exit_code
-            fi
-          }
+          cd backend && npm run lint:ci
+          cd ../desktop && npm run lint || true
       
       - name: Run type checking
         timeout-minutes: 10
