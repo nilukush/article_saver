@@ -109,14 +109,14 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=4096
         run: |
           cd backend && npm run lint:ci
-          cd ../desktop && npm run lint || true
+          cd ../desktop && npm run lint
       
       - name: Run type checking
         env:
           NODE_OPTIONS: --max-old-space-size=4096
         run: |
-          cd backend && npm run type-check || true
-          cd ../desktop && npm run type-check || true
+          cd backend && npm run type-check
+          cd ../desktop && npm run type-check
 
   # Deploy backend to Railway (only on main branch)
   deploy-backend:
