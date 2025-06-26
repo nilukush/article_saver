@@ -35,7 +35,7 @@ jobs:
           # Update npm to specific version for stability
           npm install -g npm@${{ env.NPM_VERSION }}
           
-          # Set timeout configurations (NODE_OPTIONS must be set per-step due to security restrictions)
+          # Set timeout configurations
           echo "SEGMENT_DOWNLOAD_TIMEOUT_MINS=15" >> $GITHUB_ENV
           
           # Configure npm for CI with extended timeouts
@@ -46,15 +46,12 @@ jobs:
           npm config set fetch-retries 5
           npm config set fetch-retry-mintimeout 20000
           npm config set fetch-retry-maxtimeout 120000
-          # Note: cache-min is deprecated, using prefer-offline instead
           npm config set prefer-offline true
           npm config set network-timeout 300000
           
           # Ensure no global workspaces setting
           npm config delete workspaces --location=global || true
           npm config delete workspaces --location=user || true
-        env:
-          NODE_OPTIONS: --max-old-space-size=6144
       
       - name: Generate package-lock files
         run: |
