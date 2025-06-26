@@ -93,16 +93,24 @@ jobs:
           # Clear cache to prevent corruption issues
           npm cache clean --force
           
-          # Try npm ci first (more efficient for CI)
-          npm ci --no-audit --no-fund --prefer-offline || {
-            echo "npm ci failed, trying sequential installation..."
-            # Install root first without workspaces
-            npm install --no-workspaces --no-audit --no-fund || true
-            # Then install each workspace
-            npm install --workspace=backend --no-audit --no-fund || true
-            npm install --workspace=desktop --no-audit --no-fund || true
-            npm install --workspace=shared --no-audit --no-fund || true
+          # Install all dependencies including workspaces
+          npm install --no-audit --no-fund || {
+            echo "npm install failed, trying with clean slate..."
+            rm -rf node_modules package-lock.json
+            rm -rf backend/node_modules desktop/node_modules
+            npm install --no-audit --no-fund
           }
+          
+          # Verify installation
+          if [ ! -d "node_modules" ]; then
+            echo "ERROR: node_modules directory not created"
+            exit 1
+          fi
+          
+          if [ ! -d "desktop/node_modules" ]; then
+            echo "ERROR: desktop/node_modules not created"
+            exit 1
+          fi
       
       - name: Generate Prisma client
         env:
