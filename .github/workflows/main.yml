@@ -104,12 +104,21 @@ jobs:
           cd backend
           npm run db:generate
       
-      - name: Run linter
+      - name: Run backend linter
+        working-directory: backend
         env:
-          NODE_OPTIONS: --max-old-space-size=4096
+          NODE_OPTIONS: --max-old-space-size=3072
         run: |
-          cd backend && npm run lint:ci
-          cd ../desktop && npm run lint
+          # Lint only src directory to reduce memory usage
+          npx eslint src --ext .ts,.tsx --max-warnings 50
+      
+      - name: Run desktop linter
+        working-directory: desktop
+        env:
+          NODE_OPTIONS: --max-old-space-size=3072
+        run: |
+          # Lint only src directory to reduce memory usage
+          npx eslint src --ext .ts,.tsx --max-warnings 10
       
       - name: Run type checking
         env:

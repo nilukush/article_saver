@@ -13,8 +13,8 @@
         "db:migrate": "prisma migrate dev",
         "db:studio": "prisma studio",
         "lint": "eslint . --ext .ts,.tsx",
-        "lint:ci": "eslint . --ext .ts,.tsx || true",
-        "type-check": "tsc --noEmit || true"
+        "lint:ci": "eslint . --ext .ts,.tsx",
+        "type-check": "tsc --noEmit"
     },
     "keywords": [
         "article",
