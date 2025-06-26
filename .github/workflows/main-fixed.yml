@@ -40,7 +40,7 @@ jobs:
       
       - name: Setup swap space
         run: |
-          sudo fallocate -l 8G /swapfile
+          sudo fallocate -l 16G /swapfile
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
           sudo swapon /swapfile
@@ -76,33 +76,74 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-npm-${{ env.NODE_VERSION }}-
       
-      - name: Set Swap Space
-        uses: pierotofy/set-swap-space@master
-        with:
-          swap-size-gb: 10
-      
-      - name: Install dependencies
-        timeout-minutes: 20
+      # Enterprise solution for npm workspace installation failures
+      - name: Install dependencies (Enterprise Method)
+        timeout-minutes: 30
         env:
-          NODE_OPTIONS: --max-old-space-size=4096
+          NODE_OPTIONS: --max-old-space-size=8192
           ELECTRON_SKIP_BINARY_DOWNLOAD: 1
           FORCE_COLOR: 0
           HUSKY: 0
-          NX_DAEMON: false
+          UV_THREADPOOL_SIZE: 1
+          JOBS: 1
         run: |
-          # Clear cache to prevent corruption issues
-          npm cache clean --force
+          # Monitor memory usage in background
+          (while true; do
+            echo "[$(date '+%H:%M:%S')] Memory: $(free -h | grep Mem | awk '{print $3"/"$2}')"
+            sleep 30
+          done) &
+          MONITOR_PID=$!
           
-          # Try npm ci first (more efficient for CI)
-          npm ci --no-audit --no-fund --prefer-offline || {
-            echo "npm ci failed, trying sequential installation..."
-            # Install root first without workspaces
-            npm install --no-workspaces --no-audit --no-fund || true
-            # Then install each workspace
-            npm install --workspace=backend --no-audit --no-fund || true
-            npm install --workspace=desktop --no-audit --no-fund || true
-            npm install --workspace=shared --no-audit --no-fund || true
+          # Function to clean up monitor on exit
+          cleanup() {
+            kill $MONITOR_PID 2>/dev/null || true
           }
+          trap cleanup EXIT
+          
+          # Method 1: Try workspace-aware installation with reduced memory pressure
+          echo "Attempting Method 1: Workspace-aware installation..."
+          if npm ci --no-audit --no-fund --prefer-offline --ignore-scripts; then
+            echo "Method 1 succeeded!"
+          else
+            echo "Method 1 failed, trying Method 2..."
+            
+            # Clear caches and retry
+            npm cache clean --force
+            rm -rf node_modules */node_modules
+            
+            # Method 2: Sequential installation with memory management
+            echo "Attempting Method 2: Sequential installation..."
+            
+            # Install root dependencies without workspaces
+            npm install --no-workspaces --no-audit --no-fund --legacy-peer-deps --ignore-scripts
+            
+            # Install each workspace separately
+            for workspace in backend desktop shared; do
+              if [ -d "$workspace" ] && [ -f "$workspace/package.json" ]; then
+                echo "Installing $workspace dependencies..."
+                (cd "$workspace" && npm install --no-audit --no-fund --legacy-peer-deps --ignore-scripts)
+                
+                # Clear memory pressure between installations
+                sync && echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null
+                sleep 2
+              fi
+            done
+          fi
+          
+          # Run postinstall scripts after all dependencies are installed
+          echo "Running postinstall scripts..."
+          npm run --if-present postinstall || true
+          
+          # Validate installation
+          echo "Validating installation..."
+          for dir in . backend desktop; do
+            if [ ! -d "$dir/node_modules" ]; then
+              echo "ERROR: Missing node_modules in $dir"
+              exit 1
+            fi
+          done
+          
+          echo "Installation completed successfully!"
       
       - name: Generate Prisma client
         env:
@@ -213,16 +254,26 @@ jobs:
             ${{ runner.os }}-build-${{ env.NODE_VERSION }}-
       
       - name: Install dependencies
-        timeout-minutes: 15
+        timeout-minutes: 20
         env:
-          NODE_OPTIONS: --max-old-space-size=4096
+          NODE_OPTIONS: --max-old-space-size=8192
           ELECTRON_BUILDER_CACHE: ~/.cache/electron-builder
+          UV_THREADPOOL_SIZE: 1
         run: |
-          npm ci --no-audit --no-fund --prefer-offline || {
+          # Use simplified installation for build job
+          npm ci --no-audit --no-fund --prefer-offline --ignore-scripts || {
             echo "npm ci failed, clearing cache and retrying..."
             npm cache clean --force
-            npm ci --no-audit --no-fund
+            rm -rf node_modules */node_modules
+            
+            # Sequential installation fallback
+            npm install --no-workspaces --no-audit --no-fund --legacy-peer-deps --ignore-scripts
+            cd backend && npm install --no-audit --no-fund --legacy-peer-deps --ignore-scripts && cd ..
+            cd desktop && npm install --no-audit --no-fund --legacy-peer-deps --ignore-scripts && cd ..
           }
+          
+          # Run postinstall
+          npm run --if-present postinstall || true
       
       - name: Build TypeScript
         env:
