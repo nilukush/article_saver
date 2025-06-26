@@ -1,4 +1,4 @@
-name: Build and Deploy
+name: Build and Deploy (Optimized)
 
 on:
   push:
@@ -25,21 +25,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Free Disk Space
+      - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
           tool-cache: false
+          # all of these default to true, but feel free to set to
+          # "false" if necessary for your workflow
           android: true
           dotnet: true
           haskell: true
           large-packages: true
           docker-images: true
-          swap-storage: false
+          swap-storage: true
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Setup swap space
+        run: |
+          # Create additional swap space for memory-intensive operations
+          sudo fallocate -l 8G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          sudo swapon --show
+          free -h
       
       - name: Setup npm and environment
         run: |
@@ -65,15 +79,6 @@ jobs:
           npm config delete workspaces --location=global || true
           npm config delete workspaces --location=user || true
       
-      - name: Setup swap space
-        run: |
-          # Create 8GB swap space for additional memory
-          sudo fallocate -l 8G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon --show
-          
       - name: Generate package-lock files
         run: |
           # Generate lock files if they don't exist
@@ -90,7 +95,10 @@ jobs:
         uses: actions/cache@v3
         id: cache
         with:
-          path: ${{ steps.npm-cache-dir.outputs.dir }}
+          path: |
+            ${{ steps.npm-cache-dir.outputs.dir }}
+            ~/.npm
+            **/node_modules
           key: ${{ runner.os }}-npm-${{ env.NODE_VERSION }}-${{ hashFiles('**/package-lock.json', '**/package.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-${{ env.NODE_VERSION }}-
@@ -105,8 +113,21 @@ jobs:
             npm cache clean --force
           }
           
-      - name: Install dependencies
-        timeout-minutes: 30
+      - name: Pre-install cleanup
+        run: |
+          # Clean up any existing node_modules to prevent conflicts
+          echo "Cleaning up existing installations..."
+          rm -rf node_modules backend/node_modules desktop/node_modules
+          rm -f /home/runner/.npm/_locks/* || true
+          
+          # Monitor system resources
+          echo "System resources before install:"
+          free -h
+          df -h
+          
+      - name: Install dependencies (Method 1 - Workspace-aware)
+        id: install_method1
+        timeout-minutes: 20
         env:
           NODE_OPTIONS: --max-old-space-size=8192
           ELECTRON_SKIP_BINARY_DOWNLOAD: 1
@@ -116,71 +137,87 @@ jobs:
           NODE_NO_WARNINGS: 1
           JOBS: 1
           UV_THREADPOOL_SIZE: 1
+        continue-on-error: true
         run: |
-          echo "Installing dependencies..."
-          echo "Memory info:"
-          free -h || true
-          echo "Disk space:"
-          df -h || true
+          echo "Installing dependencies with workspace-aware approach..."
           
-          # Clear any potential lock files
-          rm -f /home/runner/.npm/_locks/* || true
+          # Use npm ci if lock file exists, otherwise npm install
+          if [ -f "package-lock.json" ]; then
+            echo "Using npm ci with workspaces..."
+            npm ci --no-audit --no-fund --prefer-offline || exit 1
+          else
+            echo "Using npm install with workspaces..."
+            npm install --no-audit --no-fund --prefer-offline || exit 1
+          fi
           
-          # First attempt - use the project's install:all script
-          echo "Using npm run install:all..."
-          npm install --no-audit --no-fund || npm run install:all || {
-            echo "install:all failed, trying alternative approach..."
-            
-            # Alternative approach - install with reduced concurrency
-            export JOBS=1
-            
-            # Install root first
-            echo "Installing root dependencies with reduced concurrency..."
-            npm install --no-audit --no-fund --no-save --legacy-peer-deps --maxsockets=15 || {
-              echo "Root install failed, clearing everything and retrying..."
-              rm -rf node_modules package-lock.json ~/.npm/_locks
-              npm cache clean --force
-              npm install --no-audit --no-fund --no-save --legacy-peer-deps --maxsockets=10
-            }
-            
-            # Install workspaces sequentially with delays
-            echo "Installing backend dependencies..."
-            cd backend
-            sleep 2
-            npm install --no-audit --no-fund --no-save --legacy-peer-deps --maxsockets=15 || {
-              echo "Backend install failed, clearing and retrying..."
-              rm -rf node_modules package-lock.json
-              npm cache verify
-              npm install --no-audit --no-fund --no-save --legacy-peer-deps --maxsockets=10
-            }
-            
-            echo "Installing desktop dependencies..."
-            cd ../desktop
-            sleep 2
-            npm install --no-audit --no-fund --no-save --legacy-peer-deps --maxsockets=15 || {
-              echo "Desktop install failed, clearing and retrying..."
-              rm -rf node_modules package-lock.json
-              npm cache verify
-              npm install --no-audit --no-fund --no-save --legacy-peer-deps --maxsockets=10
-            }
-            
-            cd ..
-          }
+          echo "Dependencies installed successfully"
+          echo "Final system resources:"
+          free -h
+          df -h
+      
+      - name: Install dependencies (Method 2 - Sequential)
+        if: steps.install_method1.outcome == 'failure'
+        timeout-minutes: 20
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+          FORCE_COLOR: 0
+          HUSKY: 0
+          NODE_NO_WARNINGS: 1
+          JOBS: 1
+          UV_THREADPOOL_SIZE: 1
+        run: |
+          echo "Falling back to sequential installation..."
+          
+          # Clean everything first
+          rm -rf node_modules backend/node_modules desktop/node_modules
+          rm -f package-lock.json backend/package-lock.json desktop/package-lock.json
+          npm cache clean --force
+          
+          # Install root dependencies first
+          echo "Installing root dependencies..."
+          npm install --no-workspaces --no-audit --no-fund --legacy-peer-deps
+          
+          # Wait a bit for system to stabilize
+          sleep 5
+          
+          # Install backend dependencies
+          echo "Installing backend dependencies..."
+          cd backend
+          npm install --no-audit --no-fund --legacy-peer-deps
+          cd ..
+          
+          # Wait again
+          sleep 5
+          
+          # Install desktop dependencies
+          echo "Installing desktop dependencies..."
+          cd desktop
+          npm install --no-audit --no-fund --legacy-peer-deps
+          cd ..
           
           echo "All dependencies installed successfully"
-          echo "Final disk space:"
-          df -h || true
+          echo "Final system resources:"
+          free -h
+          df -h
+      
+      - name: Generate Prisma client
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: |
+          cd backend
+          npm run db:generate
       
       - name: Run linter
         env:
-          NODE_OPTIONS: --max-old-space-size=8192
+          NODE_OPTIONS: --max-old-space-size=4096
         run: |
           cd backend && npm run lint:ci
           cd ../desktop && npm run lint || true
       
       - name: Run type checking
         env:
-          NODE_OPTIONS: --max-old-space-size=8192
+          NODE_OPTIONS: --max-old-space-size=4096
         run: |
           cd backend && npm run type-check || true
           cd ../desktop && npm run type-check
@@ -245,7 +282,7 @@ jobs:
           haskell: true
           large-packages: true
           docker-images: true
-          swap-storage: false
+          swap-storage: true
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -267,12 +304,11 @@ jobs:
           npm config set fetch-retries 5
           npm config set fetch-retry-mintimeout 20000
           npm config set fetch-retry-maxtimeout 120000
-          # Note: cache-min is deprecated, using prefer-offline instead
           npm config set prefer-offline true
           npm config set fetch-timeout 300000
           npm config set maxsockets 5
         env:
-          NODE_OPTIONS: --max-old-space-size=8192
+          NODE_OPTIONS: --max-old-space-size=6144
       
       - name: Get npm cache directory
         id: npm-cache-dir
@@ -285,6 +321,7 @@ jobs:
             ${{ steps.npm-cache-dir.outputs.dir }}
             ~/.cache/electron
             ~/.cache/electron-builder
+            **/node_modules
           key: ${{ runner.os }}-build-${{ env.NODE_VERSION }}-${{ hashFiles('**/package-lock.json', '**/package.json') }}
           restore-keys: |
             ${{ runner.os }}-build-${{ env.NODE_VERSION }}-
@@ -296,24 +333,32 @@ jobs:
           npm cache verify || npm cache clean --force
           
       - name: Install dependencies
-        timeout-minutes: 20
+        timeout-minutes: 15
         env:
           NODE_OPTIONS: --max-old-space-size=8192
           ELECTRON_BUILDER_CACHE: ~/.cache/electron-builder
           FORCE_COLOR: 0
           HUSKY: 0
           UV_THREADPOOL_SIZE: 1
-          JOBS: 1
         run: |
-          npm install --no-audit --no-fund --prefer-offline || {
-            echo "npm install failed, clearing cache and retrying..."
-            npm cache clean --force
-            npm install --no-audit --no-fund
-          }
+          # Use npm ci for faster, reliable installs
+          if [ -f "package-lock.json" ]; then
+            npm ci --no-audit --no-fund --prefer-offline || {
+              echo "npm ci failed, clearing cache and retrying..."
+              npm cache clean --force
+              npm ci --no-audit --no-fund
+            }
+          else
+            npm install --no-audit --no-fund --prefer-offline || {
+              echo "npm install failed, clearing cache and retrying..."
+              npm cache clean --force
+              npm install --no-audit --no-fund
+            }
+          fi
       
       - name: Setup desktop build environment
         env:
-          NODE_OPTIONS: --max-old-space-size=8192
+          NODE_OPTIONS: --max-old-space-size=6144
         run: |
           cd desktop
           # Run postinstall if it exists
@@ -321,7 +366,7 @@ jobs:
       
       - name: Build TypeScript
         env:
-          NODE_OPTIONS: --max-old-space-size=8192
+          NODE_OPTIONS: --max-old-space-size=6144
         run: |
           cd backend
           npm run build
@@ -330,7 +375,7 @@ jobs:
       
       - name: Build desktop app
         env:
-          NODE_OPTIONS: --max-old-space-size=8192
+          NODE_OPTIONS: --max-old-space-size=6144
           # Code signing for macOS (optional)
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
@@ -412,12 +457,12 @@ jobs:
       - name: Build documentation site
         run: |
           mkdir -p docs-site
-          cp README.md docs-site/index.md
-          cp API.md docs-site/api.md
-          cp DEVELOPMENT.md docs-site/development.md
-          cp DEPLOYMENT.md docs-site/deployment.md
-          cp CONTRIBUTING.md docs-site/contributing.md
-          cp SECURITY.md docs-site/security.md
+          cp README.md docs-site/index.md || true
+          cp API.md docs-site/api.md || true
+          cp DEVELOPMENT.md docs-site/development.md || true
+          cp DEPLOYMENT.md docs-site/deployment.md || true
+          cp CONTRIBUTING.md docs-site/contributing.md || true
+          cp SECURITY.md docs-site/security.md || true
           
           # Create a simple index.html
           cat > docs-site/index.html << 'EOF'
