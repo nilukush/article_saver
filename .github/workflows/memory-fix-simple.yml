@@ -1,0 +1,111 @@
+name: Memory Fix Simple
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18.19.0'
+  NPM_VERSION: '10.2.5'
+
+jobs:
+  test:
+    name: Test and Lint (Memory Optimized)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: false
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Setup npm
+        run: |
+          npm install -g npm@${{ env.NPM_VERSION }}
+          npm config set audit false
+          npm config set fund false
+          npm config set progress false
+          npm config set loglevel error
+          npm config set maxsockets 3
+      
+      - name: Create swap space
+        run: |
+          sudo swapoff -a
+          sudo fallocate -l 4G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          sudo sysctl vm.swappiness=10
+      
+      - name: Install dependencies (Sequential)
+        env:
+          NODE_OPTIONS: --max-old-space-size=2048
+        run: |
+          echo "=== Memory before install ==="
+          free -h
+          
+          # Install root dependencies first
+          echo "Installing root dependencies..."
+          npm install --no-audit --no-fund --ignore-scripts
+          
+          # Clear memory
+          echo "Clearing memory..."
+          sync && echo 3 | sudo tee /proc/sys/vm/drop_caches
+          
+          # Install backend
+          echo "Installing backend dependencies..."
+          cd backend
+          npm install --no-audit --no-fund --ignore-scripts
+          cd ..
+          
+          # Clear memory again
+          sync && echo 3 | sudo tee /proc/sys/vm/drop_caches
+          
+          # Install desktop
+          echo "Installing desktop dependencies..."
+          cd desktop
+          npm install --no-audit --no-fund --ignore-scripts
+          cd ..
+          
+          echo "=== Memory after install ==="
+          free -h
+      
+      - name: Run linter (Sequential)
+        env:
+          NODE_OPTIONS: --max-old-space-size=1024
+        run: |
+          # Lint backend
+          echo "Linting backend..."
+          cd backend
+          npm run lint:ci || true
+          cd ..
+          
+          # Clear memory
+          sync && echo 3 | sudo tee /proc/sys/vm/drop_caches
+          
+          # Lint desktop
+          echo "Linting desktop..."
+          cd desktop
+          npm run lint || true
+          cd ..
+      
+      - name: Type check
+        env:
+          NODE_OPTIONS: --max-old-space-size=1024
+        run: |
+          cd backend && npm run type-check || true
+          cd ../desktop && npm run type-check || true

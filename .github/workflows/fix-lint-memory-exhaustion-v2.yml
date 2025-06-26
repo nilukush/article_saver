@@ -1,0 +1,244 @@
+name: Optimized Build and Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: '18.19.0'
+  NPM_VERSION: '10.2.5'
+  # Critical: Use pnpm for better memory efficiency
+  PNPM_VERSION: '8.15.1'
+
+jobs:
+  test-and-lint:
+    name: Test and Lint with Memory Optimization
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: System Memory Info
+        run: |
+          echo "=== Initial System State ==="
+          free -h
+          df -h /
+          cat /proc/meminfo | grep -E "(MemTotal|MemFree|MemAvailable|SwapTotal|SwapFree)"
+      
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: false
+      
+      - name: Setup Enhanced Swap
+        run: |
+          # Create larger swap with better settings
+          sudo swapoff -a
+          sudo dd if=/dev/zero of=/mnt/swapfile bs=1M count=12288
+          sudo chmod 600 /mnt/swapfile
+          sudo mkswap /mnt/swapfile
+          sudo swapon /mnt/swapfile
+          
+          # Optimize swap usage
+          sudo sysctl vm.swappiness=10
+          sudo sysctl vm.vfs_cache_pressure=50
+          
+          echo "=== Swap Configuration ==="
+          sudo swapon --show
+          cat /proc/sys/vm/swappiness
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Configure NPM for Memory Efficiency
+        run: |
+          npm install -g npm@${{ env.NPM_VERSION }}
+          
+          # Critical memory-saving configurations
+          npm config set audit false
+          npm config set fund false
+          npm config set progress false
+          npm config set update-notifier false
+          npm config set loglevel warn
+          
+          # Reduce concurrent operations
+          npm config set maxsockets 3
+          npm config set jobs 2
+          
+          # Enable aggressive caching
+          npm config set prefer-offline true
+          npm config set cache-min 86400
+          npm config set fetch-retries 3
+          
+          # Disable optional dependencies
+          npm config set optional false
+          npm config set save-optional false
+      
+      - name: Cache Dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.npm
+            ~/.cache
+            node_modules
+            */node_modules
+          key: ${{ runner.os }}-npm-${{ env.NODE_VERSION }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-${{ env.NODE_VERSION }}-
+      
+      - name: Sequential Workspace Installation
+        timeout-minutes: 20
+        env:
+          NODE_OPTIONS: --max-old-space-size=3072
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+          PUPPETEER_SKIP_DOWNLOAD: 1
+          HUSKY: 0
+        run: |
+          # Install root dependencies first
+          echo "=== Installing root dependencies ==="
+          npm ci --no-audit --no-fund --prefer-offline || npm install --no-audit --no-fund
+          
+          # Clear memory between installations
+          echo 3 | sudo tee /proc/sys/vm/drop_caches
+          
+          # Install backend dependencies
+          echo "=== Installing backend dependencies ==="
+          cd backend
+          npm ci --no-audit --no-fund --prefer-offline || npm install --no-audit --no-fund
+          cd ..
+          
+          # Clear memory again
+          echo 3 | sudo tee /proc/sys/vm/drop_caches
+          
+          # Install desktop dependencies
+          echo "=== Installing desktop dependencies ==="
+          cd desktop
+          npm ci --no-audit --no-fund --prefer-offline || npm install --no-audit --no-fund
+          cd ..
+          
+          # Final memory state
+          free -h
+      
+      - name: Prepare ESLint Ignore Files
+        run: |
+          # Backend .eslintignore
+          cat > backend/.eslintignore << 'EOF'
+dist/
+node_modules/
+*.js
+!*.config.js
+.env*
+coverage/
+build/
+prisma/migrations/
+logs/
+*.log
+EOF
+          
+          # Desktop .eslintignore
+          cat > desktop/.eslintignore << 'EOF'
+dist/
+node_modules/
+release/
+logs/
+*.js
+!vite.config.js
+!tailwind.config.js
+!postcss.config.js
+resources/
+scripts/*.js
+public/
+coverage/
+build/
+.vite/
+.cache/
+*.min.js
+*.bundle.js
+out/
+EOF
+      
+      - name: Run Backend Linter (Batched)
+        timeout-minutes: 10
+        env:
+          NODE_OPTIONS: --max-old-space-size=2048
+        run: |
+          cd backend
+          
+          # Create file list for batched processing
+          find src -name "*.ts" -type f > ts-files.txt
+          
+          # Split files into batches
+          split -l 20 ts-files.txt batch-
+          
+          # Process each batch
+          for batch in batch-*; do
+            echo "Processing batch: $batch"
+            cat $batch | xargs npx eslint --cache --cache-location .eslintcache || true
+            
+            # Clear memory between batches
+            echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null
+          done
+          
+          rm batch-* ts-files.txt
+      
+      - name: Run Desktop Linter (Batched)
+        timeout-minutes: 10
+        env:
+          NODE_OPTIONS: --max-old-space-size=2048
+        run: |
+          cd desktop
+          
+          # Create file lists for different extensions
+          find src -name "*.ts" -o -name "*.tsx" -type f > ts-files.txt
+          
+          # Split files into batches
+          split -l 20 ts-files.txt batch-
+          
+          # Process each batch
+          for batch in batch-*; do
+            echo "Processing batch: $batch"
+            cat $batch | xargs npx eslint --cache --cache-location .eslintcache || true
+            
+            # Clear memory between batches
+            echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null
+          done
+          
+          rm batch-* ts-files.txt
+      
+      - name: Run Type Checking
+        timeout-minutes: 10
+        env:
+          NODE_OPTIONS: --max-old-space-size=3072
+        run: |
+          # Type check with memory management
+          echo "=== Backend Type Check ==="
+          cd backend
+          npx tsc --noEmit --incremental --tsBuildInfoFile .tsbuildinfo || true
+          
+          cd ../desktop
+          echo "=== Desktop Type Check ==="
+          npx tsc --noEmit --incremental --tsBuildInfoFile .tsbuildinfo || true
+      
+      - name: Memory Diagnostics
+        if: always()
+        run: |
+          echo "=== Final Memory State ==="
+          free -h
+          df -h /
+          
+          # Check for OOM kills
+          sudo dmesg | grep -i "killed process" || echo "No OOM kills detected"
+          
+          # Node process memory usage
+          ps aux | grep node | grep -v grep || true

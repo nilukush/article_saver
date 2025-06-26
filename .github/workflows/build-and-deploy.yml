@@ -108,7 +108,7 @@ jobs:
       - name: Install dependencies
         timeout-minutes: 30
         env:
-          NODE_OPTIONS: --max-old-space-size=6144
+          NODE_OPTIONS: --max-old-space-size=2048
           ELECTRON_SKIP_BINARY_DOWNLOAD: 1
           ELECTRON_BUILDER_CACHE: ~/.cache/electron-builder
           FORCE_COLOR: 0
@@ -137,7 +137,7 @@ jobs:
       
       - name: Run linter
         env:
-          NODE_OPTIONS: --max-old-space-size=8192
+          NODE_OPTIONS: --max-old-space-size=3072
         run: |
           cd backend && npm run lint:ci
           cd ../desktop && npm run lint || true
@@ -238,7 +238,7 @@ jobs:
           npm config set fetch-timeout 300000
           npm config set maxsockets 5
         env:
-          NODE_OPTIONS: --max-old-space-size=8192
+          NODE_OPTIONS: --max-old-space-size=3072
       
       - name: Get npm cache directory
         id: npm-cache-dir
@@ -264,7 +264,7 @@ jobs:
       - name: Install dependencies
         timeout-minutes: 20
         env:
-          NODE_OPTIONS: --max-old-space-size=8192
+          NODE_OPTIONS: --max-old-space-size=3072
           ELECTRON_BUILDER_CACHE: ~/.cache/electron-builder
           FORCE_COLOR: 0
           HUSKY: 0
@@ -279,7 +279,7 @@ jobs:
       
       - name: Setup desktop build environment
         env:
-          NODE_OPTIONS: --max-old-space-size=8192
+          NODE_OPTIONS: --max-old-space-size=3072
         run: |
           cd desktop
           # Run postinstall if it exists
@@ -287,7 +287,7 @@ jobs:
       
       - name: Build TypeScript
         env:
-          NODE_OPTIONS: --max-old-space-size=8192
+          NODE_OPTIONS: --max-old-space-size=3072
         run: |
           cd backend
           npm run build
@@ -296,7 +296,7 @@ jobs:
       
       - name: Build desktop app
         env:
-          NODE_OPTIONS: --max-old-space-size=8192
+          NODE_OPTIONS: --max-old-space-size=3072
           # Code signing for macOS (optional)
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
