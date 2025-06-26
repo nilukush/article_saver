@@ -1,0 +1,17 @@
+dist/
+node_modules/
+release/
+logs/
+*.js
+!vite.config.js
+!tailwind.config.js
+!postcss.config.js
+resources/
+scripts/*.js
+public/
+coverage/
+build/
+.vite/
+.cache/
+*.min.js
+*.bundle.js
