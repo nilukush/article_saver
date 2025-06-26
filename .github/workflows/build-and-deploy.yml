@@ -11,6 +11,8 @@ on:
 env:
   NODE_VERSION: '18.19.0'  # Use LTS version
   NPM_VERSION: '10.2.5'    # Stable npm version for workspaces
+  # Note: NODE_OPTIONS cannot be set here due to GitHub Actions security restrictions.
+  # It must be set in the env section of individual steps that need it.
 
 jobs:
   # Run tests and linting
@@ -33,8 +35,7 @@ jobs:
           # Update npm to specific version for stability
           npm install -g npm@${{ env.NPM_VERSION }}
           
-          # Set memory limits and timeout configurations
-          echo "NODE_OPTIONS=--max-old-space-size=6144" >> $GITHUB_ENV
+          # Set timeout configurations (NODE_OPTIONS must be set per-step due to security restrictions)
           echo "SEGMENT_DOWNLOAD_TIMEOUT_MINS=15" >> $GITHUB_ENV
           
           # Configure npm for CI with extended timeouts
@@ -45,13 +46,15 @@ jobs:
           npm config set fetch-retries 5
           npm config set fetch-retry-mintimeout 20000
           npm config set fetch-retry-maxtimeout 120000
-          npm config set cache-min 3600
+          # Note: cache-min is deprecated, using prefer-offline instead
           npm config set prefer-offline true
           npm config set network-timeout 300000
           
           # Ensure no global workspaces setting
           npm config delete workspaces --location=global || true
           npm config delete workspaces --location=user || true
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
       
       - name: Generate package-lock files
         run: |
@@ -86,6 +89,14 @@ jobs:
           
       - name: Install dependencies
         timeout-minutes: 25
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+          ELECTRON_BUILDER_CACHE: ~/.cache/electron-builder
+          FORCE_COLOR: 0
+          HUSKY: 0
+          NODE_NO_WARNINGS: 1
+          JOBS: 1
         run: |
           echo "Installing dependencies..."
           echo "Memory info:"
@@ -140,20 +151,17 @@ jobs:
           echo "All dependencies installed successfully"
           echo "Final disk space:"
           df -h || true
-        env:
-          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
-          ELECTRON_BUILDER_CACHE: ~/.cache/electron-builder
-          FORCE_COLOR: 0
-          HUSKY: 0
-          NODE_NO_WARNINGS: 1
-          JOBS: 1
       
       - name: Run linter
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: |
           cd backend && npm run lint:ci
           cd ../desktop && npm run lint || true
       
       - name: Run type checking
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: |
           cd backend && npm run type-check || true
           cd ../desktop && npm run type-check
@@ -218,8 +226,7 @@ jobs:
           # Update npm
           npm install -g npm@${{ env.NPM_VERSION }}
           
-          # Set memory limits and timeout configurations
-          echo "NODE_OPTIONS=--max-old-space-size=6144" >> $GITHUB_ENV
+          # Set timeout configurations (NODE_OPTIONS must be set per-step due to security restrictions)
           echo "SEGMENT_DOWNLOAD_TIMEOUT_MINS=15" >> $GITHUB_ENV
           
           # Configure npm with extended timeouts
@@ -229,9 +236,11 @@ jobs:
           npm config set fetch-retries 5
           npm config set fetch-retry-mintimeout 20000
           npm config set fetch-retry-maxtimeout 120000
-          npm config set cache-min 3600
+          # Note: cache-min is deprecated, using prefer-offline instead
           npm config set prefer-offline true
           npm config set network-timeout 300000
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
       
       - name: Get npm cache directory
         id: npm-cache-dir
@@ -256,6 +265,11 @@ jobs:
           
       - name: Install dependencies
         timeout-minutes: 15
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+          ELECTRON_BUILDER_CACHE: ~/.cache/electron-builder
+          FORCE_COLOR: 0
+          HUSKY: 0
         run: |
           # Use npm ci for faster, reliable installs
           if [ -f "package-lock.json" ]; then
@@ -271,18 +285,18 @@ jobs:
               npm install --no-audit --no-fund
             }
           fi
-        env:
-          ELECTRON_BUILDER_CACHE: ~/.cache/electron-builder
-          FORCE_COLOR: 0
-          HUSKY: 0
       
       - name: Setup desktop build environment
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: |
           cd desktop
           # Run postinstall if it exists
           npm run postinstall || true
       
       - name: Build TypeScript
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: |
           cd backend
           npm run build
@@ -291,6 +305,7 @@ jobs:
       
       - name: Build desktop app
         env:
+          NODE_OPTIONS: --max-old-space-size=6144
           # Code signing for macOS (optional)
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}

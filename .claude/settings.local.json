@@ -68,7 +68,9 @@
       "Bash(npm run lint:*)",
       "Bash(npm config get:*)",
       "Bash(npm config:*)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)"
     ],
     "deny": []
   }
