@@ -47,7 +47,7 @@ jobs:
           npm config set fetch-retry-mintimeout 20000
           npm config set fetch-retry-maxtimeout 120000
           npm config set prefer-offline true
-          npm config set network-timeout 300000
+          npm config set fetch-timeout 300000
           
           # Ensure no global workspaces setting
           npm config delete workspaces --location=global || true
@@ -235,7 +235,7 @@ jobs:
           npm config set fetch-retry-maxtimeout 120000
           # Note: cache-min is deprecated, using prefer-offline instead
           npm config set prefer-offline true
-          npm config set network-timeout 300000
+          npm config set fetch-timeout 300000
         env:
           NODE_OPTIONS: --max-old-space-size=6144
       
