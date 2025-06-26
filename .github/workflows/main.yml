@@ -1,0 +1,282 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18.19.0'
+  NPM_VERSION: '10.2.5'
+
+jobs:
+  # Run tests and linting
+  test:
+    name: Test and Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Setup swap space
+        run: |
+          sudo fallocate -l 8G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          sudo swapon --show
+          free -h
+      
+      - name: Setup npm and environment
+        run: |
+          npm install -g npm@${{ env.NPM_VERSION }}
+          npm config set audit false
+          npm config set fund false
+          npm config set progress false
+          npm config set loglevel error
+          npm config set fetch-retries 5
+          npm config set fetch-retry-mintimeout 20000
+          npm config set fetch-retry-maxtimeout 120000
+          npm config set prefer-offline true
+          npm config set fetch-timeout 300000
+          npm config set maxsockets 5
+      
+      - name: Get npm cache directory
+        id: npm-cache-dir
+        run: echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
+      
+      - name: Cache npm dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ${{ steps.npm-cache-dir.outputs.dir }}
+            ~/.npm
+            **/node_modules
+          key: ${{ runner.os }}-npm-${{ env.NODE_VERSION }}-${{ hashFiles('**/package-lock.json', '**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-${{ env.NODE_VERSION }}-
+      
+      - name: Install dependencies
+        timeout-minutes: 20
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+          FORCE_COLOR: 0
+          HUSKY: 0
+        run: |
+          npm ci --no-audit --no-fund --prefer-offline || {
+            echo "npm ci failed, clearing cache and retrying..."
+            npm cache clean --force
+            npm ci --no-audit --no-fund
+          }
+      
+      - name: Generate Prisma client
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: |
+          cd backend
+          npm run db:generate
+      
+      - name: Run linter
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: |
+          cd backend && npm run lint:ci
+          cd ../desktop && npm run lint || true
+      
+      - name: Run type checking
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: |
+          cd backend && npm run type-check || true
+          cd ../desktop && npm run type-check || true
+
+  # Deploy backend to Railway (only on main branch)
+  deploy-backend:
+    name: Deploy Backend to Railway
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          cd backend
+          railway up --service backend
+      
+      - name: Health Check
+        run: |
+          sleep 30
+          curl -f ${{ secrets.BACKEND_URL }}/api/health || exit 1
+
+  # Build desktop apps for all platforms
+  build-desktop:
+    name: Build Desktop App - ${{ matrix.platform }}
+    needs: test
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            platform: mac
+            arch: universal
+          - os: windows-latest
+            platform: win
+            arch: x64
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Free Disk Space (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Setup npm
+        run: |
+          npm install -g npm@${{ env.NPM_VERSION }}
+          npm config set audit false
+          npm config set fund false
+          npm config set progress false
+      
+      - name: Get npm cache directory
+        id: npm-cache-dir
+        run: echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ${{ steps.npm-cache-dir.outputs.dir }}
+            ~/.cache/electron
+            ~/.cache/electron-builder
+            **/node_modules
+          key: ${{ runner.os }}-build-${{ env.NODE_VERSION }}-${{ hashFiles('**/package-lock.json', '**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.NODE_VERSION }}-
+      
+      - name: Install dependencies
+        timeout-minutes: 15
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+          ELECTRON_BUILDER_CACHE: ~/.cache/electron-builder
+        run: |
+          npm ci --no-audit --no-fund --prefer-offline || {
+            echo "npm ci failed, clearing cache and retrying..."
+            npm cache clean --force
+            npm ci --no-audit --no-fund
+          }
+      
+      - name: Build TypeScript
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: |
+          cd backend
+          npm run build
+          cd ../desktop
+          npm run build
+      
+      - name: Build desktop app
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          CSC_LINK: ${{ secrets.MAC_CERTS }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
+          WIN_CSC_LINK: ${{ secrets.WIN_CERTS }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CERTS_PASSWORD }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd desktop
+          npm run dist
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}-${{ matrix.arch }}-build
+          path: |
+            desktop/release/*.exe
+            desktop/release/*.dmg
+            desktop/release/*.AppImage
+            desktop/release/*.deb
+            desktop/release/*.rpm
+            desktop/release/*.zip
+            desktop/release/*.tar.gz
+          retention-days: 30
+
+  # Create GitHub Release (only on version tags)
+  release:
+    name: Create Release
+    needs: build-desktop
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            release-artifacts/**/*.exe
+            release-artifacts/**/*.dmg
+            release-artifacts/**/*.AppImage
+            release-artifacts/**/*.deb
+            release-artifacts/**/*.rpm
+            release-artifacts/**/*.zip
+            release-artifacts/**/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
