@@ -70,7 +70,8 @@
       "Bash(npm config:*)",
       "WebFetch(domain:github.com)",
       "Bash(gh run list:*)",
-      "Bash(gh run view:*)"
+      "Bash(gh run view:*)",
+      "Bash(./fix-types.sh)"
     ],
     "deny": []
   }
