@@ -13,7 +13,8 @@
         "build:desktop": "cd desktop && npm run build",
         "build:backend": "cd backend && npm run build",
         "install:all": "npm install && cd desktop && npm install && cd ../backend && npm install",
-        "clean:data": "./clean-all-data.sh"
+        "clean:data": "./clean-all-data.sh",
+        "test": "echo 'Tests run in individual workspaces' && exit 0"
     },
     "keywords": [
         "article",
