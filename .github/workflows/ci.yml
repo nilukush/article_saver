@@ -9,6 +9,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Prevent multiple workflow runs from interfering with each other
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 env:
   NODE_VERSION: '18.19.0'
   NPM_VERSION: '10.2.5'
