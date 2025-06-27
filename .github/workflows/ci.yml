@@ -114,8 +114,8 @@ jobs:
             # Show configured heap size
             node -e "console.log('Configured heap limit:', require('v8').getHeapStatistics().heap_size_limit / 1024 / 1024, 'MB')"
             
-            # Install with workspace support
-            npm ci --workspaces --include-workspace-root --prefer-offline --no-audit --no-fund --no-optional --loglevel=error || {
+            # Install with workspace support (including dev dependencies)
+            NODE_ENV=development npm ci --workspaces --include-workspace-root --prefer-offline --no-audit --no-fund --no-optional --loglevel=error || {
               echo "npm ci failed, checking for detailed errors..."
               cat /home/runner/.npm/_logs/*.log || true
               exit 1
@@ -141,7 +141,11 @@ jobs:
         working-directory: backend
         env:
           NODE_OPTIONS: --max-old-space-size=4096
-        run: npm run db:generate
+        run: |
+          npm run db:generate || {
+            echo "Prisma generate failed, trying with direct command..."
+            npx prisma generate
+          }
       
       - name: Lint code with memory optimization
         env:
@@ -154,6 +158,18 @@ jobs:
           echo "=== Linting Desktop ==="
           cd ../desktop
           npm run lint || echo "::warning::Desktop has linting warnings"
+      
+      - name: Build TypeScript projects
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: |
+          echo "=== Building Backend ==="
+          cd backend
+          npm run build || echo "::warning::Backend build has errors"
+          
+          echo "=== Building Desktop ==="
+          cd ../desktop
+          npm run build:electron || echo "::warning::Desktop build has errors"
       
       - name: Type check with memory optimization
         env:
@@ -182,8 +198,19 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
+          # Check if token exists
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "::error::RAILWAY_TOKEN secret is not set. Please add it to your GitHub repository secrets."
+            echo "::error::Go to https://railway.com/project/<your-project-id>/settings/tokens to create a project token."
+            exit 1
+          fi
+          
+          echo "Railway token is set, proceeding with deployment..."
           cd backend
-          railway up --service backend
+          railway up --service backend || {
+            echo "::error::Railway deployment failed. Ensure your RAILWAY_TOKEN is a valid project token (not an account token)."
+            exit 1
+          }
 
   build-desktop:
     name: Build Desktop App
@@ -246,7 +273,7 @@ jobs:
           retry_on: error
           command: |
             export NODE_OPTIONS="--max-old-space-size=6144"
-            npm ci --workspaces --include-workspace-root --prefer-offline --no-audit --no-fund --no-optional || {
+            NODE_ENV=development npm ci --workspaces --include-workspace-root --prefer-offline --no-audit --no-fund --no-optional || {
               echo "npm ci failed in desktop build"
               cat /home/runner/.npm/_logs/*.log || true
               exit 1
@@ -261,6 +288,8 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=6144
         run: |
           cd desktop
+          # Verify electron is available
+          npx electron --version || npm install electron@28.3.3
           npm run build
           npm run dist
       
