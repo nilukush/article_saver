@@ -23,7 +23,7 @@ env:
 jobs:
   test-and-lint:
     name: Test and Lint
-    runs-on: ubuntu-20.04  # Pin version for stability
+    runs-on: ubuntu-22.04  # LTS with support until 2027
     timeout-minutes: 45    # Increased from 30
     strategy:
       fail-fast: false
@@ -199,7 +199,7 @@ jobs:
             platform: mac
           - os: windows-latest
             platform: win
-          - os: ubuntu-20.04  # Pin version
+          - os: ubuntu-22.04  # LTS with support until 2027
             platform: linux
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
@@ -207,7 +207,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Free Disk Space (Linux)
-        if: matrix.os == 'ubuntu-20.04'
+        if: matrix.os == 'ubuntu-22.04'
         uses: jlumbroso/free-disk-space@main
         with:
           tool-cache: true
