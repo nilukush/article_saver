@@ -1,4 +1,4 @@
-name: Enterprise CI/CD
+name: CI/CD
 
 on:
   push:
@@ -27,53 +27,43 @@ jobs:
         run: |
           echo "=== Before cleanup ==="
           df -h
-          free -m
           
-          # Aggressive cleanup for maximum space
+          # Remove unnecessary tools
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /opt/ghc
           sudo rm -rf /opt/hostedtoolcache/CodeQL
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /usr/local/share/boost
-          sudo rm -rf /usr/share/swift
-          sudo rm -rf /usr/local/.ghcup
-          sudo docker system prune -af
           sudo apt-get clean
-          sudo apt-get autoremove -y
-          sudo apt-get autoclean -y
           
           echo "=== After cleanup ==="
           df -h
-          free -m
       
-      - name: Setup large swap space
+      - name: Setup swap space
         run: |
           sudo swapoff -a
-          sudo fallocate -l 16G /mnt/swapfile
+          sudo fallocate -l 10G /mnt/swapfile
           sudo chmod 600 /mnt/swapfile
           sudo mkswap /mnt/swapfile
           sudo swapon /mnt/swapfile
           echo "=== Swap enabled ==="
           free -m
-          sudo swapon --show
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
       
-      - name: Setup npm with optimizations
+      - name: Setup npm
         run: |
           npm install -g npm@${{ env.NPM_VERSION }}
           npm config set audit false
           npm config set fund false
           npm config set progress false
           npm config set prefer-offline true
-          npm config set maxsockets 3
+          npm config set maxsockets 5
           npm config set fetch-retries 5
           npm config set fetch-retry-maxtimeout 120000
-          npm config set fetch-retry-mintimeout 20000
-          npm config set cache-min 3600
       
       - name: Cache npm dependencies
         uses: actions/cache@v3
@@ -93,51 +83,33 @@ jobs:
           echo "=== System resources before npm ci ==="
           free -m
           df -h
-          nproc
-          ulimit -a
-          node -e "console.log('Default heap limit:', require('v8').getHeapStatistics().heap_size_limit / 1024 / 1024, 'MB')"
+          node -e "console.log('Heap limit:', require('v8').getHeapStatistics().heap_size_limit / 1024 / 1024, 'MB')"
       
-      - name: Install dependencies with retry
-        uses: nick-invision/retry@v2
-        with:
-          timeout_minutes: 15
-          max_attempts: 3
-          retry_on: error
-          command: |
-            set -e
-            export NODE_OPTIONS="--max-old-space-size=6144"
-            echo "=== Installing dependencies (attempt ${{ github.run_attempt }}) ==="
-            
-            # Clear npm cache if not first attempt
-            if [ "${{ github.run_attempt }}" -gt "1" ]; then
-              npm cache clean --force
-            fi
-            
-            # Show configured heap size
-            node -e "console.log('Configured heap limit:', require('v8').getHeapStatistics().heap_size_limit / 1024 / 1024, 'MB')"
-            
-            # Install with all optimizations
-            npm ci --prefer-offline --no-audit --no-fund --no-optional --loglevel=error
-            
-            echo "=== Dependencies installed successfully ==="
+      - name: Install dependencies
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+        run: |
+          echo "=== Installing dependencies ==="
+          # Clear npm cache to free memory
+          npm cache clean --force
+          
+          # Install with optimizations for large monorepo
+          npm ci --prefer-offline --no-audit --no-fund --no-optional
+          
+          echo "=== Dependencies installed ==="
       
       - name: System diagnostics after install
         if: always()
         run: |
           echo "=== System resources after npm ci ==="
           free -m
-          df -h
-          du -sh node_modules || true
-          du -sh backend/node_modules || true
-          du -sh desktop/node_modules || true
       
       - name: Generate Prisma client
         working-directory: backend
-        env:
-          NODE_OPTIONS: --max-old-space-size=4096
         run: npm run db:generate
       
-      - name: Lint code with memory optimization
+      - name: Lint code
         env:
           NODE_OPTIONS: --max-old-space-size=4096
         run: |
@@ -149,7 +121,7 @@ jobs:
           cd ../desktop
           npm run lint || echo "::warning::Desktop has linting warnings"
       
-      - name: Type check with memory optimization
+      - name: Type check
         env:
           NODE_OPTIONS: --max-old-space-size=4096
         run: |
@@ -196,51 +168,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Maximize build space (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /usr/local/share/boost
-          sudo apt-get clean
-      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
       
-      - name: Setup npm
+      - name: Install dependencies
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: |
-          npm install -g npm@${{ env.NPM_VERSION }}
-          npm config set audit false
-          npm config set fund false
-          npm config set progress false
-          npm config set prefer-offline true
-      
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.npm
-            ~/.cache/electron
-            ~/.cache/electron-builder
-            node_modules
-            backend/node_modules
-            desktop/node_modules
-          key: ${{ runner.os }}-build-${{ env.NODE_VERSION }}-${{ hashFiles('**/package-lock.json', '**/package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.NODE_VERSION }}-
-      
-      - name: Install dependencies with retry
-        uses: nick-invision/retry@v2
-        with:
-          timeout_minutes: 15
-          max_attempts: 3
-          retry_on: error
-          command: |
-            export NODE_OPTIONS="--max-old-space-size=6144"
-            npm ci --prefer-offline --no-audit --no-fund --no-optional
+          npm cache clean --force
+          npm ci --prefer-offline --no-audit --no-fund --no-optional
       
       - name: Build desktop app
         env:
