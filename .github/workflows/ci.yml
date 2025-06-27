@@ -84,24 +84,14 @@ jobs:
           npm config set fetch-retry-mintimeout 15000
           npm config set fetch-retry-maxtimeout 90000
       
-      - name: Install root dependencies
+      - name: Install all dependencies from root
         timeout-minutes: 10
         env:
           NODE_OPTIONS: --max-old-space-size=3072
         run: |
-          echo "=== Installing root dependencies ==="
-          npm ci --ignore-scripts --loglevel=error
-      
-      - name: Install backend dependencies
-        timeout-minutes: 10
-        working-directory: backend
-        env:
-          NODE_OPTIONS: --max-old-space-size=3072
-        run: |
-          echo "=== Installing backend dependencies ==="
-          # For monorepo setup, we need to use npm install, not npm ci
-          # since package-lock.json is at the root level
-          npm install --loglevel=error
+          echo "=== Installing all dependencies from root ==="
+          # Install all workspace dependencies from root
+          npm run install:all || npm install
       
       - name: Install desktop dependencies
         timeout-minutes: 15
