@@ -99,7 +99,7 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=3072
         run: |
           echo "=== Installing backend dependencies ==="
-          npm ci --ignore-scripts --loglevel=error
+          npm ci --loglevel=error
       
       - name: Install desktop dependencies
         timeout-minutes: 15
@@ -243,7 +243,7 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=3072
         run: |
           npm ci --ignore-scripts --loglevel=error
-          cd backend && npm ci --ignore-scripts --loglevel=error
+          cd backend && npm ci --loglevel=error
           cd ../desktop && npm ci --ignore-scripts --loglevel=error
       
       # Native modules will be rebuilt during the dist phase if needed
