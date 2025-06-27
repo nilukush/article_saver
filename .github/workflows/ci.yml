@@ -24,27 +24,27 @@ jobs:
   test-and-lint:
     name: Test and Lint
     runs-on: ubuntu-22.04  # LTS with support until 2027
-    timeout-minutes: 45    # Increased from 30
+    timeout-minutes: 30    # Reduced to catch issues faster
     strategy:
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
       
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: true
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: true
-          swap-storage: false  # We'll create our own
+      # Removed aggressive disk cleanup - it was taking too long and causing timeouts
+      # Only remove what's absolutely necessary
+      - name: Free Disk Space (Minimal)
+        run: |
+          echo "=== Disk space before cleanup ==="
+          df -h
+          # Only remove Android SDK which takes 10GB+
+          sudo rm -rf /usr/local/lib/android || true
+          echo "=== Disk space after cleanup ==="
+          df -h
       
       - name: Setup swap space
         run: |
           sudo swapoff -a
-          sudo fallocate -l 8G /mnt/swapfile
+          sudo fallocate -l 4G /mnt/swapfile
           sudo chmod 600 /mnt/swapfile
           sudo mkswap /mnt/swapfile
           sudo swapon /mnt/swapfile
@@ -87,7 +87,7 @@ jobs:
       - name: Install root dependencies
         timeout-minutes: 10
         env:
-          NODE_OPTIONS: --max-old-space-size=4096
+          NODE_OPTIONS: --max-old-space-size=3072
         run: |
           echo "=== Installing root dependencies ==="
           npm ci --ignore-scripts --loglevel=error
@@ -96,7 +96,7 @@ jobs:
         timeout-minutes: 10
         working-directory: backend
         env:
-          NODE_OPTIONS: --max-old-space-size=4096
+          NODE_OPTIONS: --max-old-space-size=3072
         run: |
           echo "=== Installing backend dependencies ==="
           npm ci --ignore-scripts --loglevel=error
@@ -105,23 +105,14 @@ jobs:
         timeout-minutes: 15
         working-directory: desktop
         env:
-          NODE_OPTIONS: --max-old-space-size=4096
+          NODE_OPTIONS: --max-old-space-size=3072
           ELECTRON_SKIP_BINARY_DOWNLOAD: 1  # Skip for now, install later
         run: |
           echo "=== Installing desktop dependencies ==="
           npm ci --ignore-scripts --loglevel=error
       
-      - name: Install Electron and rebuild native deps
-        timeout-minutes: 10
-        working-directory: desktop
-        env:
-          NODE_OPTIONS: --max-old-space-size=4096
-        run: |
-          echo "=== Installing Electron ==="
-          npm install electron@28.3.3 --save-dev --loglevel=error
-          
-          echo "=== Installing native dependencies ==="
-          npx electron-builder install-app-deps
+      # Skip Electron binary installation in CI to save time and resources
+      # The desktop build will use the cached Electron binaries
       
       - name: Generate Prisma client
         working-directory: backend
@@ -208,13 +199,14 @@ jobs:
       
       - name: Free Disk Space (Linux)
         if: matrix.os == 'ubuntu-22.04'
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: true
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
+        run: |
+          echo "=== Disk space before cleanup ==="
+          df -h
+          # Only remove large unnecessary items
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf /opt/ghc || true
+          echo "=== Disk space after cleanup ==="
+          df -h
       
       - name: Setup Node.js with caching
         uses: actions/setup-node@v4
@@ -248,25 +240,18 @@ jobs:
       - name: Install all dependencies
         timeout-minutes: 20
         env:
-          NODE_OPTIONS: --max-old-space-size=4096
+          NODE_OPTIONS: --max-old-space-size=3072
         run: |
           npm ci --ignore-scripts --loglevel=error
           cd backend && npm ci --ignore-scripts --loglevel=error
           cd ../desktop && npm ci --ignore-scripts --loglevel=error
       
-      - name: Rebuild native modules
-        timeout-minutes: 10
-        working-directory: desktop
-        env:
-          NODE_OPTIONS: --max-old-space-size=4096
-        run: |
-          npm install electron@28.3.3 --save-dev --loglevel=error
-          npx electron-builder install-app-deps
+      # Native modules will be rebuilt during the dist phase if needed
       
       - name: Build desktop app
         timeout-minutes: 15
         env:
-          NODE_OPTIONS: --max-old-space-size=4096
+          NODE_OPTIONS: --max-old-space-size=3072
         run: |
           cd desktop
           npm run build
