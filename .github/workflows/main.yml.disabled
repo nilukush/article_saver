@@ -84,18 +84,31 @@ jobs:
       - name: Install dependencies
         timeout-minutes: 20
         env:
-          NODE_OPTIONS: --max-old-space-size=4096
+          NODE_OPTIONS: --max-old-space-size=2048
           ELECTRON_SKIP_BINARY_DOWNLOAD: 1
           FORCE_COLOR: 0
           HUSKY: 0
           NX_DAEMON: false
         run: |
-          # Use npm ci for faster, more reliable installs
-          npm ci --no-audit --no-fund || {
-            echo "npm ci failed, falling back to npm install..."
-            npm cache clean --force
-            npm install --no-audit --no-fund
+          # Show memory before install
+          echo "=== Memory Info Before Install ==="
+          free -m
+          df -h
+          
+          # Clear npm cache first
+          npm cache clean --force
+          
+          # Install with reduced memory pressure
+          npm install --no-audit --no-fund --prefer-offline --no-save || {
+            echo "First attempt failed, trying with even less memory usage..."
+            # Kill any hanging node processes
+            pkill -f node || true
+            # Try again with minimal settings
+            NODE_OPTIONS="--max-old-space-size=1024" npm install --no-audit --no-fund --no-optional --legacy-peer-deps
           }
+          
+          echo "=== Memory Info After Install ==="
+          free -m
       
       - name: Generate Prisma client
         env:
