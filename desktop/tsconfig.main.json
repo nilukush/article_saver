@@ -15,7 +15,8 @@
             "@shared/*": [
                 "../shared/*"
             ]
-        }
+        },
+        "types": ["node", "electron"]
     },
     "include": [
         "src/main/**/*"

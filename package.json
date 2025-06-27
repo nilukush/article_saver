@@ -14,7 +14,8 @@
         "build:backend": "cd backend && npm run build",
         "install:all": "npm install && cd desktop && npm install && cd ../backend && npm install",
         "clean:data": "./clean-all-data.sh",
-        "test": "echo 'Tests run in individual workspaces' && exit 0"
+        "test": "echo 'Tests run in individual workspaces' && exit 0",
+        "postinstall": "cd desktop && electron-builder install-app-deps || true"
     },
     "keywords": [
         "article",
