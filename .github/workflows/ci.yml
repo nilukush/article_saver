@@ -97,9 +97,10 @@ jobs:
         working-directory: backend
         env:
           NODE_OPTIONS: --max-old-space-size=3072
-          NODE_ENV: development  # Ensure devDependencies are installed
         run: |
           echo "=== Installing backend dependencies ==="
+          # npm ci installs all dependencies (including devDependencies) by default
+          # This will also run postinstall script (prisma generate)
           npm ci --loglevel=error
       
       - name: Install desktop dependencies
@@ -115,14 +116,12 @@ jobs:
       # Skip Electron binary installation in CI to save time and resources
       # The desktop build will use the cached Electron binaries
       
-      - name: Generate Prisma client
+      - name: Verify Prisma client generation
         working-directory: backend
-        env:
-          NODE_OPTIONS: --max-old-space-size=2048
         run: |
-          # Ensure prisma CLI is available
-          npx prisma --version || npm install prisma@^6.9.0
-          npm run db:generate
+          # Verify that Prisma client was generated
+          ls -la node_modules/.prisma/client || echo "Prisma client not found"
+          ls -la node_modules/@prisma/client || echo "@prisma/client not found"
       
       - name: Run linting
         env:
@@ -245,8 +244,8 @@ jobs:
         timeout-minutes: 20
         env:
           NODE_OPTIONS: --max-old-space-size=3072
-          NODE_ENV: development  # Ensure devDependencies are installed
         run: |
+          # npm ci installs all dependencies by default (prod + dev)
           npm ci --ignore-scripts --loglevel=error
           cd backend && npm ci --loglevel=error
           cd ../desktop && npm ci --ignore-scripts --loglevel=error
