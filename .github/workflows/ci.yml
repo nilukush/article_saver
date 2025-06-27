@@ -97,6 +97,7 @@ jobs:
         working-directory: backend
         env:
           NODE_OPTIONS: --max-old-space-size=3072
+          NODE_ENV: development  # Ensure devDependencies are installed
         run: |
           echo "=== Installing backend dependencies ==="
           npm ci --loglevel=error
@@ -118,7 +119,10 @@ jobs:
         working-directory: backend
         env:
           NODE_OPTIONS: --max-old-space-size=2048
-        run: npm run db:generate
+        run: |
+          # Ensure prisma CLI is available
+          npx prisma --version || npm install prisma@^6.9.0
+          npm run db:generate
       
       - name: Run linting
         env:
@@ -241,6 +245,7 @@ jobs:
         timeout-minutes: 20
         env:
           NODE_OPTIONS: --max-old-space-size=3072
+          NODE_ENV: development  # Ensure devDependencies are installed
         run: |
           npm ci --ignore-scripts --loglevel=error
           cd backend && npm ci --loglevel=error
