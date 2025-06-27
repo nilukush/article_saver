@@ -99,6 +99,11 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=3072
         run: |
           echo "=== Installing backend dependencies ==="
+          # Generate package-lock.json if missing
+          if [ ! -f "package-lock.json" ]; then
+            echo "Generating package-lock.json..."
+            npm install --package-lock-only
+          fi
           # npm ci installs all dependencies (including devDependencies) by default
           # This will also run postinstall script (prisma generate)
           npm ci --loglevel=error
