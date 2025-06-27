@@ -114,12 +114,16 @@ jobs:
             # Show configured heap size
             node -e "console.log('Configured heap limit:', require('v8').getHeapStatistics().heap_size_limit / 1024 / 1024, 'MB')"
             
-            # Install with all optimizations
-            npm ci --prefer-offline --no-audit --no-fund --no-optional --loglevel=error || {
+            # Install with workspace support
+            npm ci --workspaces --include-workspace-root --prefer-offline --no-audit --no-fund --no-optional --loglevel=error || {
               echo "npm ci failed, checking for detailed errors..."
               cat /home/runner/.npm/_logs/*.log || true
               exit 1
             }
+            
+            # Ensure electron types are installed in desktop workspace
+            cd desktop && npm list electron || npm install --save-dev electron@28.3.3
+            cd ..
             
             echo "=== Dependencies installed successfully ==="
       
@@ -242,11 +246,15 @@ jobs:
           retry_on: error
           command: |
             export NODE_OPTIONS="--max-old-space-size=6144"
-            npm ci --prefer-offline --no-audit --no-fund --no-optional || {
+            npm ci --workspaces --include-workspace-root --prefer-offline --no-audit --no-fund --no-optional || {
               echo "npm ci failed in desktop build"
               cat /home/runner/.npm/_logs/*.log || true
               exit 1
             }
+            
+            # Ensure electron is properly installed
+            cd desktop && npm list electron || npm install --save-dev electron@28.3.3
+            cd ..
       
       - name: Build desktop app
         env:
