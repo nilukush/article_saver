@@ -104,14 +104,15 @@ jobs:
                  --ignore-scripts \
                  --loglevel=error
       
-      # Run postinstall scripts separately
+      # Run postinstall scripts separately with timeout
       - name: Run postinstall scripts
         if: steps.cache-modules.outputs.cache-hit != 'true'
+        timeout-minutes: 5
         run: |
           echo "=== Running postinstall scripts ==="
-          npm rebuild
+          # Skip electron-builder install-app-deps in CI - not needed for testing
           cd backend && npm run postinstall --if-present
-          cd ../desktop && npm run postinstall --if-present
+          echo "Skipping desktop postinstall (electron-builder) in CI"
       
       # Always verify Prisma client
       - name: Generate Prisma client
@@ -215,8 +216,9 @@ jobs:
         timeout-minutes: 15
         env:
           NODE_OPTIONS: '--max-old-space-size=6144'
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1  # Skip electron download during main install
         run: |
-          npm ci --prefer-offline --no-audit --no-fund
+          npm ci --prefer-offline --no-audit --no-fund --ignore-scripts
       
       - name: Build desktop app
         env:
@@ -225,6 +227,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd desktop
+          # Run electron-builder install-app-deps only during actual build
+          npx electron-builder install-app-deps
           npm run build
           npm run dist
       
