@@ -32,13 +32,18 @@ jobs:
       
       # Removed aggressive disk cleanup - it was taking too long and causing timeouts
       # Only remove what's absolutely necessary
-      - name: Free Disk Space (Minimal)
+      - name: Show system resources
         run: |
-          echo "=== Disk space before cleanup ==="
+          echo "=== System Resources ==="
+          echo "CPU cores: $(nproc)"
+          echo "Memory:"
+          free -h
+          echo "Disk space:"
           df -h
+          echo "=== Cleaning up disk space ==="
           # Only remove Android SDK which takes 10GB+
           sudo rm -rf /usr/local/lib/android || true
-          echo "=== Disk space after cleanup ==="
+          echo "=== After cleanup ==="
           df -h
       
       - name: Setup swap space
@@ -87,20 +92,33 @@ jobs:
       - name: Install all dependencies
         timeout-minutes: 15
         env:
-          NODE_OPTIONS: --max-old-space-size=3072
+          NODE_OPTIONS: --max-old-space-size=4096
         run: |
-          echo "=== Installing dependencies with npm workspaces ==="
-          # Use npm ci with workspaces for faster, more reliable installs
-          npm ci --prefer-offline --no-audit || {
-            echo "npm ci failed, falling back to npm install"
-            npm install --no-audit --no-fund
-          }
+          echo "=== Installing dependencies ==="
+          echo "Current directory: $(pwd)"
+          echo "package.json exists: $(test -f package.json && echo 'yes' || echo 'no')"
+          echo "package-lock.json exists: $(test -f package-lock.json && echo 'yes' || echo 'no')"
+          
+          # Try npm ci first (fastest for CI with lock file)
+          if [ -f "package-lock.json" ]; then
+            echo "Using npm ci with package-lock.json"
+            npm ci --prefer-offline --no-audit || {
+              echo "npm ci failed, trying with legacy peer deps"
+              npm ci --legacy-peer-deps --prefer-offline --no-audit || {
+                echo "npm ci still failed, falling back to install:all script"
+                npm run install:all
+              }
+            }
+          else
+            echo "No package-lock.json found, using install:all script"
+            npm run install:all
+          fi
       
       - name: Install desktop dependencies
         timeout-minutes: 15
         working-directory: desktop
         env:
-          NODE_OPTIONS: --max-old-space-size=3072
+          NODE_OPTIONS: --max-old-space-size=4096
           ELECTRON_SKIP_BINARY_DOWNLOAD: 1  # Skip for now, install later
         run: |
           echo "=== Installing desktop dependencies ==="
@@ -118,7 +136,7 @@ jobs:
       
       - name: Run linting
         env:
-          NODE_OPTIONS: --max-old-space-size=3072
+          NODE_OPTIONS: --max-old-space-size=4096
         run: |
           echo "=== Linting Backend ==="
           cd backend && npm run lint || echo "::warning::Backend has linting warnings"
@@ -128,7 +146,7 @@ jobs:
       
       - name: Build TypeScript
         env:
-          NODE_OPTIONS: --max-old-space-size=3072
+          NODE_OPTIONS: --max-old-space-size=4096
         run: |
           echo "=== Building Backend ==="
           cd backend && npm run build
@@ -138,7 +156,7 @@ jobs:
       
       - name: Type check
         env:
-          NODE_OPTIONS: --max-old-space-size=3072
+          NODE_OPTIONS: --max-old-space-size=4096
         run: |
           echo "=== Type checking Backend ==="
           cd backend && npm run type-check || echo "::warning::Backend has type errors"
@@ -236,7 +254,7 @@ jobs:
       - name: Install all dependencies
         timeout-minutes: 20
         env:
-          NODE_OPTIONS: --max-old-space-size=3072
+          NODE_OPTIONS: --max-old-space-size=4096
         run: |
           # npm ci installs all dependencies by default (prod + dev)
           npm ci --ignore-scripts --loglevel=error
@@ -248,7 +266,7 @@ jobs:
       - name: Build desktop app
         timeout-minutes: 15
         env:
-          NODE_OPTIONS: --max-old-space-size=3072
+          NODE_OPTIONS: --max-old-space-size=4096
         run: |
           cd desktop
           npm run build
