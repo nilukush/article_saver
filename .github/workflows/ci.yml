@@ -8,6 +8,11 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Version to release (optional, e.g., 1.0.0) - creates a new tag'
+        required: false
+        type: string
 
 # Prevent multiple workflow runs
 concurrency:
@@ -216,6 +221,8 @@ jobs:
       - name: Build desktop app
         env:
           NODE_OPTIONS: '--max-old-space-size=6144'
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd desktop
           npm run build
@@ -235,7 +242,7 @@ jobs:
   create-release:
     name: Create Release
     needs: build-desktop
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.release_version)
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     permissions:
@@ -243,6 +250,21 @@ jobs:
       
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for tagging
+      
+      - name: Create tag for manual release
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release_version
+        run: |
+          VERSION="v${{ github.event.inputs.release_version }}"
+          if git rev-parse "$VERSION" >/dev/null 2>&1; then
+            echo "::error::Tag $VERSION already exists"
+            exit 1
+          fi
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$VERSION" -m "Release $VERSION"
+          git push origin "$VERSION"
       
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -252,6 +274,7 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', github.event.inputs.release_version) || github.ref_name }}
           draft: false
           prerelease: false
           generate_release_notes: true
