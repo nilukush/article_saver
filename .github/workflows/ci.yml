@@ -98,26 +98,41 @@ jobs:
         timeout-minutes: 10
         run: |
           echo "=== Installing dependencies (cache miss) ==="
+          # Install root dependencies
           npm ci --prefer-offline \
                  --no-audit \
                  --no-fund \
                  --ignore-scripts \
                  --loglevel=error
+          
+          # Install workspace dependencies with --ignore-scripts
+          npm ci --workspaces --if-present \
+                 --prefer-offline \
+                 --no-audit \
+                 --no-fund \
+                 --ignore-scripts \
+                 --loglevel=error
       
-      # Run postinstall scripts separately with timeout
-      - name: Run postinstall scripts
+      # Run only essential postinstall scripts
+      - name: Generate Prisma Client (postinstall)
         if: steps.cache-modules.outputs.cache-hit != 'true'
-        timeout-minutes: 5
-        run: |
-          echo "=== Running postinstall scripts ==="
-          # Skip electron-builder install-app-deps in CI - not needed for testing
-          cd backend && npm run postinstall --if-present
-          echo "Skipping desktop postinstall (electron-builder) in CI"
-      
-      # Always verify Prisma client
-      - name: Generate Prisma client
         working-directory: backend
-        run: npx prisma generate
+        timeout-minutes: 2
+        run: |
+          echo "=== Generating Prisma Client ==="
+          npx prisma generate
+      
+      # Verify Prisma client exists (for cache hit case)
+      - name: Verify Prisma client
+        if: steps.cache-modules.outputs.cache-hit == 'true'
+        working-directory: backend
+        run: |
+          if [ ! -d "node_modules/.prisma/client" ]; then
+            echo "Prisma client not found in cache, generating..."
+            npx prisma generate
+          else
+            echo "Prisma client found in cache"
+          fi
       
       - name: Lint code
         run: |
@@ -216,7 +231,6 @@ jobs:
         timeout-minutes: 15
         env:
           NODE_OPTIONS: '--max-old-space-size=6144'
-          ELECTRON_SKIP_BINARY_DOWNLOAD: 1  # Skip electron download during main install
         run: |
           npm ci --prefer-offline --no-audit --no-fund --ignore-scripts
       
