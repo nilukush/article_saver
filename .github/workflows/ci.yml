@@ -24,7 +24,7 @@ jobs:
   test-and-lint:
     name: Test and Lint
     runs-on: ubuntu-22.04  # LTS with support until 2027
-    timeout-minutes: 30    # Reduced to catch issues faster
+    timeout-minutes: 20    # Prevent long-running jobs
     strategy:
       fail-fast: false
     steps:
@@ -84,14 +84,17 @@ jobs:
           npm config set fetch-retry-mintimeout 15000
           npm config set fetch-retry-maxtimeout 90000
       
-      - name: Install all dependencies from root
-        timeout-minutes: 10
+      - name: Install all dependencies
+        timeout-minutes: 15
         env:
           NODE_OPTIONS: --max-old-space-size=3072
         run: |
-          echo "=== Installing all dependencies from root ==="
-          # Install all workspace dependencies from root
-          npm run install:all || npm install
+          echo "=== Installing dependencies with npm workspaces ==="
+          # Use npm ci with workspaces for faster, more reliable installs
+          npm ci --prefer-offline --no-audit || {
+            echo "npm ci failed, falling back to npm install"
+            npm install --no-audit --no-fund
+          }
       
       - name: Install desktop dependencies
         timeout-minutes: 15
