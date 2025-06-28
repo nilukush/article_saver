@@ -1,4 +1,4 @@
-name: Enterprise CI/CD
+name: Optimized CI/CD
 
 on:
   push:
@@ -9,194 +9,167 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Prevent multiple workflow runs from interfering with each other
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 env:
   NODE_VERSION: '18.19.0'
   NPM_VERSION: '10.2.5'
+  ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
+  ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
 
 jobs:
   test-and-lint:
     name: Test and Lint
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    runs-on: ubuntu-22.04  # LTS with support until 2027
+    timeout-minutes: 20    # Prevent long-running jobs
     strategy:
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
       
-      - name: Maximize build space
+      # Removed aggressive disk cleanup - it was taking too long and causing timeouts
+      # Only remove what's absolutely necessary
+      - name: Show system resources
         run: |
-          echo "=== Before cleanup ==="
+          echo "=== System Resources ==="
+          echo "CPU cores: $(nproc)"
+          echo "Memory:"
+          free -h
+          echo "Disk space:"
           df -h
-          free -m
-          
-          # Aggressive cleanup for maximum space
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /usr/local/share/boost
-          sudo rm -rf /usr/share/swift
-          sudo rm -rf /usr/local/.ghcup
-          sudo docker system prune -af
-          sudo apt-get clean
-          sudo apt-get autoremove -y
-          sudo apt-get autoclean -y
-          
+          echo "=== Cleaning up disk space ==="
+          # Only remove Android SDK which takes 10GB+
+          sudo rm -rf /usr/local/lib/android || true
           echo "=== After cleanup ==="
           df -h
-          free -m
       
-      - name: Setup large swap space
+      - name: Setup swap space
         run: |
           sudo swapoff -a
-          sudo fallocate -l 16G /mnt/swapfile
+          sudo fallocate -l 4G /mnt/swapfile
           sudo chmod 600 /mnt/swapfile
           sudo mkswap /mnt/swapfile
           sudo swapon /mnt/swapfile
           echo "=== Swap enabled ==="
           free -m
-          sudo swapon --show
       
-      - name: Setup Node.js
+      - name: Setup Node.js with caching
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+            desktop/package-lock.json
       
-      - name: Setup npm with optimizations
+      - name: Cache Electron binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+            ${{ env.ELECTRON_CACHE }}
+            ${{ env.ELECTRON_BUILDER_CACHE }}
+          key: ${{ runner.os }}-electron-${{ hashFiles('desktop/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-
+      
+      - name: Configure npm for performance
         run: |
           npm install -g npm@${{ env.NPM_VERSION }}
           npm config set audit false
           npm config set fund false
           npm config set progress false
-          npm config set maxsockets 3
-          npm config set fetch-retries 5
-          npm config set fetch-retry-maxtimeout 120000
-          npm config set fetch-retry-mintimeout 20000
+          npm config set update-notifier false
+          npm config set fetch-retries 3
+          npm config set fetch-retry-mintimeout 15000
+          npm config set fetch-retry-maxtimeout 90000
       
-      - name: Cache npm dependencies
-        uses: actions/cache@v3
-        id: npm-cache
-        with:
-          path: |
-            ~/.npm
-            ~/.cache/electron
-            ~/.cache/electron-builder
-            node_modules
-            backend/node_modules
-            desktop/node_modules
-          key: ${{ runner.os }}-npm-${{ env.NODE_VERSION }}-${{ hashFiles('**/package-lock.json', '**/package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-${{ env.NODE_VERSION }}-
-      
-      - name: System diagnostics before install
-        run: |
-          echo "=== System resources before npm ci ==="
-          free -m
-          df -h
-          nproc
-          ulimit -a
-          node -e "console.log('Default heap limit:', require('v8').getHeapStatistics().heap_size_limit / 1024 / 1024, 'MB')"
-      
-      - name: Install dependencies with retry
-        uses: nick-invision/retry@v2
-        with:
-          timeout_minutes: 15
-          max_attempts: 3
-          retry_on: error
-          command: |
-            set -e
-            export NODE_OPTIONS="--max-old-space-size=6144"
-            echo "=== Installing dependencies (attempt ${{ github.run_attempt }}) ==="
-            
-            # Clear npm cache if not first attempt
-            if [ "${{ github.run_attempt }}" -gt "1" ]; then
-              npm cache clean --force
-            fi
-            
-            # Show configured heap size
-            node -e "console.log('Configured heap limit:', require('v8').getHeapStatistics().heap_size_limit / 1024 / 1024, 'MB')"
-            
-            # Install with workspace support but skip postinstall scripts to avoid electron-builder error
-            NODE_ENV=development npm ci --workspaces --include-workspace-root --prefer-offline --no-audit --no-fund --no-optional --ignore-scripts --loglevel=error || {
-              echo "npm ci failed, checking for detailed errors..."
-              cat /home/runner/.npm/_logs/*.log || true
-              exit 1
-            }
-            
-            # Now run postinstall scripts manually after all dependencies are installed
-            echo "=== Running postinstall scripts ==="
-            cd desktop
-            npm install --no-save
-            npx electron-builder install-app-deps || {
-              echo "electron-builder install-app-deps failed, trying with global install..."
-              npm install -g electron-builder
-              electron-builder install-app-deps
-            }
-            cd ..
-            
-            echo "=== Dependencies installed successfully ==="
-      
-      - name: System diagnostics after install
-        if: always()
-        run: |
-          echo "=== System resources after npm ci ==="
-          free -m
-          df -h
-          du -sh node_modules || true
-          du -sh backend/node_modules || true
-          du -sh desktop/node_modules || true
-      
-      - name: Generate Prisma client
-        working-directory: backend
+      - name: Install all dependencies
+        timeout-minutes: 15
         env:
           NODE_OPTIONS: --max-old-space-size=4096
         run: |
-          npm run db:generate || {
-            echo "Prisma generate failed, trying with direct command..."
-            npx prisma generate
-          }
+          echo "=== Installing dependencies ==="
+          echo "Current directory: $(pwd)"
+          echo "package.json exists: $(test -f package.json && echo 'yes' || echo 'no')"
+          echo "package-lock.json exists: $(test -f package-lock.json && echo 'yes' || echo 'no')"
+          
+          # Try npm ci first (fastest for CI with lock file)
+          if [ -f "package-lock.json" ]; then
+            echo "Using npm ci with package-lock.json"
+            npm ci --prefer-offline --no-audit || {
+              echo "npm ci failed, trying with legacy peer deps"
+              npm ci --legacy-peer-deps --prefer-offline --no-audit || {
+                echo "npm ci still failed, falling back to install:all script"
+                npm run install:all
+              }
+            }
+          else
+            echo "No package-lock.json found, using install:all script"
+            npm run install:all
+          fi
       
-      - name: Lint code with memory optimization
+      - name: Install desktop dependencies
+        timeout-minutes: 15
+        working-directory: desktop
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1  # Skip for now, install later
+        run: |
+          echo "=== Installing desktop dependencies ==="
+          npm ci --ignore-scripts --loglevel=error
+      
+      # Skip Electron binary installation in CI to save time and resources
+      # The desktop build will use the cached Electron binaries
+      
+      - name: Verify Prisma client generation
+        working-directory: backend
+        run: |
+          # Verify that Prisma client was generated
+          ls -la node_modules/.prisma/client || echo "Prisma client not found"
+          ls -la node_modules/@prisma/client || echo "@prisma/client not found"
+      
+      - name: Run linting
         env:
           NODE_OPTIONS: --max-old-space-size=4096
         run: |
           echo "=== Linting Backend ==="
-          cd backend
-          npm run lint || echo "::warning::Backend has linting warnings"
+          cd backend && npm run lint || echo "::warning::Backend has linting warnings"
           
           echo "=== Linting Desktop ==="
-          cd ../desktop
-          npm run lint || echo "::warning::Desktop has linting warnings"
+          cd ../desktop && npm run lint || echo "::warning::Desktop has linting warnings"
       
-      - name: Build TypeScript projects
+      - name: Build TypeScript
         env:
           NODE_OPTIONS: --max-old-space-size=4096
         run: |
           echo "=== Building Backend ==="
-          cd backend
-          npm run build || echo "::warning::Backend build has errors"
+          cd backend && npm run build
           
           echo "=== Building Desktop ==="
-          cd ../desktop
-          npm run build:electron || echo "::warning::Desktop build has errors"
+          cd ../desktop && npm run build:electron
       
-      - name: Type check with memory optimization
+      - name: Type check
         env:
           NODE_OPTIONS: --max-old-space-size=4096
         run: |
           echo "=== Type checking Backend ==="
-          cd backend
-          npm run type-check || echo "::warning::Backend has type errors"
+          cd backend && npm run type-check || echo "::warning::Backend has type errors"
           
           echo "=== Type checking Desktop ==="
-          cd ../desktop
-          npm run type-check || echo "::warning::Desktop has type errors"
+          cd ../desktop && npm run type-check || echo "::warning::Desktop has type errors"
 
   deploy-backend:
     name: Deploy Backend
     needs: test-and-lint
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       
@@ -207,7 +180,6 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
-          # Check if token exists
           if [ -z "$RAILWAY_TOKEN" ]; then
             echo "::error::RAILWAY_TOKEN secret is not set. Please add it to your GitHub repository secrets."
             echo "::error::Go to https://railway.com/project/<your-project-id>/settings/tokens to create a project token."
@@ -232,81 +204,71 @@ jobs:
             platform: mac
           - os: windows-latest
             platform: win
-          - os: ubuntu-latest
+          - os: ubuntu-22.04  # LTS with support until 2027
             platform: linux
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       
-      - name: Maximize build space (Linux)
-        if: matrix.os == 'ubuntu-latest'
+      - name: Free Disk Space (Linux)
+        if: matrix.os == 'ubuntu-22.04'
         run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /usr/local/share/boost
-          sudo apt-get clean
+          echo "=== Disk space before cleanup ==="
+          df -h
+          # Only remove large unnecessary items
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf /opt/ghc || true
+          echo "=== Disk space after cleanup ==="
+          df -h
       
-      - name: Setup Node.js
+      - name: Setup Node.js with caching
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+            desktop/package-lock.json
       
-      - name: Setup npm
+      - name: Cache Electron binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+            ~/Library/Caches/electron
+            ~/AppData/Local/electron/Cache
+          key: ${{ runner.os }}-electron-build-${{ hashFiles('desktop/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-build-
+      
+      - name: Configure npm
         run: |
           npm install -g npm@${{ env.NPM_VERSION }}
           npm config set audit false
           npm config set fund false
           npm config set progress false
-          npm config set prefer-offline true
       
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.npm
-            ~/.cache/electron
-            ~/.cache/electron-builder
-            node_modules
-            backend/node_modules
-            desktop/node_modules
-          key: ${{ runner.os }}-build-${{ env.NODE_VERSION }}-${{ hashFiles('**/package-lock.json', '**/package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.NODE_VERSION }}-
+      - name: Install all dependencies
+        timeout-minutes: 20
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: |
+          # npm ci installs all dependencies by default (prod + dev)
+          npm ci --ignore-scripts --loglevel=error
+          cd backend && npm install --loglevel=error
+          cd ../desktop && npm ci --ignore-scripts --loglevel=error
       
-      - name: Install dependencies with retry
-        uses: nick-invision/retry@v2
-        with:
-          timeout_minutes: 15
-          max_attempts: 3
-          retry_on: error
-          command: |
-            export NODE_OPTIONS="--max-old-space-size=6144"
-            # Install dependencies without running postinstall scripts
-            NODE_ENV=development npm ci --workspaces --include-workspace-root --prefer-offline --no-audit --no-fund --no-optional --ignore-scripts || {
-              echo "npm ci failed in desktop build"
-              cat /home/runner/.npm/_logs/*.log || true
-              exit 1
-            }
-            
-            # Manually run electron-builder install-app-deps
-            echo "=== Installing electron app dependencies ==="
-            cd desktop
-            npm install --no-save
-            npx electron-builder install-app-deps || {
-              echo "Installing electron-builder globally as fallback..."
-              npm install -g electron-builder
-              electron-builder install-app-deps
-            }
-            cd ..
+      # Native modules will be rebuilt during the dist phase if needed
       
       - name: Build desktop app
+        timeout-minutes: 15
         env:
-          NODE_OPTIONS: --max-old-space-size=6144
+          NODE_OPTIONS: --max-old-space-size=4096
         run: |
           cd desktop
-          # Verify electron is available
-          npx electron --version || npm install electron@28.3.3
           npm run build
           npm run dist
       
@@ -325,7 +287,8 @@ jobs:
     name: Create Release
     needs: build-desktop
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
