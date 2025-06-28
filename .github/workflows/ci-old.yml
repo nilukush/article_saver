@@ -1,0 +1,310 @@
+name: Optimized CI/CD
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Prevent multiple workflow runs from interfering with each other
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  NODE_VERSION: '18.19.0'
+  NPM_VERSION: '10.2.5'
+  ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
+  ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
+
+jobs:
+  test-and-lint:
+    name: Test and Lint
+    runs-on: ubuntu-22.04  # LTS with support until 2027
+    timeout-minutes: 20    # Prevent long-running jobs
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      
+      # Removed aggressive disk cleanup - it was taking too long and causing timeouts
+      # Only remove what's absolutely necessary
+      - name: Show system resources
+        run: |
+          echo "=== System Resources ==="
+          echo "CPU cores: $(nproc)"
+          echo "Memory:"
+          free -h
+          echo "Disk space:"
+          df -h
+          echo "=== Cleaning up disk space ==="
+          # Only remove Android SDK which takes 10GB+
+          sudo rm -rf /usr/local/lib/android || true
+          echo "=== After cleanup ==="
+          df -h
+      
+      - name: Setup swap space
+        run: |
+          sudo swapoff -a
+          sudo fallocate -l 4G /mnt/swapfile
+          sudo chmod 600 /mnt/swapfile
+          sudo mkswap /mnt/swapfile
+          sudo swapon /mnt/swapfile
+          echo "=== Swap enabled ==="
+          free -m
+      
+      - name: Setup Node.js with caching
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+            desktop/package-lock.json
+      
+      - name: Cache Electron binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+            ${{ env.ELECTRON_CACHE }}
+            ${{ env.ELECTRON_BUILDER_CACHE }}
+          key: ${{ runner.os }}-electron-${{ hashFiles('desktop/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-
+      
+      - name: Configure npm for performance
+        run: |
+          npm install -g npm@${{ env.NPM_VERSION }}
+          npm config set audit false
+          npm config set fund false
+          npm config set progress false
+          npm config set update-notifier false
+          npm config set fetch-retries 3
+          npm config set fetch-retry-mintimeout 15000
+          npm config set fetch-retry-maxtimeout 90000
+      
+      - name: Install all dependencies
+        timeout-minutes: 15
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: |
+          echo "=== Installing dependencies ==="
+          echo "Current directory: $(pwd)"
+          echo "package.json exists: $(test -f package.json && echo 'yes' || echo 'no')"
+          echo "package-lock.json exists: $(test -f package-lock.json && echo 'yes' || echo 'no')"
+          
+          # Try npm ci first (fastest for CI with lock file)
+          if [ -f "package-lock.json" ]; then
+            echo "Using npm ci with package-lock.json"
+            npm ci --prefer-offline --no-audit || {
+              echo "npm ci failed, trying with legacy peer deps"
+              npm ci --legacy-peer-deps --prefer-offline --no-audit || {
+                echo "npm ci still failed, falling back to install:all script"
+                npm run install:all
+              }
+            }
+          else
+            echo "No package-lock.json found, using install:all script"
+            npm run install:all
+          fi
+      
+      - name: Install desktop dependencies
+        timeout-minutes: 15
+        working-directory: desktop
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1  # Skip for now, install later
+        run: |
+          echo "=== Installing desktop dependencies ==="
+          npm ci --ignore-scripts --loglevel=error
+      
+      # Skip Electron binary installation in CI to save time and resources
+      # The desktop build will use the cached Electron binaries
+      
+      - name: Verify Prisma client generation
+        working-directory: backend
+        run: |
+          # Verify that Prisma client was generated
+          ls -la node_modules/.prisma/client || echo "Prisma client not found"
+          ls -la node_modules/@prisma/client || echo "@prisma/client not found"
+      
+      - name: Run linting
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: |
+          echo "=== Linting Backend ==="
+          cd backend && npm run lint || echo "::warning::Backend has linting warnings"
+          
+          echo "=== Linting Desktop ==="
+          cd ../desktop && npm run lint || echo "::warning::Desktop has linting warnings"
+      
+      - name: Build TypeScript
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: |
+          echo "=== Building Backend ==="
+          cd backend && npm run build
+          
+          echo "=== Building Desktop ==="
+          cd ../desktop && npm run build:electron
+      
+      - name: Type check
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: |
+          echo "=== Type checking Backend ==="
+          cd backend && npm run type-check || echo "::warning::Backend has type errors"
+          
+          echo "=== Type checking Desktop ==="
+          cd ../desktop && npm run type-check || echo "::warning::Desktop has type errors"
+
+  deploy-backend:
+    name: Deploy Backend
+    needs: test-and-lint
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-20.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "::error::RAILWAY_TOKEN secret is not set. Please add it to your GitHub repository secrets."
+            echo "::error::Go to https://railway.com/project/<your-project-id>/settings/tokens to create a project token."
+            exit 1
+          fi
+          
+          echo "Railway token is set, proceeding with deployment..."
+          cd backend
+          railway up --service backend || {
+            echo "::error::Railway deployment failed. Ensure your RAILWAY_TOKEN is a valid project token (not an account token)."
+            exit 1
+          }
+
+  build-desktop:
+    name: Build Desktop App
+    needs: test-and-lint
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            platform: mac
+          - os: windows-latest
+            platform: win
+          - os: ubuntu-22.04  # LTS with support until 2027
+            platform: linux
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Free Disk Space (Linux)
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          echo "=== Disk space before cleanup ==="
+          df -h
+          # Only remove large unnecessary items
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf /opt/ghc || true
+          echo "=== Disk space after cleanup ==="
+          df -h
+      
+      - name: Setup Node.js with caching
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+            desktop/package-lock.json
+      
+      - name: Cache Electron binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+            ~/Library/Caches/electron
+            ~/AppData/Local/electron/Cache
+          key: ${{ runner.os }}-electron-build-${{ hashFiles('desktop/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-build-
+      
+      - name: Configure npm
+        run: |
+          npm install -g npm@${{ env.NPM_VERSION }}
+          npm config set audit false
+          npm config set fund false
+          npm config set progress false
+      
+      - name: Install all dependencies
+        timeout-minutes: 20
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: |
+          # npm ci installs all dependencies by default (prod + dev)
+          npm ci --ignore-scripts --loglevel=error
+          cd backend && npm install --loglevel=error
+          cd ../desktop && npm ci --ignore-scripts --loglevel=error
+      
+      # Native modules will be rebuilt during the dist phase if needed
+      
+      - name: Build desktop app
+        timeout-minutes: 15
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: |
+          cd desktop
+          npm run build
+          npm run dist
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}-build
+          path: |
+            desktop/release/*.exe
+            desktop/release/*.dmg
+            desktop/release/*.AppImage
+            desktop/release/*.deb
+          retention-days: 30
+
+  create-release:
+    name: Create Release
+    needs: build-desktop
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-20.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: release-artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
