@@ -1,3 +1,4 @@
+/// <reference types="electron" />
 import { contextBridge, ipcRenderer } from 'electron'
 import type { Article, UpdateArticleRequest, ApiResponse } from '../../../shared/types'
 
@@ -52,7 +53,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
 
     // Network fetch using Electron's net module (bypasses protocol interception)
-    netFetch: (url: string, options?: any): Promise<ApiResponse<any>> =>
+    netFetch: (url: string, options?: RequestInit): Promise<ApiResponse<unknown>> =>
         ipcRenderer.invoke('net-fetch', url, options),
 })
 
@@ -73,7 +74,7 @@ declare global {
             onOAuthSuccess: (callback: (data: { provider: string; token: string; email: string }) => void) => void
             onOAuthAccountLinking: (callback: (data: { provider: string; existingProvider: string; linkingToken: string; email: string; action: string; token?: string; trustLevel?: string; requiresVerification?: string }) => void) => void
             removeOAuthListeners: () => void
-            netFetch: (url: string, options?: any) => Promise<ApiResponse<any>>
+            netFetch: (url: string, options?: RequestInit) => Promise<ApiResponse<unknown>>
         }
     }
 }

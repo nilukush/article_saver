@@ -233,6 +233,8 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=6144'
         run: |
           npm ci --prefer-offline --no-audit --no-fund --ignore-scripts
+          cd desktop && npm ci --prefer-offline --no-audit --no-fund --ignore-scripts
+          cd ../backend && npm ci --prefer-offline --no-audit --no-fund --ignore-scripts
       
       - name: Build desktop app
         env:
