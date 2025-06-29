@@ -73,7 +73,11 @@
       "Bash(gh run view:*)",
       "Bash(./fix-types.sh)",
       "Bash(sed:*)",
-      "Bash(npm info:*)"
+      "Bash(npm info:*)",
+      "Bash(npm run build:vite:*)",
+      "Bash(npm ci:*)",
+      "Bash(npm update:*)",
+      "Bash(npx vite:*)"
     ],
     "deny": []
   }

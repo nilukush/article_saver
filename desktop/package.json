@@ -67,12 +67,6 @@
         "wait-on": "^7.2.0",
         "zustand": "^4.4.7"
     },
-    "optionalDependencies": {
-        "@rollup/rollup-linux-x64-gnu": "4.9.5",
-        "@rollup/rollup-darwin-arm64": "4.9.5",
-        "@rollup/rollup-darwin-x64": "4.9.5",
-        "@rollup/rollup-win32-x64-msvc": "4.9.5"
-    },
     "build": {
         "appId": "com.articlesaver.app",
         "productName": "Article Saver",
