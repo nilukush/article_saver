@@ -175,7 +175,7 @@ jobs:
             exit 1
           fi
           cd backend
-          railway up || {
+          railway up --service article-saver-backend || {
             echo "::error::Railway deployment failed - ensure backend directory is linked to Railway project"
             exit 1
           }
