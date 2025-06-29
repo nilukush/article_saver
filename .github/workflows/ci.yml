@@ -175,7 +175,7 @@ jobs:
             exit 1
           fi
           cd backend
-          railway up || {
+          railway up --service article_saver || {
             echo "::error::Railway deployment failed - ensure backend directory is linked to Railway project"
             exit 1
           }
@@ -227,6 +227,15 @@ jobs:
             ~/AppData/Local/electron/Cache
           key: electron-build-${{ runner.os }}-${{ hashFiles('desktop/package.json') }}
       
+      - name: Clean workspace (macOS rollup bug workaround)
+        if: matrix.os == 'macos-latest'
+        run: |
+          # Known npm bug with optional dependencies on different architectures
+          # See: https://github.com/npm/cli/issues/4828
+          cd desktop
+          rm -rf node_modules package-lock.json
+          cd ..
+      
       - name: Install dependencies
         timeout-minutes: 15
         env:
@@ -244,7 +253,12 @@ jobs:
           
           # Install desktop dependencies
           cd desktop
-          npm ci --prefer-offline --no-audit --no-fund
+          if [ "${{ matrix.os }}" = "macos-latest" ]; then
+            # Use npm install for macOS to properly resolve optional dependencies
+            npm install --prefer-offline --no-audit --no-fund
+          else
+            npm ci --prefer-offline --no-audit --no-fund
+          fi
           cd ..
       
       - name: Build desktop app
