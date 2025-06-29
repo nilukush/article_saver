@@ -2,13 +2,10 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { createError } from './errorHandler';
 import logger from '../utils/logger';
+import { JWTUser } from '../types/express';
 
 export interface AuthenticatedRequest extends Request {
-    user: {
-        userId: string;
-        email: string;
-        linkedUserIds?: string[]; // Include linked user IDs from token
-    };
+    user: JWTUser;
 }
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
@@ -23,7 +20,7 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET) as any;
-        (req as any).user = {
+        (req as AuthenticatedRequest).user = {
             userId: decoded.userId,
             email: decoded.email,
             linkedUserIds: decoded.linkedUserIds // Pass through linked user IDs

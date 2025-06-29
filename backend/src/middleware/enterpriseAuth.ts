@@ -3,15 +3,10 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../database';
 import { createError } from './errorHandler';
 import logger from '../utils/logger';
+import { EnterpriseUser } from '../types/express';
 
 export interface EnterpriseAuthenticatedRequest extends Request {
-    user: {
-        userId: string;
-        email: string;
-        primaryUserId: string; // Always points to the primary account
-        provider: string;
-        linkedUserIds: string[]; // All linked user IDs
-    };
+    user: EnterpriseUser;
 }
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
