@@ -21,7 +21,7 @@ concurrency:
 
 env:
   NODE_VERSION: '18.19.0'
-  NPM_VERSION: '10.2.5'
+  NPM_VERSION: '11.3.0'  # Fixed optional dependencies bug
   ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
   ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
   NODE_OPTIONS: '--max-old-space-size=6144'  # 6GB for large monorepo
@@ -92,23 +92,12 @@ jobs:
           npm config set progress false
           npm config set update-notifier false
       
-      # Clean up if we have a corrupted cache
-      - name: Clean corrupted dependencies
-        if: steps.cache-modules.outputs.cache-hit == 'true'
-        continue-on-error: true
-        run: |
-          # Check if rollup is missing
-          if [ ! -d "node_modules/@rollup" ]; then
-            echo "Corrupted cache detected, clearing node_modules"
-            rm -rf node_modules desktop/node_modules backend/node_modules
-          fi
-      
-      # Only install if cache miss or corrupted
+      # Only install if cache miss
       - name: Install dependencies
-        if: steps.cache-modules.outputs.cache-hit != 'true' || failure()
+        if: steps.cache-modules.outputs.cache-hit != 'true'
         timeout-minutes: 10
         run: |
-          echo "=== Installing dependencies ==="
+          echo "=== Installing dependencies (cache miss) ==="
           # Install root dependencies
           npm ci --prefer-offline \
                  --no-audit \
@@ -243,10 +232,10 @@ jobs:
         env:
           NODE_OPTIONS: '--max-old-space-size=6144'
         run: |
-          # Use install instead of ci to handle optional dependencies better
-          npm install --no-audit --no-fund --ignore-scripts
-          cd desktop && npm install --no-audit --no-fund --ignore-scripts
-          cd ../backend && npm install --no-audit --no-fund --ignore-scripts
+          # Use npm ci with fixed npm version
+          npm ci --prefer-offline --no-audit --no-fund --ignore-scripts
+          cd desktop && npm ci --prefer-offline --no-audit --no-fund --ignore-scripts
+          cd ../backend && npm ci --prefer-offline --no-audit --no-fund --ignore-scripts
       
       - name: Build desktop app
         env:

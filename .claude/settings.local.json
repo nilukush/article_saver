@@ -72,7 +72,8 @@
       "Bash(gh run list:*)",
       "Bash(gh run view:*)",
       "Bash(./fix-types.sh)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(npm info:*)"
     ],
     "deny": []
   }
