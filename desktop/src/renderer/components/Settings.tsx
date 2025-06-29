@@ -826,7 +826,7 @@ export function Settings({ onClose }: SettingsProps) {
                     logger.debug('Account linking data state set', { linkingData }, 'OAuth', 'Settings')
                     
                     // CRITICAL: Store in window for debugging
-                    (window as any).debugAccountLinkingData = linkingData
+                    ;(window as any).debugAccountLinkingData = linkingData
                     logger.debug('Account linking data stored in window debug', undefined, 'OAuth', 'Settings')
                     
                     // Force a re-render by using setTimeout

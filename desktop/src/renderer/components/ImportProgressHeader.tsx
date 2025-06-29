@@ -264,7 +264,7 @@ export function ImportProgressHeader() {
                     </div>
                 </div>
             }
-            onError={(error, errorInfo) => {
+            onError={(_error, _errorInfo) => {
                 // ImportProgressHeader error occurred
             }}
         >
