@@ -175,7 +175,7 @@ jobs:
             exit 1
           fi
           cd backend
-          railway up --service article-saver-backend || {
+          railway up || {
             echo "::error::Railway deployment failed - ensure backend directory is linked to Railway project"
             exit 1
           }
@@ -231,11 +231,21 @@ jobs:
         timeout-minutes: 15
         env:
           NODE_OPTIONS: '--max-old-space-size=6144'
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
         run: |
-          # Use npm ci with fixed npm version
-          npm ci --prefer-offline --no-audit --no-fund --ignore-scripts
-          cd desktop && npm ci --prefer-offline --no-audit --no-fund --ignore-scripts
-          cd ../backend && npm ci --prefer-offline --no-audit --no-fund --ignore-scripts
+          # Install root dependencies first
+          npm ci --prefer-offline --no-audit --no-fund
+          
+          # Install backend dependencies
+          cd backend
+          npm ci --prefer-offline --no-audit --no-fund
+          npx prisma generate
+          cd ..
+          
+          # Install desktop dependencies
+          cd desktop
+          npm ci --prefer-offline --no-audit --no-fund
+          cd ..
       
       - name: Build desktop app
         env:
@@ -244,9 +254,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd desktop
-          # Run electron-builder install-app-deps only during actual build
-          npx electron-builder install-app-deps
+          # Build TypeScript and Vite first
           npm run build
+          # Then package with electron-builder
           npm run dist
       
       - name: Upload artifacts

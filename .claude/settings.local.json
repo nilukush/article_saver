@@ -77,7 +77,8 @@
       "Bash(npm run build:vite:*)",
       "Bash(npm ci:*)",
       "Bash(npm update:*)",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(gh run watch:*)"
     ],
     "deny": []
   }
