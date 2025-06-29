@@ -20,8 +20,8 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
-  NODE_VERSION: '18.19.0'
-  NPM_VERSION: '11.3.0'  # Fixed optional dependencies bug
+  NODE_VERSION: '20.17.0'  # LTS version compatible with npm 10.8.2
+  NPM_VERSION: '10.8.2'  # Latest npm 10.x - stable and reliable
   ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
   ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
   NODE_OPTIONS: '--max-old-space-size=6144'  # 6GB for large monorepo
