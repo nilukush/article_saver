@@ -23,11 +23,11 @@ export function useInfiniteScroll(options: UseInfiniteScrollOptions) {
     }, [options.threshold, options.hasMore, options.loading, options.onLoadMore, isFetching])
 
     // Debounce scroll events for performance
-    const debounce = (func: Function, wait: number) => {
+    const debounce = <T extends (...args: any[]) => any>(func: T, wait: number) => {
         let timeout: NodeJS.Timeout
-        return (...args: any[]) => {
+        return (...args: Parameters<T>) => {
             clearTimeout(timeout)
-            timeout = setTimeout(() => func.apply(null, args), wait)
+            timeout = setTimeout(() => func(...args), wait)
         }
     }
 

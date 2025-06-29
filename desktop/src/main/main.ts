@@ -424,7 +424,7 @@ const createWindow = (): void => {
                     { label: 'About Article Saver', role: 'about' },
                     { type: 'separator' },
                     { label: 'Hide Article Saver', role: 'hide' },
-                    { label: 'Hide Others', role: 'hideothers' },
+                    { label: 'Hide Others', role: 'hideOthers' },
                     { label: 'Show All', role: 'unhide' },
                     { type: 'separator' },
                     { label: 'Quit Article Saver', role: 'quit' }
@@ -439,7 +439,7 @@ const createWindow = (): void => {
                     { role: 'cut' },
                     { role: 'copy' },
                     { role: 'paste' },
-                    { role: 'selectall' }
+                    { role: 'selectAll' }
                 ]
             }
         ]
