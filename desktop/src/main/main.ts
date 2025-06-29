@@ -1,3 +1,4 @@
+/// <reference types="electron" />
 import { app, BrowserWindow, ipcMain, shell, Menu, globalShortcut, net, MenuItemConstructorOptions } from 'electron'
 import path from 'path'
 import http from 'http'
