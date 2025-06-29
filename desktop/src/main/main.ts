@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, protocol } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, protocol, Menu, globalShortcut, net } from 'electron'
 import path from 'path'
 import http from 'http'
 import url from 'url'
@@ -267,7 +267,7 @@ const createWindow = (): void => {
 
     // Set app-specific menu for proper naming on macOS
     if (process.platform === 'darwin') {
-        const { Menu } = require('electron')
+        // Menu already imported at the top
         const template = [
             {
                 label: 'Article Saver', // This fixes the menu bar name issue
@@ -409,7 +409,7 @@ if (!gotTheLock) {
         
         // Enable keyboard shortcuts for developer tools in development
         if (!app.isPackaged) {
-            const { globalShortcut } = require('electron')
+            // globalShortcut already imported at the top
             
             // F12 to toggle DevTools
             globalShortcut.register('F12', () => {
@@ -577,7 +577,7 @@ if (!gotTheLock) {
                     }
                 } else {
                     // For other requests, use Electron's net.fetch with bypass
-                    const { net } = require('electron')
+                    // net already imported at the top
                     const response = await net.fetch(url, {
                         ...options,
                         bypassCustomProtocolHandlers: true

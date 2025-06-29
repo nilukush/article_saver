@@ -300,7 +300,7 @@ router.get('/google/callback',
     }
 
     // Extract Electron port from state parameter
-    const electronPort = state ? (state as string).split('_')[1] : null;
+    const electronPort = state ? String(state).split('_')[1] : null;
 
     // Exchange code for access token
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -466,7 +466,7 @@ router.get('/github/callback',
     }
 
     // Extract Electron port from state parameter
-    const stateStr = state as string;
+    const stateStr = String(state);
     const electronPort = stateStr && stateStr.startsWith('electron_') 
         ? stateStr.split('_')[1] 
         : null;
