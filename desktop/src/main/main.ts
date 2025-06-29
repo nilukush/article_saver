@@ -1,7 +1,6 @@
-import { app, BrowserWindow, ipcMain, shell, protocol, Menu, globalShortcut, net } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, Menu, globalShortcut, net, MenuItemConstructorOptions } from 'electron'
 import path from 'path'
 import http from 'http'
-import url from 'url'
 import { DatabaseService } from './database/database'
 import { ArticleService } from './services/articleService'
 import { logger } from './utils/logger'
@@ -156,9 +155,9 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
                         }
 
                         const req = http.request(options, (response) => {
-                            let data = ''
+                            let responseData = ''
                             response.on('data', (chunk) => {
-                                data += chunk
+                                responseData += chunk
                             })
 
                             response.on('end', () => {
@@ -245,6 +244,156 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
     })
 }
 
+// Setup IPC handlers
+function setupIpcHandlers() {
+    // IPC handlers
+    ipcMain.handle('save-article', async (_, url: string, tags?: string[]) => {
+        try {
+            const article = await articleService.saveArticle(url, tags)
+            return { success: true, data: article }
+        } catch (error) {
+            logger.error('Error saving article', { error: error instanceof Error ? error.message : 'Unknown error' })
+            return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+        }
+    })
+
+    ipcMain.handle('get-articles', async (_, options?: { limit?: number; offset?: number }) => {
+        try {
+            const articles = await articleService.getArticles(options)
+            return { success: true, data: articles }
+        } catch (error) {
+            logger.error('Error getting articles', { error: error instanceof Error ? error.message : 'Unknown error' })
+            return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+        }
+    })
+
+    ipcMain.handle('get-article', async (_, id: string) => {
+        try {
+            const article = await articleService.getArticle(id)
+            return { success: true, data: article }
+        } catch (error) {
+            logger.error('Error getting article', { error: error instanceof Error ? error.message : 'Unknown error' })
+            return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+        }
+    })
+
+    ipcMain.handle('update-article', async (_, id: string, updates: { isRead?: boolean; isArchived?: boolean; tags?: string[] }) => {
+        try {
+            const article = await articleService.updateArticle(id, updates)
+            return { success: true, data: article }
+        } catch (error) {
+            logger.error('Error updating article', { error: error instanceof Error ? error.message : 'Unknown error' })
+            return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+        }
+    })
+
+    ipcMain.handle('delete-article', async (_, id: string) => {
+        try {
+            await articleService.deleteArticle(id)
+            return { success: true }
+        } catch (error) {
+            logger.error('Error deleting article', { error: error instanceof Error ? error.message : 'Unknown error' })
+            return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+        }
+    })
+
+    ipcMain.handle('search-articles', async (_, query: string) => {
+        try {
+            const articles = await articleService.searchArticles(query)
+            return { success: true, data: articles }
+        } catch (error) {
+            logger.error('Error searching articles', { error: error instanceof Error ? error.message : 'Unknown error' })
+            return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+        }
+    })
+
+    // OAuth URL opening handler
+    ipcMain.handle('open-oauth-url', async (_, url: string) => {
+        try {
+            await shell.openExternal(url)
+            return { success: true }
+        } catch (error) {
+            logger.error('Error opening OAuth URL', { error: error instanceof Error ? error.message : 'Unknown error' })
+            return { success: false, error: error instanceof Error ? error.message : 'Failed to open browser' }
+        }
+    })
+
+    // Create OAuth server handler
+    ipcMain.handle('create-oauth-server', async () => {
+        try {
+            const { port } = await createOAuthServer()
+            return { success: true, data: { port } }
+        } catch (error) {
+            logger.error('Error creating OAuth server', { error: error instanceof Error ? error.message : 'Unknown error' })
+            return { success: false, error: error instanceof Error ? error.message : 'Failed to create OAuth server' }
+        }
+    })
+
+    // Smart fetch handler - uses regular fetch for localhost HTTP, net.fetch for others
+    ipcMain.handle('net-fetch', async (_, url: string, options?: RequestInit) => {
+        try {
+            // For localhost HTTP requests, use regular fetch to avoid SSL issues
+            if (url.startsWith('http://localhost:')) {
+                const response = await fetch(url, options)
+                const data = await response.json()
+                
+                // Check if response is successful (2xx status codes)
+                if (response.ok) {
+                    return {
+                        success: true,
+                        data,
+                        status: response.status,
+                        statusText: response.statusText
+                    }
+                } else {
+                    // Handle error responses (4xx, 5xx)
+                    return {
+                        success: false,
+                        error: data?.error?.message || data?.message || `${response.status} ${response.statusText}`,
+                        status: response.status,
+                        statusText: response.statusText,
+                        data // Include data for additional error details
+                    }
+                }
+            } else {
+                // For other requests, use Electron's net.fetch with bypass
+                // net already imported at the top
+                const response = await net.fetch(url, {
+                    ...options,
+                    bypassCustomProtocolHandlers: true
+                } as any)
+                const data = await response.json()
+                
+                // Check if response is successful (2xx status codes)
+                if (response.ok) {
+                    return {
+                        success: true,
+                        data,
+                        status: response.status,
+                        statusText: response.statusText
+                    }
+                } else {
+                    // Handle error responses (4xx, 5xx)
+                    return {
+                        success: false,
+                        error: data?.error?.message || data?.message || `${response.status} ${response.statusText}`,
+                        status: response.status,
+                        statusText: response.statusText,
+                        data // Include data for additional error details
+                    }
+                }
+            }
+        } catch (error) {
+            logger.error('Net fetch error', { error: error instanceof Error ? error.message : 'Unknown error' })
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Network request failed'
+            }
+        }
+    })
+
+}
+
 const createWindow = (): void => {
     // Create the browser window.
     mainWindow = new BrowserWindow({
@@ -268,7 +417,7 @@ const createWindow = (): void => {
     // Set app-specific menu for proper naming on macOS
     if (process.platform === 'darwin') {
         // Menu already imported at the top
-        const template = [
+        const template: MenuItemConstructorOptions[] = [
             {
                 label: 'Article Saver', // This fixes the menu bar name issue
                 submenu: [
@@ -384,9 +533,6 @@ if (!gotTheLock) {
         const hasElectronInPath = process.execPath.includes('electron')
         const isDefaultApp = !!process.defaultApp
 
-        // Ultimate failsafe: if ANY development indicator is true, skip protocol interception
-        const isDevelopmentMode = !isPackaged || hasElectronInPath || isDefaultApp
-
         // WebAuthn/Passkey functionality has been completely removed
 
         // Configure auto-updates for production builds
@@ -432,7 +578,7 @@ if (!gotTheLock) {
         }
 
         // Focus window when app is activated
-        app.on('open-url', (event, url) => {
+        app.on('open-url', (event, _url) => {
             event.preventDefault()
             if (mainWindow) {
                 if (mainWindow.isMinimized()) mainWindow.restore()
@@ -441,7 +587,7 @@ if (!gotTheLock) {
         })
 
         // Handle second instance (focus existing window)
-        app.on('second-instance', (event, commandLine) => {
+        app.on('second-instance', (_event, _commandLine) => {
             if (mainWindow) {
                 if (mainWindow.isMinimized()) mainWindow.restore()
                 mainWindow.focus()
@@ -464,155 +610,7 @@ if (!gotTheLock) {
         }
     })
 
-    // Setup IPC handlers
-    function setupIpcHandlers() {
-        // IPC handlers
-        ipcMain.handle('save-article', async (_, url: string, tags?: string[]) => {
-            try {
-                const article = await articleService.saveArticle(url, tags)
-                return { success: true, data: article }
-            } catch (error) {
-                logger.error('Error saving article', { error: error instanceof Error ? error.message : 'Unknown error' })
-                return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
-            }
-        })
-
-        ipcMain.handle('get-articles', async (_, options?: { limit?: number; offset?: number }) => {
-            try {
-                const articles = await articleService.getArticles(options)
-                return { success: true, data: articles }
-            } catch (error) {
-                logger.error('Error getting articles', { error: error instanceof Error ? error.message : 'Unknown error' })
-                return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
-            }
-        })
-
-        ipcMain.handle('get-article', async (_, id: string) => {
-            try {
-                const article = await articleService.getArticle(id)
-                return { success: true, data: article }
-            } catch (error) {
-                logger.error('Error getting article', { error: error instanceof Error ? error.message : 'Unknown error' })
-                return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
-            }
-        })
-
-        ipcMain.handle('update-article', async (_, id: string, updates: any) => {
-            try {
-                const article = await articleService.updateArticle(id, updates)
-                return { success: true, data: article }
-            } catch (error) {
-                logger.error('Error updating article', { error: error instanceof Error ? error.message : 'Unknown error' })
-                return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
-            }
-        })
-
-        ipcMain.handle('delete-article', async (_, id: string) => {
-            try {
-                await articleService.deleteArticle(id)
-                return { success: true }
-            } catch (error) {
-                logger.error('Error deleting article', { error: error instanceof Error ? error.message : 'Unknown error' })
-                return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
-            }
-        })
-
-        ipcMain.handle('search-articles', async (_, query: string) => {
-            try {
-                const articles = await articleService.searchArticles(query)
-                return { success: true, data: articles }
-            } catch (error) {
-                logger.error('Error searching articles', { error: error instanceof Error ? error.message : 'Unknown error' })
-                return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
-            }
-        })
-
-        // OAuth URL opening handler
-        ipcMain.handle('open-oauth-url', async (_, url: string) => {
-            try {
-                await shell.openExternal(url)
-                return { success: true }
-            } catch (error) {
-                logger.error('Error opening OAuth URL', { error: error instanceof Error ? error.message : 'Unknown error' })
-                return { success: false, error: error instanceof Error ? error.message : 'Failed to open browser' }
-            }
-        })
-
-        // Create OAuth server handler
-        ipcMain.handle('create-oauth-server', async () => {
-            try {
-                const { server, port } = await createOAuthServer()
-                return { success: true, data: { port } }
-            } catch (error) {
-                logger.error('Error creating OAuth server', { error: error instanceof Error ? error.message : 'Unknown error' })
-                return { success: false, error: error instanceof Error ? error.message : 'Failed to create OAuth server' }
-            }
-        })
-
-        // Smart fetch handler - uses regular fetch for localhost HTTP, net.fetch for others
-        ipcMain.handle('net-fetch', async (_, url: string, options?: any) => {
-            try {
-                // For localhost HTTP requests, use regular fetch to avoid SSL issues
-                if (url.startsWith('http://localhost:')) {
-                    const response = await fetch(url, options)
-                    const data = await response.json()
-                    
-                    // Check if response is successful (2xx status codes)
-                    if (response.ok) {
-                        return {
-                            success: true,
-                            data,
-                            status: response.status,
-                            statusText: response.statusText
-                        }
-                    } else {
-                        // Handle error responses (4xx, 5xx)
-                        return {
-                            success: false,
-                            error: data?.error?.message || data?.message || `${response.status} ${response.statusText}`,
-                            status: response.status,
-                            statusText: response.statusText,
-                            data // Include data for additional error details
-                        }
-                    }
-                } else {
-                    // For other requests, use Electron's net.fetch with bypass
-                    // net already imported at the top
-                    const response = await net.fetch(url, {
-                        ...options,
-                        bypassCustomProtocolHandlers: true
-                    })
-                    const data = await response.json()
-                    
-                    // Check if response is successful (2xx status codes)
-                    if (response.ok) {
-                        return {
-                            success: true,
-                            data,
-                            status: response.status,
-                            statusText: response.statusText
-                        }
-                    } else {
-                        // Handle error responses (4xx, 5xx)
-                        return {
-                            success: false,
-                            error: data?.error?.message || data?.message || `${response.status} ${response.statusText}`,
-                            status: response.status,
-                            statusText: response.statusText,
-                            data // Include data for additional error details
-                        }
-                    }
-                }
-            } catch (error) {
-                logger.error('Net fetch error', { error: error instanceof Error ? error.message : 'Unknown error' })
-                return {
-                    success: false,
-                    error: error instanceof Error ? error.message : 'Network request failed'
-                }
-            }
-        })
-
-    }
+    // Function has been moved to program root
 
     // Cleanup on app quit
     app.on('before-quit', async () => {
