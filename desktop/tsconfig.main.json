@@ -16,7 +16,7 @@
                 "../shared/*"
             ]
         },
-        "types": ["node", "electron"]
+        "types": ["node"]
     },
     "include": [
         "src/main/**/*"
