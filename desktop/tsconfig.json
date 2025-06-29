@@ -31,7 +31,8 @@
     },
     "include": [
         "src/**/*",
-        "../shared/**/*"
+        "../shared/**/*",
+        "scripts/**/*"
     ],
     "references": [
         {
