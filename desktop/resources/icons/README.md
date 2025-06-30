@@ -2,6 +2,17 @@
 
 Place your application icons in this directory:
 
+## Icon Generation for Windows Builds
+
+**Important**: The Windows ICO file must be in proper ICO format, not SVG. If you encounter the error "image icon.ico has unknown format", regenerate the ICO file:
+
+```bash
+# From the desktop directory
+node scripts/generate-ico.js
+```
+
+This script will use ImageMagick to combine the PNG files into a proper ICO file containing multiple resolutions.
+
 ## Required Icon Files
 
 ### Windows
