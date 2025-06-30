@@ -78,7 +78,10 @@
       "Bash(npm ci:*)",
       "Bash(npm update:*)",
       "Bash(npx vite:*)",
-      "Bash(gh run watch:*)"
+      "Bash(gh run watch:*)",
+      "Bash(npm view:*)",
+      "Bash(npm search:*)",
+      "Bash(npm run build:electron:*)"
     ],
     "deny": []
   }
