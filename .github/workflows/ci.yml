@@ -284,21 +284,35 @@ jobs:
       - name: Verify build environment
         shell: bash
         run: |
+          # Show initial directory structure
+          echo "Repository structure:"
+          ls -la
+          echo ""
+          echo "Desktop directory contents:"
+          ls -la desktop/
+          
+          # Change to desktop directory
           cd desktop
+          
           # Display environment info
           echo "Node version: $(node --version)"
           echo "npm version: $(npm --version)"
           echo "Current directory: $(pwd)"
           echo "Files in current directory:"
           ls -la
-          # Ensure TypeScript is available via npx
-          echo "TypeScript version:"
-          npx tsc --version
+          
           # Verify package.json exists
           if [ ! -f "package.json" ]; then
             echo "ERROR: package.json not found in desktop directory"
+            echo "Current path: $(pwd)"
+            echo "Directory contents:"
+            ls -la
             exit 1
           fi
+          
+          # Ensure TypeScript is available via npx
+          echo "TypeScript version:"
+          npx tsc --version
       
       - name: Build desktop app
         env:
@@ -309,18 +323,38 @@ jobs:
           PATH: ${{ env.PATH }}:./node_modules/.bin
         shell: bash
         run: |
-          cd desktop
-          # Ensure we're in the right directory with package.json
-          if [ ! -f "package.json" ]; then
-            echo "ERROR: Not in desktop directory or package.json missing"
+          # Debug current directory
+          echo "Current working directory: $(pwd)"
+          echo "Repository root contents:"
+          ls -la
+          
+          # Navigate to desktop directory
+          if [ -d "desktop" ]; then
+            cd desktop
+            echo "Changed to desktop directory: $(pwd)"
+          else
+            echo "ERROR: desktop directory not found from $(pwd)"
             exit 1
           fi
+          
+          # Verify we're in the right directory with package.json
+          if [ ! -f "package.json" ]; then
+            echo "ERROR: package.json not found in desktop directory"
+            echo "Current directory: $(pwd)"
+            echo "Directory contents:"
+            ls -la
+            exit 1
+          fi
+          
           # Install app dependencies for electron-builder
+          echo "Installing electron-builder app dependencies..."
           npx electron-builder install-app-deps
-          # Build TypeScript and Vite first
+          
+          # Build TypeScript and Vite
           echo "Running build command..."
           npm run build
-          # Then package with electron-builder
+          
+          # Package with electron-builder
           echo "Running dist command..."
           npm run dist
       

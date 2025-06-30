@@ -18,8 +18,8 @@
         "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
         "type-check": "npx tsc --noEmit",
         "clean": "npm run clean:dist && npm run clean:cache",
-        "clean:dist": "npx rimraf dist",
-        "clean:cache": "npx rimraf node_modules/.cache node_modules/.vite",
+        "clean:dist": "node scripts/clean.js dist",
+        "clean:cache": "node scripts/clean.js node_modules/.cache node_modules/.vite",
         "clean:all": "npm run clean && rm -rf node_modules && npm install",
         "clean:data": "npx ts-node scripts/clean-local-data.ts",
         "dev:clean": "npm run clean && npm run dev",
@@ -41,6 +41,7 @@
         "uuid": "^9.0.1"
     },
     "devDependencies": {
+        "@electron/rebuild": "^3.6.0",
         "@types/jsdom": "^21.1.6",
         "@types/node": "^20.10.5",
         "@types/react": "^18.2.45",
@@ -53,7 +54,6 @@
         "concurrently": "^8.2.2",
         "electron": "28.3.3",
         "electron-builder": "^24.9.1",
-        "@electron/rebuild": "^3.6.0",
         "eslint": "^8.55.0",
         "eslint-plugin-react-hooks": "^4.6.0",
         "eslint-plugin-react-refresh": "^0.4.5",
@@ -65,8 +65,7 @@
         "typescript": "^5.2.2",
         "vite": "^5.0.8",
         "wait-on": "^7.2.0",
-        "zustand": "^4.4.7",
-        "rimraf": "^5.0.5"
+        "zustand": "^4.4.7"
     },
     "build": {
         "appId": "com.articlesaver.app",
