@@ -3,7 +3,11 @@
     "productName": "Article Saver",
     "version": "1.0.2",
     "description": "Desktop application for Article Saver",
-    "author": "Article Saver Team",
+    "author": {
+        "name": "Article Saver Team",
+        "email": "support@articlesaver.app"
+    },
+    "homepage": "https://github.com/nilukush/article_saver",
     "main": "./dist/main/desktop/src/main/main.js",
     "scripts": {
         "dev": "concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
@@ -29,7 +33,8 @@
         "restart": "scripts/restart-desktop.sh",
         "restart:enterprise": "scripts/restart-desktop.sh",
         "postinstall": "node scripts/postinstall.js",
-        "ensure-tsc": "npx tsc --version"
+        "ensure-tsc": "npx tsc --version",
+        "generate-ico": "node scripts/generate-ico.js"
     },
     "dependencies": {
         "@mozilla/readability": "^0.6.0",
@@ -146,7 +151,8 @@
                 "rpm"
             ],
             "icon": "resources/icons",
-            "category": "Office"
+            "category": "Office",
+            "maintainer": "support@articlesaver.app"
         },
         "nsis": {
             "oneClick": false,

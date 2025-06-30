@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle -->
+  <circle cx="256" cy="256" r="240" fill="#1E293B"/>
+  
+  <!-- Book/Article Icon -->
+  <g transform="translate(128, 128)">
+    <!-- Book Pages -->
+    <path d="M 40 60 L 40 196 Q 40 206 50 206 L 206 206 Q 216 206 216 196 L 216 60 Q 216 50 206 50 L 50 50 Q 40 50 40 60 Z" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="2"/>
+    
+    <!-- Book Spine -->
+    <rect x="40" y="50" width="20" height="156" fill="#CBD5E1"/>
+    
+    <!-- Text Lines -->
+    <rect x="76" y="76" width="120" height="8" rx="4" fill="#64748B"/>
+    <rect x="76" y="96" width="100" height="8" rx="4" fill="#64748B"/>
+    <rect x="76" y="116" width="110" height="8" rx="4" fill="#64748B"/>
+    <rect x="76" y="136" width="90" height="8" rx="4" fill="#64748B"/>
+    <rect x="76" y="156" width="105" height="8" rx="4" fill="#64748B"/>
+    <rect x="76" y="176" width="85" height="8" rx="4" fill="#64748B"/>
+    
+    <!-- Bookmark -->
+    <path d="M 180 40 L 180 100 L 190 90 L 200 100 L 200 40 Q 200 36 196 36 L 184 36 Q 180 36 180 40 Z" fill="#F59E0B"/>
+  </g>
+  
+  <!-- Save/Download Arrow -->
+  <g transform="translate(300, 320)">
+    <circle cx="40" cy="40" r="36" fill="#10B981"/>
+    <path d="M 40 20 L 40 48 M 26 34 L 40 48 L 54 34" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 20 56 L 60 56" stroke="white" stroke-width="6" stroke-linecap="round"/>
+  </g>
+</svg>
