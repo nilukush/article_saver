@@ -320,9 +320,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: 'true'
-          PATH: ${{ env.PATH }}:./node_modules/.bin
         shell: bash
         run: |
+          # Add node_modules/.bin to PATH
+          export PATH="$PATH:./node_modules/.bin"
           # Debug current directory
           echo "Current working directory: $(pwd)"
           echo "Repository root contents:"
