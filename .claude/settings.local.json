@@ -82,7 +82,12 @@
       "Bash(npm view:*)",
       "Bash(npm search:*)",
       "Bash(npm run build:electron:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(git describe:*)",
+      "Bash(gh run download:*)",
+      "Bash(gh api:*)",
+      "Bash(gh workflow run:*)",
+      "Bash(npm version:*)"
     ],
     "deny": []
   }
