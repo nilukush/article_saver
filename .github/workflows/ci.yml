@@ -351,6 +351,13 @@ jobs:
           echo "Installing electron-builder app dependencies..."
           npx electron-builder install-app-deps
           
+          # Ensure TypeScript is available
+          echo "Checking TypeScript installation..."
+          if ! npx tsc --version 2>/dev/null | grep -q "Version"; then
+            echo "TypeScript not found, installing..."
+            npm install typescript --no-save
+          fi
+          
           # Build TypeScript and Vite
           echo "Running build command..."
           npm run build
