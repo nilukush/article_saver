@@ -61,6 +61,10 @@ if (isCI && isMac) {
   args.push('--x64');
 }
 
+// IMPORTANT: Never publish during build phase
+// The Create Release job handles publishing
+args.push('--publish', 'never');
+
 // Run electron-builder directly
 const electronBuilder = spawn(electronBuilderPath, args, {
   stdio: 'inherit',

@@ -327,9 +327,14 @@ jobs:
       - name: Build desktop app
         env:
           NODE_OPTIONS: '--max-old-space-size=6144'
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Only set GH_TOKEN for release creation job, not builds
+          # This prevents electron-builder from trying to create releases during build
           ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: 'true'
+          # Explicitly disable publishing during build phase
+          EP_DRAFT: 'false'
+          EP_PRE_DRAFT: 'false'
+          EP_GH_IGNORE_TIME: 'true'
+          PUBLISH_NEVER: 'true'
         shell: bash
         run: |
           # Add node_modules/.bin to PATH
