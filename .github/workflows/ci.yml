@@ -284,11 +284,6 @@ jobs:
         shell: bash
         run: |
           cd desktop
-          # Verify TypeScript is installed
-          if ! npx tsc --version; then
-            echo "TypeScript not found, installing..."
-            npm install typescript --save-dev
-          fi
           # Install app dependencies for electron-builder
           npx electron-builder install-app-deps
           # Build TypeScript and Vite first
