@@ -1,5 +1,5 @@
 /// <reference types="electron" />
-import { app, BrowserWindow, ipcMain, shell, Menu, globalShortcut, net, MenuItemConstructorOptions } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, Menu, globalShortcut, net, MenuItemConstructorOptions, IpcMainInvokeEvent, IpcMainEvent } from 'electron'
 import path from 'path'
 import http from 'http'
 import { DatabaseService } from './database/database'
@@ -248,7 +248,7 @@ function createOAuthServer(): Promise<{ server: http.Server; port: number }> {
 // Setup IPC handlers
 function setupIpcHandlers() {
     // IPC handlers
-    ipcMain.handle('save-article', async (_, url: string, tags?: string[]) => {
+    ipcMain.handle('save-article', async (_event: IpcMainInvokeEvent, url: string, tags?: string[]) => {
         try {
             const article = await articleService.saveArticle(url, tags)
             return { success: true, data: article }
@@ -258,7 +258,7 @@ function setupIpcHandlers() {
         }
     })
 
-    ipcMain.handle('get-articles', async (_, options?: { limit?: number; offset?: number }) => {
+    ipcMain.handle('get-articles', async (_event: IpcMainInvokeEvent, options?: { limit?: number; offset?: number }) => {
         try {
             const articles = await articleService.getArticles(options)
             return { success: true, data: articles }
@@ -268,7 +268,7 @@ function setupIpcHandlers() {
         }
     })
 
-    ipcMain.handle('get-article', async (_, id: string) => {
+    ipcMain.handle('get-article', async (_event: IpcMainInvokeEvent, id: string) => {
         try {
             const article = await articleService.getArticle(id)
             return { success: true, data: article }
@@ -278,7 +278,7 @@ function setupIpcHandlers() {
         }
     })
 
-    ipcMain.handle('update-article', async (_, id: string, updates: { isRead?: boolean; isArchived?: boolean; tags?: string[] }) => {
+    ipcMain.handle('update-article', async (_event: IpcMainInvokeEvent, id: string, updates: { isRead?: boolean; isArchived?: boolean; tags?: string[] }) => {
         try {
             const article = await articleService.updateArticle(id, updates)
             return { success: true, data: article }
@@ -288,7 +288,7 @@ function setupIpcHandlers() {
         }
     })
 
-    ipcMain.handle('delete-article', async (_, id: string) => {
+    ipcMain.handle('delete-article', async (_event: IpcMainInvokeEvent, id: string) => {
         try {
             await articleService.deleteArticle(id)
             return { success: true }
@@ -298,7 +298,7 @@ function setupIpcHandlers() {
         }
     })
 
-    ipcMain.handle('search-articles', async (_, query: string) => {
+    ipcMain.handle('search-articles', async (_event: IpcMainInvokeEvent, query: string) => {
         try {
             const articles = await articleService.searchArticles(query)
             return { success: true, data: articles }
@@ -309,7 +309,7 @@ function setupIpcHandlers() {
     })
 
     // OAuth URL opening handler
-    ipcMain.handle('open-oauth-url', async (_, url: string) => {
+    ipcMain.handle('open-oauth-url', async (_event: IpcMainInvokeEvent, url: string) => {
         try {
             await shell.openExternal(url)
             return { success: true }
@@ -331,7 +331,7 @@ function setupIpcHandlers() {
     })
 
     // Smart fetch handler - uses regular fetch for localhost HTTP, net.fetch for others
-    ipcMain.handle('net-fetch', async (_, url: string, options?: RequestInit) => {
+    ipcMain.handle('net-fetch', async (_event: IpcMainInvokeEvent, url: string, options?: RequestInit) => {
         try {
             // For localhost HTTP requests, use regular fetch to avoid SSL issues
             if (url.startsWith('http://localhost:')) {
@@ -465,7 +465,7 @@ const createWindow = (): void => {
 
         // Add keyboard shortcut for dev tools (F12 or Cmd+Option+I) in development only
         if (process.env.NODE_ENV === 'development') {
-            mainWindow.webContents.on('before-input-event', (event, input) => {
+            mainWindow.webContents.on('before-input-event', (event: Electron.Event, input: Electron.Input) => {
                 // F12 or Cmd+Option+I to open dev tools
                 if (input.key === 'F12' || 
                     (input.meta && input.alt && input.key.toLowerCase() === 'i')) {
@@ -492,7 +492,7 @@ const createWindow = (): void => {
         })
 
         // Block all keyboard shortcuts that open dev tools
-        mainWindow.webContents.on('before-input-event', (event, input) => {
+        mainWindow.webContents.on('before-input-event', (event: Electron.Event, input: Electron.Input) => {
             // Block F12, Cmd+Option+I, Ctrl+Shift+I, Cmd+Option+J, Cmd+Shift+C
             if (input.key === 'F12' ||
                 (input.meta && input.alt && (input.key === 'i' || input.key === 'I' || input.key === 'j' || input.key === 'J')) ||
@@ -579,7 +579,7 @@ if (!gotTheLock) {
         }
 
         // Focus window when app is activated
-        app.on('open-url', (event, _url) => {
+        app.on('open-url', (event: Electron.Event, _url: string) => {
             event.preventDefault()
             if (mainWindow) {
                 if (mainWindow.isMinimized()) mainWindow.restore()
@@ -588,7 +588,7 @@ if (!gotTheLock) {
         })
 
         // Handle second instance (focus existing window)
-        app.on('second-instance', (_event, _commandLine) => {
+        app.on('second-instance', (_event: Electron.Event, _commandLine: string[]) => {
             if (mainWindow) {
                 if (mainWindow.isMinimized()) mainWindow.restore()
                 mainWindow.focus()

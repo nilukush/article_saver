@@ -16,11 +16,11 @@
                 "../shared/*"
             ]
         },
-        "types": ["node"],
-        "typeRoots": ["node_modules/@types", "../node_modules/@types"]
+        "types": ["node", "electron"]
     },
     "include": [
-        "src/main/**/*"
+        "src/main/**/*",
+        "src/types/**/*"
     ],
     "exclude": [
         "src/renderer/**/*"

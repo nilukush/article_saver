@@ -1,5 +1,5 @@
 /// <reference types="electron" />
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
 import type { Article, UpdateArticleRequest, ApiResponse } from '../../../shared/types'
 
 // Expose protected methods that allow the renderer process to use
@@ -34,16 +34,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     // OAuth callback handlers
     onOAuthCallback: (callback: (data: { provider: string; code: string }) => void) =>
-        ipcRenderer.on('oauth-callback', (_event, data) => callback(data)),
+        ipcRenderer.on('oauth-callback', (_event: IpcRendererEvent, data) => callback(data)),
 
     onOAuthError: (callback: (data: { provider: string; error: string }) => void) =>
-        ipcRenderer.on('oauth-error', (_event, data) => callback(data)),
+        ipcRenderer.on('oauth-error', (_event: IpcRendererEvent, data) => callback(data)),
 
     onOAuthSuccess: (callback: (data: { provider: string; token: string; email: string }) => void) =>
-        ipcRenderer.on('oauth-success', (_event, data) => callback(data)),
+        ipcRenderer.on('oauth-success', (_event: IpcRendererEvent, data) => callback(data)),
 
     onOAuthAccountLinking: (callback: (data: { provider: string; existingProvider: string; linkingToken: string; email: string; action: string; token?: string; trustLevel?: string; requiresVerification?: string }) => void) =>
-        ipcRenderer.on('oauth-account-linking', (_event, data) => callback(data)),
+        ipcRenderer.on('oauth-account-linking', (_event: IpcRendererEvent, data) => callback(data)),
 
     removeOAuthListeners: () => {
         ipcRenderer.removeAllListeners('oauth-callback')
