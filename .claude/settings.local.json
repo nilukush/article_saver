@@ -81,7 +81,8 @@
       "Bash(gh run watch:*)",
       "Bash(npm view:*)",
       "Bash(npm search:*)",
-      "Bash(npm run build:electron:*)"
+      "Bash(npm run build:electron:*)",
+      "Bash(npm uninstall:*)"
     ],
     "deny": []
   }
