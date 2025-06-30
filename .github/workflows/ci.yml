@@ -146,7 +146,7 @@ jobs:
           echo "=== Building Backend ==="
           cd backend && npm run build
           echo "=== Building Desktop TypeScript ==="
-          cd ../desktop && npm run build:electron
+          cd ../desktop && npx tsc -p tsconfig.main.json
       
       - name: Type check
         run: |
@@ -242,6 +242,8 @@ jobs:
           rm -rf node_modules package-lock.json
           rm -rf desktop/node_modules desktop/package-lock.json
           rm -rf backend/node_modules backend/package-lock.json
+          # Ensure npm cache is clean
+          npm cache clean --force || true
       
       - name: Install dependencies
         timeout-minutes: 15
@@ -262,6 +264,10 @@ jobs:
           # Install desktop dependencies with fresh package-lock.json
           cd desktop
           npm install --prefer-offline --no-audit --no-fund
+          # Make shell scripts executable (if they exist)
+          if [ -d "scripts" ]; then
+            chmod +x scripts/*.sh 2>/dev/null || true
+          fi
           cd ..
       
       - name: Prepare build environment
@@ -275,19 +281,24 @@ jobs:
           # Fix permissions for 7zip binaries
           find node_modules/7zip-bin -name "7za" -type f -exec chmod +x {} \; || true
       
-      - name: Verify TypeScript installation
+      - name: Verify build environment
         shell: bash
         run: |
           cd desktop
-          # Ensure TypeScript is available
-          if ! command -v tsc &> /dev/null; then
-            echo "TypeScript not in PATH, using npx"
-            npx --no-install tsc --version || npm install typescript
-          else
-            tsc --version
+          # Display environment info
+          echo "Node version: $(node --version)"
+          echo "npm version: $(npm --version)"
+          echo "Current directory: $(pwd)"
+          echo "Files in current directory:"
+          ls -la
+          # Ensure TypeScript is available via npx
+          echo "TypeScript version:"
+          npx tsc --version
+          # Verify package.json exists
+          if [ ! -f "package.json" ]; then
+            echo "ERROR: package.json not found in desktop directory"
+            exit 1
           fi
-          # Verify Electron types are available
-          npm ls electron || echo "Electron package verified"
       
       - name: Build desktop app
         env:
@@ -299,11 +310,18 @@ jobs:
         shell: bash
         run: |
           cd desktop
+          # Ensure we're in the right directory with package.json
+          if [ ! -f "package.json" ]; then
+            echo "ERROR: Not in desktop directory or package.json missing"
+            exit 1
+          fi
           # Install app dependencies for electron-builder
           npx electron-builder install-app-deps
           # Build TypeScript and Vite first
+          echo "Running build command..."
           npm run build
           # Then package with electron-builder
+          echo "Running dist command..."
           npm run dist
       
       - name: Upload artifacts
