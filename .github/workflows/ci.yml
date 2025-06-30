@@ -271,7 +271,7 @@ jobs:
           # Install 7zip-bin specifically
           npm install 7zip-bin@latest --save-optional
           # Ensure native modules are rebuilt for Electron
-          npx electron-rebuild || echo "electron-rebuild not critical"
+          npx @electron/rebuild || echo "electron-rebuild not critical"
           # Fix permissions for 7zip binaries
           find node_modules/7zip-bin -name "7za" -type f -exec chmod +x {} \; || true
       
