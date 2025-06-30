@@ -351,12 +351,11 @@ jobs:
           echo "Installing electron-builder app dependencies..."
           npx electron-builder install-app-deps
           
-          # Ensure electron-builder binaries are available
-          echo "Checking electron-builder installation..."
-          if [ ! -d "../node_modules/app-builder-bin" ] && [ ! -d "node_modules/app-builder-bin" ]; then
-            echo "Installing electron-builder in desktop workspace..."
-            npm install electron-builder@^24.9.1 --no-save
-          fi
+          # Install app-builder-bin at root level for npm workspaces compatibility
+          echo "Ensuring app-builder-bin is available..."
+          cd ..
+          npm install app-builder-bin@24.13.3 --no-save
+          cd desktop
           
           # Ensure TypeScript is available
           echo "Checking TypeScript installation..."

@@ -13,7 +13,7 @@
         "build:prod": "NODE_ENV=production npm run build",
         "build:vite": "vite build",
         "build:electron": "npx --no -- tsc -p tsconfig.main.json",
-        "dist": "npm run build && electron-builder",
+        "dist": "npm run build && node scripts/build-dist.js",
         "preview": "vite preview",
         "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
         "type-check": "npx tsc --noEmit",
