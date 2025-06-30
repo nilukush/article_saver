@@ -354,7 +354,7 @@ jobs:
           # Install app-builder-bin at root level for npm workspaces compatibility
           echo "Ensuring app-builder-bin is available..."
           cd ..
-          npm install app-builder-bin@24.13.3 --no-save
+          npm install app-builder-bin@latest --no-save
           cd desktop
           
           # Ensure TypeScript is available
