@@ -1,5 +1,3 @@
-/// <reference types="electron" />
-
 // Electron type extensions
 declare namespace NodeJS {
   interface Process {
