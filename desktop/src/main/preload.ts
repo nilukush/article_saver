@@ -1,4 +1,3 @@
-/// <reference types="electron" />
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
 import type { Article, UpdateArticleRequest, ApiResponse } from '../../../shared/types'
 
