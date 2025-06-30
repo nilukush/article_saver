@@ -23,7 +23,7 @@ const localAppBuilder = path.join('node_modules', 'app-builder-bin');
 if (!fs.existsSync(rootAppBuilder) && !fs.existsSync(localAppBuilder)) {
   console.log('app-builder-bin not found, installing...');
   try {
-    execSync('npm install app-builder-bin@24.13.3 --no-save', { 
+    execSync('npm install app-builder-bin@latest --no-save', { 
       stdio: 'inherit',
       cwd: path.join(desktopDir, '..')
     });
