@@ -8,26 +8,26 @@
     "scripts": {
         "dev": "concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
         "dev:vite": "vite",
-        "dev:electron": "wait-on http://localhost:19858 && npm run compile:main && NODE_ENV=development electron .",
-        "build": "npm run clean && npm run compile:main && npm run build:vite",
-        "compile:main": "tsc -p tsconfig.main.json || npx --no-install tsc -p tsconfig.main.json",
+        "dev:electron": "wait-on http://localhost:19858 && npx tsc -p tsconfig.main.json && NODE_ENV=development electron .",
+        "build": "npm run clean && npm run build:electron && npm run build:vite",
         "build:prod": "NODE_ENV=production npm run build",
         "build:vite": "vite build",
-        "build:electron": "tsc -p tsconfig.main.json || npx --no-install tsc -p tsconfig.main.json",
+        "build:electron": "npx tsc -p tsconfig.main.json",
         "dist": "npm run build && electron-builder",
         "preview": "vite preview",
         "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-        "type-check": "tsc --noEmit || npx --no-install tsc --noEmit",
+        "type-check": "npx tsc --noEmit",
         "clean": "npm run clean:dist && npm run clean:cache",
-        "clean:dist": "rm -rf dist",
-        "clean:cache": "rm -rf node_modules/.cache && rm -rf node_modules/.vite",
+        "clean:dist": "npx rimraf dist",
+        "clean:cache": "npx rimraf node_modules/.cache node_modules/.vite",
         "clean:all": "npm run clean && rm -rf node_modules && npm install",
         "clean:data": "npx ts-node scripts/clean-local-data.ts",
         "dev:clean": "npm run clean && npm run dev",
         "build:clean": "npm run clean && npm run build",
         "restart": "scripts/restart-desktop.sh",
         "restart:enterprise": "scripts/restart-desktop.sh",
-        "postinstall": "node scripts/postinstall.js"
+        "postinstall": "node scripts/postinstall.js",
+        "ensure-tsc": "npx tsc --version"
     },
     "dependencies": {
         "@mozilla/readability": "^0.6.0",
@@ -65,7 +65,8 @@
         "typescript": "^5.2.2",
         "vite": "^5.0.8",
         "wait-on": "^7.2.0",
-        "zustand": "^4.4.7"
+        "zustand": "^4.4.7",
+        "rimraf": "^5.0.5"
     },
     "build": {
         "appId": "com.articlesaver.app",
