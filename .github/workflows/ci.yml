@@ -172,11 +172,16 @@ jobs:
         run: |
           if [ -z "$RAILWAY_TOKEN" ]; then
             echo "::error::RAILWAY_TOKEN secret is not set"
+            echo "::error::Please add RAILWAY_TOKEN to your GitHub repository secrets"
+            echo "::error::See RAILWAY_SETUP.md for instructions"
             exit 1
           fi
           cd backend
-          railway up --service article_saver || {
-            echo "::error::Railway deployment failed - ensure backend directory is linked to Railway project"
+          echo "Deploying to Railway service: article_saver"
+          railway up --service article_saver --detach || {
+            echo "::error::Railway deployment failed"
+            echo "::error::Ensure backend directory is linked to Railway project"
+            echo "::error::Run 'railway link' in backend directory and select your project"
             exit 1
           }
 
@@ -229,6 +234,7 @@ jobs:
       
       - name: Clean workspace (macOS rollup bug workaround)
         if: matrix.os == 'macos-latest'
+        shell: bash
         run: |
           # Known npm bug with optional dependencies on different architectures
           # See: https://github.com/npm/cli/issues/4828
@@ -241,6 +247,7 @@ jobs:
         env:
           NODE_OPTIONS: '--max-old-space-size=6144'
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+        shell: bash
         run: |
           # Install root dependencies first
           npm ci --prefer-offline --no-audit --no-fund
