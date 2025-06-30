@@ -232,15 +232,15 @@ jobs:
             ~/AppData/Local/electron/Cache
           key: electron-build-${{ runner.os }}-${{ hashFiles('desktop/package.json') }}
       
-      - name: Clean workspace (macOS rollup bug workaround)
-        if: matrix.os == 'macos-latest'
+      - name: Clean workspace (rollup bug workaround)
         shell: bash
         run: |
           # Known npm bug with optional dependencies on different architectures
           # See: https://github.com/npm/cli/issues/4828
-          cd desktop
+          # Clean all workspaces to ensure fresh install
           rm -rf node_modules package-lock.json
-          cd ..
+          rm -rf desktop/node_modules desktop/package-lock.json
+          rm -rf backend/node_modules backend/package-lock.json
       
       - name: Install dependencies
         timeout-minutes: 15
@@ -249,23 +249,18 @@ jobs:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
         shell: bash
         run: |
-          # Install root dependencies first
-          npm ci --prefer-offline --no-audit --no-fund
+          # Fresh install to avoid rollup optional dependency issues
+          npm install --prefer-offline --no-audit --no-fund
           
           # Install backend dependencies
           cd backend
-          npm ci --prefer-offline --no-audit --no-fund
+          npm install --prefer-offline --no-audit --no-fund
           npx prisma generate
           cd ..
           
-          # Install desktop dependencies
+          # Install desktop dependencies with fresh package-lock.json
           cd desktop
-          if [ "${{ matrix.os }}" = "macos-latest" ]; then
-            # Use npm install for macOS to properly resolve optional dependencies
-            npm install --prefer-offline --no-audit --no-fund
-          else
-            npm ci --prefer-offline --no-audit --no-fund
-          fi
+          npm install --prefer-offline --no-audit --no-fund
           cd ..
       
       - name: Build desktop app
@@ -273,6 +268,7 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=6144'
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
           cd desktop
           # Build TypeScript and Vite first
