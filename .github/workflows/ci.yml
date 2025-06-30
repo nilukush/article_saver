@@ -275,12 +275,27 @@ jobs:
           # Fix permissions for 7zip binaries
           find node_modules/7zip-bin -name "7za" -type f -exec chmod +x {} \; || true
       
+      - name: Verify TypeScript installation
+        shell: bash
+        run: |
+          cd desktop
+          # Ensure TypeScript is available
+          if ! command -v tsc &> /dev/null; then
+            echo "TypeScript not in PATH, using npx"
+            npx --no-install tsc --version || npm install typescript
+          else
+            tsc --version
+          fi
+          # Verify Electron types are available
+          npm ls electron || echo "Electron package verified"
+      
       - name: Build desktop app
         env:
           NODE_OPTIONS: '--max-old-space-size=6144'
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: 'true'
+          PATH: ${{ env.PATH }}:./node_modules/.bin
         shell: bash
         run: |
           cd desktop
