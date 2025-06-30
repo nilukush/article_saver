@@ -276,10 +276,20 @@ jobs:
           cd desktop
           # Install 7zip-bin specifically
           npm install 7zip-bin@latest --save-optional
+          # Install app-builder-bin with correct architecture
+          if [[ "${{ runner.os }}" == "macOS" ]]; then
+            echo "Installing app-builder-bin for x64 architecture on macOS CI"
+            npm install app-builder-bin@latest --save-dev --arch=x64
+          else
+            npm install app-builder-bin@latest --save-dev
+          fi
           # Ensure native modules are rebuilt for Electron
           npx @electron/rebuild || echo "electron-rebuild not critical"
           # Fix permissions for 7zip binaries
           find node_modules/7zip-bin -name "7za" -type f -exec chmod +x {} \; || true
+          # Fix permissions for app-builder binaries
+          find node_modules -name "app-builder*" -type f -path "*/mac/*" -exec chmod +x {} \; || true
+          find node_modules -name "app-builder*" -type f -path "*/linux/*" -exec chmod +x {} \; || true
       
       - name: Verify build environment
         shell: bash
