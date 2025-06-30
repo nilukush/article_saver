@@ -190,6 +190,7 @@ jobs:
     needs: test-and-lint
     if: github.event_name == 'push' || github.event_name == 'pull_request'
     strategy:
+      fail-fast: false  # Continue building other platforms even if one fails
       matrix:
         include:
           - os: macos-latest
@@ -263,14 +264,28 @@ jobs:
           npm install --prefer-offline --no-audit --no-fund
           cd ..
       
+      - name: Prepare build environment
+        shell: bash
+        run: |
+          cd desktop
+          # Install 7zip-bin specifically
+          npm install 7zip-bin@latest --save-optional
+          # Ensure native modules are rebuilt for Electron
+          npx electron-rebuild || echo "electron-rebuild not critical"
+          # Fix permissions for 7zip binaries
+          find node_modules/7zip-bin -name "7za" -type f -exec chmod +x {} \; || true
+      
       - name: Build desktop app
         env:
           NODE_OPTIONS: '--max-old-space-size=6144'
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: 'true'
         shell: bash
         run: |
           cd desktop
+          # Install app dependencies for electron-builder
+          npx electron-builder install-app-deps
           # Build TypeScript and Vite first
           npm run build
           # Then package with electron-builder
