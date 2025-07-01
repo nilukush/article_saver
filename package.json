@@ -1,7 +1,7 @@
 {
     "name": "article-saver",
     "productName": "Article Saver",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "A desktop application for saving and reading articles, similar to Pocket",
     "main": "index.js",
     "scripts": {
