@@ -87,7 +87,16 @@
       "Bash(gh run download:*)",
       "Bash(gh api:*)",
       "Bash(gh workflow run:*)",
-      "Bash(npm version:*)"
+      "Bash(npm version:*)",
+      "Bash(gh release create:*)",
+      "Bash(--title \"Article Saver v1.1.0 - Critical Pre-Pocket Shutdown Release\" )",
+      "Bash(--notes \"# 🚨 URGENT: Pocket shuts down July 7, 2025\n\n**Import your Pocket articles NOW before it''s too late!**\n\n## ✨ What''s New\n\n### Critical Features\n- ✅ **Full Pocket Import** - Import all your saved articles with progress tracking\n- ✅ **Auto-Update** - Never miss a critical update again\n- ✅ **Cross-Platform** - Works on Windows, macOS, and Linux\n- ✅ **Enterprise Stability** - Production-ready with comprehensive error handling\n\n### Fixed Issues\n- Fixed all CI/CD pipeline problems\n- Resolved Windows icon format errors\n- Fixed Linux package metadata requirements\n- Resolved macOS architecture compatibility issues\n- Fixed npm workspaces conflicts\n\n## 📥 Download\n\nDownload the appropriate file for your platform below:\n- **Windows**: `Article-Saver-Setup-*.exe`\n- **macOS**: `Article-Saver-*.dmg`\n- **Linux**: `Article-Saver-*.AppImage` or `.deb`\n\n## 🚀 Important Next Steps\n\n1. Download and install Article Saver\n2. Click ''Import from Pocket'' in Settings\n3. Authenticate with your Pocket account\n4. Wait for import to complete (progress shown in header)\n5. Your articles are now safe!\n\n## 📝 Release Notes\n\nSee [CHANGELOG.md](https://github.com/nilukush/article_saver/blob/main/CHANGELOG.md) for detailed changes.\n\n---\n*Built with CI/CD workflow run [#15975139831](https://github.com/nilukush/article_saver/actions/runs/15975139831)*\")",
+      "Bash(git reset:*)",
+      "Bash(gh release list:*)",
+      "Bash(gh release view:*)",
+      "Bash(unzip:*)",
+      "Bash(gh release upload:*)",
+      "Bash(gh release edit:*)"
     ],
     "deny": []
   }
