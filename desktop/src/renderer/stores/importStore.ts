@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { getApiUrl } from '../../config/production'
 
 export interface ImportJob {
     id: string
@@ -176,13 +177,13 @@ export const useImportStore = create<ImportState>()(
     discoverAndRecoverSessions: async () => {
         try {
             const token = localStorage.getItem('authToken')
-            const serverUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3003'
+            const apiUrl = getApiUrl()
             
             if (!token) {
                 return
             }
             
-            const response = await window.electronAPI.netFetch(`${serverUrl}/api/pocket/sessions/discover`, {
+            const response = await window.electronAPI.netFetch(`${apiUrl}/api/pocket/sessions/discover`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
