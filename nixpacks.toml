@@ -6,13 +6,17 @@
 nixPkgs = ["nodejs_22", "npm-9_x", "openssl"]
 
 [phases.install]
-# Install from root to respect workspace configuration
-cmds = ["npm install --workspace=backend --include-workspace-root"]
+# Install dependencies for the monorepo
+# First install root dependencies, then backend
+cmds = [
+    "npm install --production=false",
+    "cd backend && npm install --production=false"
+]
 
 [phases.build]
 # Build the backend specifically
 cmds = [
-    "cd backend && npm run db:generate",
+    "cd backend && npx prisma generate",
     "cd backend && npm run build"
 ]
 
