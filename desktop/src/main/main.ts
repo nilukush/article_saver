@@ -4,7 +4,7 @@ import http from 'http'
 import { DatabaseService } from './database/database'
 import { ArticleService } from './services/articleService'
 import { logger } from './utils/logger'
-import updateElectronApp from 'update-electron-app'
+import { updateElectronApp } from 'update-electron-app'
 
 // DISABLE DEV TOOLS AT CHROMIUM ENGINE LEVEL - MUST BE BEFORE app.ready
 app.commandLine.appendSwitch('--disable-dev-tools')

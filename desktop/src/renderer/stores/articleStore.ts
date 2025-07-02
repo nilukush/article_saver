@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { Article } from '../../../shared/types'
 import { logger } from '../utils/logger'
+import { getApiUrl } from '../../config/production'
 
 interface ArticleStore {
     articles: Article[]
@@ -32,10 +33,7 @@ interface ArticleStore {
     setPreventAutoLoad: (prevent: boolean) => void
 }
 
-// Get API URL from environment
-const getApiUrl = () => {
-    return (import.meta as any).env?.VITE_API_URL || 'http://localhost:3003'
-}
+// API URL is now imported from production config
 
 // Get auth token from localStorage
 const getAuthToken = () => {

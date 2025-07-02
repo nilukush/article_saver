@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { logger } from '../utils/logger'
+import { getApiUrl } from '../../config/production'
 
 interface LinkedAccount {
     id: string
@@ -42,14 +43,14 @@ export const useAccountLinkingStore = create<AccountLinkingState>((set, get) => 
         
         try {
             const token = localStorage.getItem('authToken')
-            const serverUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3003' // Use configured API URL
+            const apiUrl = getApiUrl()
             
             if (!token) {
                 set({ error: 'Not authenticated. Please log in.', loading: false })
                 return
             }
             
-            const response = await window.electronAPI.netFetch(`${serverUrl}/api/account-linking/linked`, {
+            const response = await window.electronAPI.netFetch(`${apiUrl}/api/account-linking/linked`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -86,9 +87,9 @@ export const useAccountLinkingStore = create<AccountLinkingState>((set, get) => 
         set({ loading: true, error: null })
         
         try {
-            const serverUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3003' // Use configured API URL
+            const apiUrl = getApiUrl()
             
-            const response = await window.electronAPI.netFetch(`${serverUrl}/api/account-linking/complete-oauth`, {
+            const response = await window.electronAPI.netFetch(`${apiUrl}/api/account-linking/complete-oauth`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -135,9 +136,9 @@ export const useAccountLinkingStore = create<AccountLinkingState>((set, get) => 
         
         try {
             const token = localStorage.getItem('authToken')
-            const serverUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3003' // Use configured API URL
+            const apiUrl = getApiUrl()
             
-            const response = await window.electronAPI.netFetch(`${serverUrl}/api/account-linking/unlink/${linkId}`, {
+            const response = await window.electronAPI.netFetch(`${apiUrl}/api/account-linking/unlink/${linkId}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`
