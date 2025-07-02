@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell, Menu, globalShortcut, net, MenuItemConstructorOptions, IpcMainInvokeEvent, IpcMainEvent } from 'electron'
 import path from 'path'
 import http from 'http'
+import url from 'url'
 import { DatabaseService } from './database/database'
 import { ArticleService } from './services/articleService'
 import { logger } from './utils/logger'
@@ -405,7 +406,7 @@ const createWindow = (): void => {
             nodeIntegration: false,
             contextIsolation: true,
             preload: path.join(__dirname, 'preload.js'),
-            devTools: process.env.NODE_ENV === 'development',
+            devTools: true, // Temporarily enable for debugging
             allowRunningInsecureContent: false,
             webSecurity: true,
             enableWebSQL: false
@@ -455,11 +456,48 @@ const createWindow = (): void => {
         // Load from live Vite dev server for proper environment variables
         mainWindow.loadURL('http://localhost:19858')
     } else {
-        // Use file:// URL for production to ensure relative paths work correctly
-        const indexPath = path.join(__dirname, '../renderer/index.html')
-        const fileUrl = `file://${indexPath}`
-        logger.info('Loading production app from:', { indexPath, fileUrl })
-        mainWindow.loadURL(fileUrl)
+        // Load the index.html file for production
+        // Handle different path structures for packaged vs unpackaged builds
+        let indexPath: string
+        
+        if (app.isPackaged) {
+            // When packaged in asar, the structure is different
+            // app.getAppPath() returns the path to the asar file or the app directory
+            indexPath = path.join(app.getAppPath(), 'dist', 'renderer', 'index.html')
+        } else {
+            // When running from dist folder (npm start after build)
+            // The main.js is at dist/main/desktop/src/main/main.js
+            // The renderer files are at dist/renderer/
+            indexPath = path.join(__dirname, '../../../../../renderer/index.html')
+        }
+        
+        logger.info('Loading production app from:', { 
+            indexPath,
+            __dirname,
+            isPackaged: app.isPackaged,
+            appPath: app.getAppPath(),
+            resolved: path.resolve(indexPath)
+        })
+        
+        // Use loadFile for better path resolution in production
+        mainWindow.loadFile(indexPath).catch((err) => {
+            logger.error('Failed to load index.html:', err)
+            // Try alternative path if first attempt fails
+            const altIndexPath = path.join(process.resourcesPath, 'app', 'dist', 'renderer', 'index.html')
+            logger.info('Trying alternative path:', { altIndexPath })
+            
+            return mainWindow.loadFile(altIndexPath).catch((err2) => {
+                logger.error('Failed with alternative path:', err2)
+                // Final fallback to file:// URL
+                const fileUrl = url.format({
+                    pathname: indexPath,
+                    protocol: 'file:',
+                    slashes: true
+                })
+                logger.info('Trying fallback URL:', { fileUrl })
+                return mainWindow.loadURL(fileUrl)
+            })
+        })
     }
 
     // Add error handling for page load failures
@@ -474,9 +512,22 @@ const createWindow = (): void => {
 
     // Log console messages from renderer for debugging
     mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
-        if (level >= 2) { // 2 = warning, 3 = error
-            logger.warn('Renderer console:', { level, message, line, sourceId })
-        }
+        // Log all messages in production for debugging blank screen
+        logger.info('Renderer console:', { level, message, line, sourceId })
+    })
+    
+    // Add DOM ready event to check if content loaded
+    mainWindow.webContents.on('dom-ready', () => {
+        logger.info('DOM ready event fired')
+        
+        // Inject debugging code to check if React app mounted
+        mainWindow.webContents.executeJavaScript(`
+            console.log('Page loaded, checking for React app...');
+            const root = document.getElementById('root');
+            console.log('Root element:', root);
+            console.log('Root element children:', root ? root.children.length : 'no root');
+            console.log('Document body:', document.body.innerHTML.substring(0, 200));
+        `).catch(err => logger.error('Failed to execute debug script:', err))
     })
 
     // Show window when ready to prevent visual flash
