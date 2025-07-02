@@ -1,7 +1,7 @@
 {
     "name": "article-saver-desktop",
     "productName": "Article Saver",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "description": "Desktop application for Article Saver",
     "author": {
         "name": "Article Saver Team",
@@ -57,6 +57,7 @@
         "@typescript-eslint/eslint-plugin": "^6.14.0",
         "@typescript-eslint/parser": "^6.14.0",
         "@vitejs/plugin-react": "^4.2.1",
+        "app-builder-bin": "^4.1.2",
         "autoprefixer": "^10.4.16",
         "concurrently": "^8.2.2",
         "electron": "28.3.3",
