@@ -21,5 +21,9 @@ cmds = [
 ]
 
 [start]
-# Start the backend service
+# Start the backend service - Railway provides PORT at runtime
 cmd = "cd backend && npm start"
+
+[variables]
+# Ensure PORT is available if Railway doesn't provide it
+PORT = "3003"
