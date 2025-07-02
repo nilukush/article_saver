@@ -1,0 +1,21 @@
+# Nixpacks configuration for Railway deployment
+# This ensures proper handling of npm workspaces
+
+[phases.setup]
+# Ensure we have the correct Node.js version
+nixPkgs = ["nodejs_22", "npm-9_x", "openssl"]
+
+[phases.install]
+# Install from root to respect workspace configuration
+cmds = ["npm install --workspace=backend --include-workspace-root"]
+
+[phases.build]
+# Build the backend specifically
+cmds = [
+    "cd backend && npm run db:generate",
+    "cd backend && npm run build"
+]
+
+[start]
+# Start the backend service
+cmd = "cd backend && npm start"
