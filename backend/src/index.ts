@@ -40,7 +40,7 @@ console.log('=== END DEBUG ===');
 
 // Create Express app
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3003;
 
 // Trust proxy for Railway deployment
 // Set to 1 for Railway's single proxy layer
@@ -293,7 +293,7 @@ app.use(errorHandler);
 
 
 // Start server
-app.listen(PORT, () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
     logger.info(`🚀 Article Saver API server running on port ${PORT}`);
     logger.info(`📊 Health check: http://localhost:${PORT}/health`);
     logger.info(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
@@ -308,6 +308,40 @@ app.listen(PORT, () => {
         githubRedirectUri: process.env.GITHUB_REDIRECT_URI || 'not set',
         totalEnvVars: Object.keys(process.env).length
     });
+});
+
+// Graceful shutdown handling
+process.on('SIGTERM', async () => {
+    logger.info('SIGTERM signal received: closing HTTP server');
+    server.close(() => {
+        logger.info('HTTP server closed');
+        prisma.$disconnect().then(() => {
+            logger.info('Database connection closed');
+            process.exit(0);
+        });
+    });
+});
+
+process.on('SIGINT', async () => {
+    logger.info('SIGINT signal received: closing HTTP server');
+    server.close(() => {
+        logger.info('HTTP server closed');
+        prisma.$disconnect().then(() => {
+            logger.info('Database connection closed');
+            process.exit(0);
+        });
+    });
+});
+
+// Handle uncaught errors
+process.on('uncaughtException', (error) => {
+    logger.error('Uncaught Exception:', error);
+    process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    process.exit(1);
 });
 
 export default app;
