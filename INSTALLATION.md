@@ -51,9 +51,16 @@ When you run the installer, Windows SmartScreen may show a warning.
 
 macOS Gatekeeper will block the app as it's from an "unidentified developer".
 
+> **⚠️ Getting "Article Saver is damaged" error?** This is a common macOS security feature, not actual damage. See our [detailed fix guide](MACOS_DAMAGED_APP_FIX.md) or use this quick fix:
+> ```bash
+> xattr -cr /Applications/Article\ Saver.app
+> ```
+
 **To install:**
 
-1. Download the appropriate `.dmg` file for your Mac
+1. Download the appropriate `.dmg` file for your Mac:
+   - **Intel Macs**: `Article.Saver-1.1.0.dmg`
+   - **Apple Silicon (M1/M2/M3)**: `Article.Saver-1.1.0-arm64.dmg`
 2. Double-click the `.dmg` to mount it
 3. Drag Article Saver to your Applications folder
 4. **IMPORTANT**: Don't double-click to open yet!
@@ -63,9 +70,15 @@ macOS Gatekeeper will block the app as it's from an "unidentified developer".
    - Click **"Open"** in the dialog that appears
 6. After the first time, you can open normally
 
+**If you see "damaged and can't be opened":**
+1. Open Terminal (in Applications → Utilities)
+2. Run: `xattr -cr /Applications/Article\ Saver.app`
+3. Try opening again
+
 **If you still can't open:**
-- Go to System Preferences → Security & Privacy → General
-- Click "Open Anyway" next to the Article Saver message
+- Go to System Settings → Privacy & Security
+- Look for "Article Saver was blocked"
+- Click "Open Anyway"
 - Enter your password when prompted
 
 ### 🐧 Linux Installation

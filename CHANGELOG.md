@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2025-01-02
+
+### 🚨 Critical Hotfix - Auto-Updater Bug Fix
+
+**IMPORTANT**: Users on v1.1.0 must manually update to this version due to an auto-updater bug.
+
+### Fixed
+- Critical auto-updater import bug that caused app crash on startup
+- TypeScript definitions for update-electron-app v3.1.1 compatibility
+- API URL configuration to properly use Railway in production
+
+### Changed
+- Import statement from default to named export for update-electron-app module
+- Centralized API URL configuration across all stores
+
+### Note
+- Users on v1.1.0 must manually download and install this version
+- Once updated to v1.1.1, future updates will be automatic
+- This fixes the "TypeError: (0 , update_electron_app_1.default) is not a function" error
+
 ## [1.1.0] - 2025-01-30
 
 ### 🚨 Critical Release - Pocket Import Before Shutdown
