@@ -7,25 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.1.1] - 2025-01-02
+## [1.1.1] - 2025-07-02
 
-### 🚨 Critical Hotfix - Auto-Updater Bug Fix
+### 🚨 First Stable Release - Critical Fixes
 
-**IMPORTANT**: Users on v1.1.0 must manually update to this version due to an auto-updater bug.
+**IMPORTANT**: This is the first fully working release of Article Saver. Previous releases had critical bugs preventing proper usage.
 
 ### Fixed
-- Critical auto-updater import bug that caused app crash on startup
+- **Critical**: Auto-updater import bug that caused app crash on startup
+- **Critical**: Blank white screen issue in production builds
+- **Critical**: ASAR path resolution for packaged Electron apps
 - TypeScript definitions for update-electron-app v3.1.1 compatibility
 - API URL configuration to properly use Railway in production
+- File loading in both packaged and unpackaged scenarios
 
 ### Changed
 - Import statement from default to named export for update-electron-app module
 - Centralized API URL configuration across all stores
+- Improved path resolution with multiple fallback strategies
+- Enhanced DOM ready and console logging for troubleshooting
+
+### Technical Details
+- Fixed "TypeError: (0 , update_electron_app_1.default) is not a function" error
+- Uses `app.getAppPath()` for correct resource location in packaged apps
+- Added fallback paths for different build scenarios
+- CI/CD pipeline fixed for all platforms (Windows, macOS Intel & Apple Silicon, Linux)
 
 ### Note
-- Users on v1.1.0 must manually download and install this version
-- Once updated to v1.1.1, future updates will be automatic
-- This fixes the "TypeError: (0 , update_electron_app_1.default) is not a function" error
+- This is the first stable, fully functional release
+- Auto-updates will work properly from this version forward
+- All platform builds are tested and working
 
 ## [1.1.0] - 2025-01-30
 
