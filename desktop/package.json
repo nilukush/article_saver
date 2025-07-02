@@ -78,10 +78,8 @@
     "build": {
         "appId": "com.articlesaver.app",
         "productName": "Article Saver",
-        "nativeRebuilder": "sequential",
         "extends": null,
         "directories": {
-            "app": ".",
             "output": "release",
             "buildResources": "resources"
         },
