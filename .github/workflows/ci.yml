@@ -193,7 +193,7 @@ jobs:
       fail-fast: false  # Continue building other platforms even if one fails
       matrix:
         include:
-          - os: macos-latest
+          - os: macos-13  # Intel runner for universal builds
             platform: mac
           - os: windows-latest
             platform: win
@@ -302,11 +302,9 @@ jobs:
           # Install platform-specific binaries with correct architecture
           echo "Installing platform-specific binaries..."
           if [[ "${{ runner.os }}" == "macOS" ]]; then
-            # macOS runners need architecture-specific handling
-            echo "Installing for macOS with universal support..."
+            # macOS Intel runner can build universal binaries
+            echo "Installing for macOS Intel runner..."
             npm install app-builder-bin@latest 7zip-bin@latest --save-dev --force
-            # Install rollup dependencies for both architectures
-            npm install @rollup/rollup-darwin-x64 @rollup/rollup-darwin-arm64 --save-dev --force || true
           elif [[ "${{ runner.os }}" == "Linux" ]]; then
             npm install app-builder-bin@latest 7zip-bin@latest --save-dev --force
             # Install rollup for Linux
