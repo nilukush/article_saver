@@ -40,7 +40,7 @@ console.log('=== END DEBUG ===');
 
 // Create Express app
 const app = express();
-const PORT = process.env.PORT || 3003;
+const PORT = parseInt(process.env.PORT || '3003', 10);
 
 // Trust proxy for Railway deployment
 // Set to 1 for Railway's single proxy layer
