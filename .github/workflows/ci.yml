@@ -260,22 +260,25 @@ jobs:
             export NODE_OPTIONS='--max-old-space-size=7168'
           fi
           
-          # Use npm ci for deterministic installs in CI
+          # Force install to handle architecture mismatches
           echo "Installing root dependencies..."
-          npm ci --ignore-scripts --no-audit --no-fund || npm install --no-audit --no-fund
+          npm install --force --no-audit --no-fund
           
-          # Install backend dependencies sequentially
+          # Install backend dependencies
           echo "Installing backend dependencies..."
           cd backend
-          npm ci --ignore-scripts --no-audit --no-fund || npm install --no-audit --no-fund
+          npm install --force --no-audit --no-fund
           echo "Generating Prisma client..."
           npx prisma generate
           cd ..
           
-          # Install desktop dependencies
+          # Install desktop dependencies with architecture handling
           echo "Installing desktop dependencies..."
           cd desktop
-          npm ci --ignore-scripts --no-audit --no-fund || npm install --no-audit --no-fund
+          
+          # Remove package-lock.json to force fresh resolution for CI architecture
+          rm -f package-lock.json
+          npm install --force --no-audit --no-fund
           
           # Run postinstall scripts separately to control memory usage
           echo "Running postinstall scripts..."
@@ -299,10 +302,19 @@ jobs:
           # Install platform-specific binaries with correct architecture
           echo "Installing platform-specific binaries..."
           if [[ "${{ runner.os }}" == "macOS" ]]; then
-            # Force x64 architecture for macOS CI runners
-            npm install app-builder-bin@latest 7zip-bin@latest --save-dev --force --arch=x64
-          else
+            # macOS runners need architecture-specific handling
+            echo "Installing for macOS with universal support..."
             npm install app-builder-bin@latest 7zip-bin@latest --save-dev --force
+            # Install rollup dependencies for both architectures
+            npm install @rollup/rollup-darwin-x64 @rollup/rollup-darwin-arm64 --save-dev --force || true
+          elif [[ "${{ runner.os }}" == "Linux" ]]; then
+            npm install app-builder-bin@latest 7zip-bin@latest --save-dev --force
+            # Install rollup for Linux
+            npm install @rollup/rollup-linux-x64-gnu --save-dev --force || true
+          else
+            # Windows
+            npm install app-builder-bin@latest 7zip-bin@latest --save-dev --force
+            npm install @rollup/rollup-win32-x64-msvc --save-dev --force || true
           fi
           
           # Fix permissions BEFORE any operations
