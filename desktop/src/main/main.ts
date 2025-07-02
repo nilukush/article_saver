@@ -405,7 +405,7 @@ const createWindow = (): void => {
             nodeIntegration: false,
             contextIsolation: true,
             preload: path.join(__dirname, 'preload.js'),
-            devTools: true,
+            devTools: process.env.NODE_ENV === 'development',
             allowRunningInsecureContent: false,
             webSecurity: true,
             enableWebSQL: false
@@ -455,8 +455,29 @@ const createWindow = (): void => {
         // Load from live Vite dev server for proper environment variables
         mainWindow.loadURL('http://localhost:19858')
     } else {
-        mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
+        // Use file:// URL for production to ensure relative paths work correctly
+        const indexPath = path.join(__dirname, '../renderer/index.html')
+        const fileUrl = `file://${indexPath}`
+        logger.info('Loading production app from:', { indexPath, fileUrl })
+        mainWindow.loadURL(fileUrl)
     }
+
+    // Add error handling for page load failures
+    mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+        logger.error('Failed to load page', { 
+            errorCode, 
+            errorDescription, 
+            validatedURL,
+            isDevelopment: process.env.NODE_ENV === 'development'
+        })
+    })
+
+    // Log console messages from renderer for debugging
+    mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+        if (level >= 2) { // 2 = warning, 3 = error
+            logger.warn('Renderer console:', { level, message, line, sourceId })
+        }
+    })
 
     // Show window when ready to prevent visual flash
     mainWindow.once('ready-to-show', () => {
