@@ -5,6 +5,7 @@ import { ImportStatusSection } from './ImportStatusSection'
 import { AccountLinking } from './AccountLinking'
 import { EnterpriseAccountLinkingPrompt } from './EnterpriseAccountLinkingPrompt'
 import { logger } from '../utils/logger'
+import { getApiUrl } from '../../config/production'
 // Simplified imports - removed unused hooks
 
 interface SettingsProps {
@@ -98,8 +99,8 @@ export function Settings({ onClose }: SettingsProps) {
     
     // Progress polling is now handled by useProgressPolling hook in ImportProgressHeader
 
-    // Use hardcoded API URL for static file serving (protocol interception)
-    const serverUrl = 'http://localhost:3003' // Backend runs on port 3003
+    // Use the correct API URL based on environment
+    const serverUrl = getApiUrl()
 
     // Check Pocket authorization status - memoized to prevent infinite loops
     const checkPocketAuth = useCallback(async () => {
