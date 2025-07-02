@@ -9,9 +9,9 @@ const { execSync } = require('child_process');
 const { existsSync } = require('fs');
 const path = require('path');
 
-// Skip in CI environments
-if (process.env.CI || process.env.GITHUB_ACTIONS) {
-  console.log('[postinstall] Skipping electron-builder install-app-deps in CI environment');
+// Allow skipping via environment variable if needed
+if (process.env.SKIP_ELECTRON_REBUILD) {
+  console.log('[postinstall] Skipping electron-builder install-app-deps (SKIP_ELECTRON_REBUILD set)');
   process.exit(0);
 }
 

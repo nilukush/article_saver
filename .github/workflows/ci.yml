@@ -274,22 +274,31 @@ jobs:
         shell: bash
         run: |
           cd desktop
-          # Install 7zip-bin specifically
-          npm install 7zip-bin@latest --save-optional
-          # Install app-builder-bin with correct architecture
+          
+          # Ensure electron-builder and dependencies are latest
+          echo "Updating electron-builder to latest version..."
+          npm install electron-builder@latest @electron/rebuild@latest --save-dev
+          
+          # Install platform-specific binaries with correct architecture
+          echo "Installing platform-specific binaries..."
           if [[ "${{ runner.os }}" == "macOS" ]]; then
-            echo "Installing app-builder-bin for x64 architecture on macOS CI"
-            npm install app-builder-bin@latest --save-dev --arch=x64
+            # Force x64 architecture for macOS CI runners
+            npm install app-builder-bin@latest 7zip-bin@latest --save-dev --force --arch=x64
           else
-            npm install app-builder-bin@latest --save-dev
+            npm install app-builder-bin@latest 7zip-bin@latest --save-dev --force
           fi
-          # Ensure native modules are rebuilt for Electron
-          npx @electron/rebuild || echo "electron-rebuild not critical"
-          # Fix permissions for 7zip binaries
-          find node_modules/7zip-bin -name "7za" -type f -exec chmod +x {} \; || true
-          # Fix permissions for app-builder binaries
-          find node_modules -name "app-builder*" -type f -path "*/mac/*" -exec chmod +x {} \; || true
-          find node_modules -name "app-builder*" -type f -path "*/linux/*" -exec chmod +x {} \; || true
+          
+          # Fix permissions BEFORE any operations
+          echo "Fixing binary permissions..."
+          chmod +x node_modules/.bin/* 2>/dev/null || true
+          find node_modules -name "app-builder" -type f -exec chmod +x {} \; 2>/dev/null || true
+          find node_modules -name "7za" -type f -exec chmod +x {} \; 2>/dev/null || true
+          find node_modules -name "7z" -type f -exec chmod +x {} \; 2>/dev/null || true
+          
+          # Also fix at parent level for npm workspaces
+          if [ -d "../node_modules" ]; then
+            find ../node_modules -name "app-builder" -type f -exec chmod +x {} \; 2>/dev/null || true
+          fi
       
       - name: Verify build environment
         shell: bash
@@ -362,15 +371,22 @@ jobs:
             exit 1
           fi
           
-          # Install app dependencies for electron-builder
-          echo "Installing electron-builder app dependencies..."
-          npx electron-builder install-app-deps
+          # Run electron-builder install-app-deps with fallback
+          echo "Installing electron app dependencies..."
+          npx electron-builder install-app-deps || {
+            echo "install-app-deps failed, trying @electron/rebuild as fallback..."
+            npx @electron/rebuild
+          }
           
-          # Install app-builder-bin at root level for npm workspaces compatibility
-          echo "Ensuring app-builder-bin is available..."
-          cd ..
-          npm install app-builder-bin@latest --no-save
-          cd desktop
+          # Verify app-builder-bin is accessible
+          echo "Verifying app-builder-bin installation..."
+          if ! find node_modules -name "app-builder" -type f | head -1; then
+            echo "WARNING: app-builder not found in desktop node_modules"
+            echo "Installing at root level..."
+            cd ..
+            npm install app-builder-bin@latest --no-save --force
+            cd desktop
+          fi
           
           # Ensure TypeScript is available
           echo "Checking TypeScript installation..."
