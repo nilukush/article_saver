@@ -10,6 +10,8 @@ const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
     throw new Error('JWT_SECRET environment variable is required');
 }
+// TypeScript now knows JWT_SECRET is defined after this check
+const JWT_SECRET_VERIFIED: string = JWT_SECRET;
 
 interface EnterpriseOAuthResult {
     type: 'success' | 'requires_linking' | 'requires_verification';
@@ -120,7 +122,7 @@ export async function handleEnterpriseOAuthLogin(
                         email,
                         linkedUserIds: allUserIds
                     },
-                    JWT_SECRET,
+                    JWT_SECRET_VERIFIED,
                     { expiresIn: '7d' }
                 );
                 
@@ -217,7 +219,7 @@ export async function handleEnterpriseOAuthLogin(
                 email: existingProviderAccount.email,
                 linkedUserIds: allUserIds
             },
-            JWT_SECRET,
+            JWT_SECRET_VERIFIED,
             { expiresIn: '7d' }
         );
         
@@ -273,7 +275,7 @@ export async function handleEnterpriseOAuthLogin(
                 email: user.email,
                 linkedUserIds: [user.id] // New account starts with just itself
             },
-            JWT_SECRET,
+            JWT_SECRET_VERIFIED,
             { expiresIn: '7d' }
         );
         
@@ -425,7 +427,7 @@ export async function handleEnterpriseOAuthLogin(
                 email: primaryAccount.email,
                 linkedUserIds: allUserIds
             },
-            JWT_SECRET,
+            JWT_SECRET_VERIFIED,
             { expiresIn: '7d' }
         );
         
@@ -507,7 +509,7 @@ export async function handleEnterpriseOAuthLogin(
                     email: primaryAccount.email,
                     linkedUserIds: allUserIds
                 },
-                JWT_SECRET,
+                JWT_SECRET_VERIFIED,
                 { expiresIn: '7d' }
             );
             
@@ -550,7 +552,7 @@ export async function handleEnterpriseOAuthLogin(
                     email: email,
                     linkedUserIds: [linkedProviderAccount.id]
                 },
-                JWT_SECRET,
+                JWT_SECRET_VERIFIED,
                 { expiresIn: '7d' }
             );
             
@@ -686,7 +688,7 @@ export async function handleEnterpriseOAuthLogin(
             email: email,
             linkedUserIds: [newProviderAccount.id] // Start with just this account
         },
-        JWT_SECRET,
+        JWT_SECRET_VERIFIED,
         { expiresIn: '7d' }
     );
     
@@ -860,7 +862,7 @@ export async function completeAccountLinking(
     verificationCode?: string
 ): Promise<{ success: boolean; token?: string; error?: string; errorCode?: string }> {
     try {
-        const decoded = jwt.verify(linkingToken, JWT_SECRET) as any;
+        const decoded = jwt.verify(linkingToken, JWT_SECRET_VERIFIED) as any;
         
         const linkedAccount = await prisma.linkedAccount.findFirst({
             where: {
@@ -900,7 +902,7 @@ export async function completeAccountLinking(
                 email: decoded.email,
                 linkedUserIds: allUserIds
             },
-            JWT_SECRET,
+            JWT_SECRET_VERIFIED,
             { expiresIn: '7d' }
         );
         
