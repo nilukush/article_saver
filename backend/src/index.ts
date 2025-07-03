@@ -24,19 +24,14 @@ import { responseTimeTracking, errorTracking, metricsEndpoint, detailedHealthChe
 // Load environment variables
 dotenv.config();
 
+// Validate environment variables
+import { validateEnvironment } from './config/validateEnv';
+validateEnvironment();
+
 // Configure BigInt serialization
 configureBigIntSerialization();
 
-// Debug environment variables
-console.log('=== ENVIRONMENT DEBUG ===');
-console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
-if (process.env.DATABASE_URL) {
-  const url = process.env.DATABASE_URL;
-  const hostMatch = url.match(/@(.+?):/);
-  console.log('DATABASE_URL host:', hostMatch?.[1]);
-  console.log('Is using pooler:', url.includes('pooler.supabase.com'));
-}
-console.log('=== END DEBUG ===');
+// Environment variables validated in validateEnvironment()
 
 // Create Express app
 const app = express();

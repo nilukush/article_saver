@@ -1,8 +1,0 @@
-{
-  "DATABASE_URL": "postgresql://postgres:ls%27%2ctox%2f%23IUR84STz51X%26%3bGa6%2avhK~%7d%7cLZ_EV@db.lhgzhnksmjlkcceluuar.supabase.co:5432/postgres?sslmode=require",
-  "JWT_SECRET": "9CoN72BjOezWqgtFgPXRG+6cmW/8YQWEN/A3h/jJkE2oyW9tYmrWEzC9TIhXbDjZ+K9f8xE1+r+fisyyhso/+g==",
-  "NODE_ENV": "production",
-  "PORT": "3003",
-  "LOG_LEVEL": "info",
-  "CORS_ORIGIN": "*"
-}

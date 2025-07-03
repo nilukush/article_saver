@@ -120,3 +120,13 @@ railway-env.json
 oauth-production-vars.json
 railway-complete-env.json
 railway-complete-config.json
+railway-service-variables.json
+
+# Security - Never commit these
+*-credentials.json
+*-secrets.json
+*.pem
+*.key
+*.cert
+*.p12
+*.pfx

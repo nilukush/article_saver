@@ -9,7 +9,10 @@ export interface EnterpriseAuthenticatedRequest extends Request {
     user: EnterpriseUser;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is required');
+}
 
 /**
  * Enterprise-grade authentication middleware that properly resolves primary users
