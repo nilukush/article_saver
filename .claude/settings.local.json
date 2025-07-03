@@ -143,7 +143,9 @@
       "Bash(for:*)",
       "Bash(do if [[ -f \"$file\" ]])",
       "Bash(then echo \"$file exists\")",
-      "Bash(fi)"
+      "Bash(fi)",
+      "Bash(./fix-screenshots-now.sh:*)",
+      "Bash(do echo \"$i\")"
     ],
     "deny": []
   }
