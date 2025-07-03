@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.3] - 2025-07-03
+
+### Security
+- Updated vite dependency to address esbuild vulnerability (GHSA-67mh-4wv8-2f99)
+
+### Changed
+- Cleaned repository for open source release
+- Removed internal documentation and business files
+- Added comprehensive .gitignore patterns
+- Created environment variable templates
+
+## [1.1.2] - 2025-07-03
+
+### Fixed
+- Screenshot visibility on landing page
+- File naming issues for GitHub Pages compatibility
+
+### Changed
+- Renamed screenshot files for better clarity
+- Updated landing page with proper image paths
+
 ## [1.1.1] - 2025-07-02
 
 ### 🚨 First Stable Release - Critical Fixes
@@ -119,6 +140,9 @@ This is a critical release before Pocket shuts down on July 7, 2025. All users s
 - Authentication: JWT, OAuth2, bcrypt
 - Development: Vite, ESLint, Prettier
 
-[Unreleased]: https://github.com/nilukush/article_saver/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/nilukush/article_saver/compare/v1.1.3...HEAD
+[1.1.3]: https://github.com/nilukush/article_saver/compare/v1.1.2...v1.1.3
+[1.1.2]: https://github.com/nilukush/article_saver/compare/v1.1.1...v1.1.2
+[1.1.1]: https://github.com/nilukush/article_saver/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/nilukush/article_saver/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/nilukush/article_saver/releases/tag/v1.0.0

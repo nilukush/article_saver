@@ -6,8 +6,10 @@
   [![GitHub Stars](https://img.shields.io/github/stars/nilukush/article_saver)](https://github.com/nilukush/article_saver/stargazers)
   [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
   [![GitHub release](https://img.shields.io/github/release/nilukush/article_saver.svg)](https://github.com/nilukush/article_saver/releases/)
+  [![GitHub issues](https://img.shields.io/github/issues/nilukush/article_saver)](https://github.com/nilukush/article_saver/issues)
+  [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/nilukush/article_saver/pulls)
   
-  **[🌐 Visit Our Website](https://nilukush.github.io/article_saver/) | [📥 Download](https://github.com/nilukush/article_saver/releases) | [📖 Documentation](https://github.com/nilukush/article_saver/wiki)**
+  **[🌐 Visit Our Website](https://nilukush.github.io/article_saver/) | [📥 Download](https://github.com/nilukush/article_saver/releases) | [📖 Documentation](https://github.com/nilukush/article_saver#-documentation)**
 
 </div>
 
@@ -57,6 +59,24 @@
 - 🔒 **Enterprise Security** - JWT authentication, rate limiting, and security headers
 - 📊 **Bulk Operations** - Import, export, and manage thousands of articles efficiently
 
+## 💻 System Requirements
+
+### Desktop Application
+- **Windows**: Windows 10 or later (64-bit)
+- **macOS**: macOS 10.15 (Catalina) or later
+  - Apple Silicon (M1/M2/M3) native support
+  - Intel processors supported
+- **Linux**: Ubuntu 20.04+, Fedora 36+, or equivalent
+  - Requires libfuse2 for AppImage
+- **Memory**: 4GB RAM minimum, 8GB recommended
+- **Storage**: 500MB for application + space for articles
+
+### Backend Requirements
+- **Node.js**: v18.0.0 or later
+- **PostgreSQL**: v14.0 or later
+- **Memory**: 512MB RAM minimum
+- **Storage**: Depends on article count
+
 ## 📥 Downloads
 
 Download the latest version (v1.1.3) for your platform:
@@ -77,6 +97,37 @@ Download the latest version (v1.1.3) for your platform:
 
 [View all releases →](https://github.com/nilukush/article_saver/releases)
 
+## 📸 Screenshots
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <img src="screenshots/article-list.png" alt="Article List" width="400"/>
+        <br />
+        <sub><b>Article List View</b></sub>
+      </td>
+      <td align="center">
+        <img src="screenshots/article-view.png" alt="Article Reader" width="400"/>
+        <br />
+        <sub><b>Article Reader</b></sub>
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <img src="screenshots/import-progress.png" alt="Pocket Import" width="400"/>
+        <br />
+        <sub><b>Pocket Import Progress</b></sub>
+      </td>
+      <td align="center">
+        <img src="screenshots/add-articles.png" alt="Add Articles" width="400"/>
+        <br />
+        <sub><b>Add Articles</b></sub>
+      </td>
+    </tr>
+  </table>
+</div>
+
 ## 🏗️ Architecture
 
 ```
@@ -86,7 +137,7 @@ Download the latest version (v1.1.3) for your platform:
 │     Desktop Client      │           Backend API                      │
 ├─────────────────────────┼───────────────────────────────────────────┤
 │ • Electron + React      │ • Express.js + TypeScript                 │
-│ • Local SQLite Storage  │ • PostgreSQL Database                     │
+│ • Local JSON Database   │ • PostgreSQL Database                     │
 │ • Offline-First         │ • Prisma ORM                              │
 │ • Content Extraction    │ • JWT Authentication                      │
 │ • Real-time Sync        │ • OAuth2 Integration                      │
@@ -200,7 +251,7 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 - **Styling**: Tailwind CSS
 - **State**: Zustand
 - **Build**: Vite
-- **Storage**: Local SQLite for offline support
+- **Storage**: Local JSON database for offline support
 
 ## 📦 Deployment
 
@@ -243,6 +294,50 @@ DATABASE_URL="postgresql://..."
 - Verify OAuth app settings
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for more troubleshooting tips.
+
+## 📖 Documentation
+
+- **[Installation Guide](INSTALLATION.md)** - Detailed installation instructions
+- **[Development Setup](DEVELOPMENT.md)** - Set up your development environment
+- **[API Reference](API.md)** - Backend API documentation
+- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute to the project
+- **[Security Policy](SECURITY.md)** - Report security vulnerabilities
+- **[Changelog](CHANGELOG.md)** - Version history and release notes
+
+### Quick Links
+- [Report a Bug](https://github.com/nilukush/article_saver/issues/new?labels=bug)
+- [Request a Feature](https://github.com/nilukush/article_saver/issues/new?labels=enhancement)
+- [Join Discussions](https://github.com/nilukush/article_saver/discussions)
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+**macOS "damaged app" error**
+```bash
+xattr -cr /Applications/Article\ Saver.app
+```
+
+**Linux AppImage not running**
+```bash
+# Install required dependency
+sudo apt install libfuse2  # Ubuntu/Debian
+sudo dnf install fuse      # Fedora
+
+# Make AppImage executable
+chmod +x Article.Saver-*.AppImage
+```
+
+**Windows Defender blocking installation**
+- Click "More info" → "Run anyway"
+- Or add exception in Windows Security settings
+
+**Cannot connect to backend**
+- Check if backend is running: `curl http://localhost:3003/health`
+- Verify environment variables are set correctly
+- Check firewall settings
+
+For more help, see our [Troubleshooting Guide](https://github.com/nilukush/article_saver/wiki/Troubleshooting).
 
 ## 📄 License
 

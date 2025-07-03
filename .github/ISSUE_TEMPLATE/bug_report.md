@@ -1,38 +1,45 @@
 ---
-name: Bug report
-about: Create a report to help us improve
+name: Bug Report
+about: Create a report to help us improve Article Saver
 title: '[BUG] '
-labels: 'bug'
+labels: bug
 assignees: ''
-
 ---
 
-**Describe the bug**
+## Bug Description
 A clear and concise description of what the bug is.
 
-**To Reproduce**
+## To Reproduce
 Steps to reproduce the behavior:
 1. Go to '...'
 2. Click on '....'
 3. Scroll down to '....'
 4. See error
 
-**Expected behavior**
+## Expected Behavior
 A clear and concise description of what you expected to happen.
 
-**Screenshots**
+## Actual Behavior
+What actually happened instead.
+
+## Screenshots
 If applicable, add screenshots to help explain your problem.
 
-**Environment (please complete the following information):**
- - OS: [e.g. macOS 14.0, Windows 11, Ubuntu 22.04]
- - Article Saver Version: [e.g. 1.0.0]
- - Node.js Version: [e.g. 20.10.0]
- - PostgreSQL Version: [e.g. 16.0]
+## Environment
+- **OS**: [e.g. Windows 11, macOS 14.0, Ubuntu 22.04]
+- **Article Saver Version**: [e.g. 1.1.3]
+- **Installation Type**: [e.g. Windows installer, macOS DMG, AppImage]
 
-**Logs**
-Please include relevant logs from:
-- Backend: `backend/logs/error.log`
-- Desktop: Console output (if applicable)
+## Desktop App Logs (if applicable)
+```
+Paste any relevant error messages from:
+- Windows: %APPDATA%\Article Saver\logs
+- macOS: ~/Library/Application Support/Article Saver/logs
+- Linux: ~/.config/Article Saver/logs
+```
 
-**Additional context**
+## Additional Context
 Add any other context about the problem here.
+
+## Possible Fix
+If you have an idea of how to fix this bug, please describe it here.

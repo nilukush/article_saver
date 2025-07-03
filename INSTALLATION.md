@@ -84,13 +84,18 @@ macOS Gatekeeper will block the app as it's from an "unidentified developer".
 #### AppImage (Recommended)
 ```bash
 # Download the AppImage
-wget https://github.com/nilukush/article_saver/releases/download/v1.1.0/Article.Saver-1.1.0.AppImage
+# Install required dependency first
+sudo apt install libfuse2  # Ubuntu/Debian
+sudo dnf install fuse      # Fedora
+
+# Download the AppImage
+wget https://github.com/nilukush/article_saver/releases/download/v1.1.3/Article.Saver-1.1.3.AppImage
 
 # Make it executable
-chmod +x Article.Saver-1.1.0.AppImage
+chmod +x Article.Saver-1.1.3.AppImage
 
 # Run it
-./Article.Saver-1.1.0.AppImage
+./Article.Saver-1.1.3.AppImage
 ```
 
 **Desktop integration (optional):**
@@ -141,7 +146,7 @@ These warnings appear because this is an urgent release without code signing cer
 
 ### Linux permission denied
 ```bash
-chmod +x Article.Saver-1.1.0.AppImage
+chmod +x Article.Saver-1.1.3.AppImage
 ```
 
 ### Windows Defender blocks the app
@@ -158,12 +163,65 @@ Due to the urgent Pocket shutdown deadline (July 7, 2025), we've released this v
 
 Future releases will be properly signed. The source code is open and available for review at https://github.com/nilukush/article_saver.
 
+## ✅ Verify Installation
+
+After installation, verify everything is working:
+
+1. **Launch the application**
+   - Windows: Start Menu → Article Saver
+   - macOS: Applications → Article Saver
+   - Linux: Run the AppImage or use your app launcher
+
+2. **Check the version**
+   - Go to Settings → About
+   - Should show version 1.1.3 or later
+
+3. **Test basic functionality**
+   - Try adding an article from URL
+   - Check if search works
+   - Verify settings can be opened
+
+4. **Verify backend connection**
+   - If using cloud sync, check Settings → Account
+   - Should show "Connected" status
+
+## 🔒 Download Verification
+
+For security-conscious users, verify your download:
+
+### File Sizes
+- Windows Installer: ~140 MB
+- Windows Portable: ~140 MB  
+- macOS DMG: ~200 MB
+- Linux AppImage: ~150 MB
+- Linux DEB: ~100 MB
+
+### Verify GitHub Release
+1. Check you're downloading from: `github.com/nilukush/article_saver`
+2. Verify the release is from the official repository
+3. Check the release date and notes
+
+## 🔄 Updating from Previous Versions
+
+If you have an older version installed:
+
+1. **Backup your data** (optional but recommended)
+   - Your articles are stored locally and won't be lost
+   - Export function available in Settings
+
+2. **Install over existing version**
+   - Windows/macOS: Run the new installer
+   - Linux: Replace the AppImage file
+
+3. **Auto-update** is available for future versions
+
 ## 📞 Need Help?
 
-- Report issues: https://github.com/nilukush/article_saver/issues
-- View source code: https://github.com/nilukush/article_saver
-- Check for updates: https://github.com/nilukush/article_saver/releases
+- **Documentation**: [GitHub Wiki](https://github.com/nilukush/article_saver/wiki)
+- **Report issues**: [GitHub Issues](https://github.com/nilukush/article_saver/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/nilukush/article_saver/discussions)
+- **Source code**: [GitHub Repository](https://github.com/nilukush/article_saver)
 
 ---
 
-**Remember: Import your Pocket articles NOW! Time is running out!**
+**🚨 Remember: Import your Pocket articles NOW! Pocket shuts down July 7, 2025!**

@@ -12,14 +12,46 @@
 If you discover a security vulnerability, please follow these steps:
 
 1. **DO NOT** create a public GitHub issue
-2. Email the details to: security@articlesaver.com (or your actual security email)
+2. **Report privately** via one of these methods:
+   - Create a [Security Advisory](https://github.com/nilukush/article_saver/security/advisories/new) on GitHub
+   - Email: Open an issue asking for security contact (we'll provide a secure channel)
 3. Include:
    - Description of the vulnerability
    - Steps to reproduce
    - Potential impact
    - Suggested fix (if any)
 
-We will acknowledge receipt within 48 hours and provide a detailed response within 5 business days.
+We aim to acknowledge receipt within 48 hours and provide a detailed response within 5 business days.
+
+## Scope
+
+### In Scope
+- Authentication and authorization issues
+- Data exposure or leakage
+- Cross-site scripting (XSS)
+- SQL injection vulnerabilities
+- Remote code execution
+- Privilege escalation
+- Denial of service vulnerabilities
+
+### Out of Scope
+- Vulnerabilities in third-party services (Pocket API, OAuth providers)
+- Issues that require physical access to a user's device
+- Social engineering attacks
+- Vulnerabilities in outdated versions (please update first)
+
+## Disclosure Policy
+
+We follow a coordinated disclosure timeline:
+1. Reporter submits vulnerability
+2. We acknowledge and investigate (48 hours)
+3. We develop and test a fix
+4. We release the fix
+5. We publicly disclose after 90 days or when fix is widely deployed
+
+## Recognition
+
+We appreciate security researchers who help keep Article Saver secure. With your permission, we'll acknowledge your contribution in our security advisories.
 
 ## Security Best Practices
 

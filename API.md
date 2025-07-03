@@ -1,8 +1,32 @@
 # Article Saver API Documentation
 
+## API Version
+
+Current Version: **v1**
+
+The Article Saver API follows semantic versioning. While we're currently on v1, the API is stable and backwards compatible.
+
+## OpenAPI Specification
+
+Download the OpenAPI 3.0 specification:
+- [JSON Format](https://github.com/nilukush/article_saver/blob/main/backend/openapi.json) (Coming soon)
+- [YAML Format](https://github.com/nilukush/article_saver/blob/main/backend/openapi.yaml) (Coming soon)
+
+You can use these with tools like:
+- [Swagger UI](https://swagger.io/tools/swagger-ui/) for interactive documentation
+- [Postman](https://www.postman.com/) for API testing
+- [OpenAPI Generator](https://openapi-generator.tech/) for client SDK generation
+
 ## Base URL
+
+### Development
 ```
 http://localhost:3003/api
+```
+
+### Production
+```
+https://your-api-domain.com/api
 ```
 
 ## Authentication
@@ -12,9 +36,30 @@ Authorization: Bearer <token>
 ```
 
 ## Rate Limiting
-- 100 requests per 15 minutes per IP
-- Progress endpoints are excluded from rate limiting
-- Rate limit headers included in responses
+
+### Limits
+- **Standard endpoints**: 100 requests per 15 minutes per IP
+- **Progress endpoints**: Excluded from rate limiting
+- **Import endpoints**: 10 requests per hour
+
+### Headers
+Rate limit information is included in response headers:
+```
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 99
+X-RateLimit-Reset: 1704114000
+```
+
+### Rate Limit Response
+When rate limit is exceeded:
+```json
+{
+  "error": "Too many requests",
+  "message": "Rate limit exceeded. Please try again later.",
+  "retryAfter": 900
+}
+```
+Status Code: `429 Too Many Requests`
 
 ## Endpoints
 
@@ -284,13 +329,38 @@ All errors follow this format:
 }
 ```
 
-### Common Error Codes
-- `401` - Unauthorized
-- `403` - Forbidden
-- `404` - Not Found
-- `422` - Validation Error
-- `429` - Too Many Requests
-- `500` - Internal Server Error
+### HTTP Status Codes
+
+| Status Code | Name | Description |
+|------------|------|-------------|
+| `200` | OK | Request successful |
+| `201` | Created | Resource created successfully |
+| `204` | No Content | Request successful, no content to return |
+| `400` | Bad Request | Invalid request format or parameters |
+| `401` | Unauthorized | Missing or invalid authentication token |
+| `403` | Forbidden | Valid token but insufficient permissions |
+| `404` | Not Found | Resource not found |
+| `409` | Conflict | Resource already exists |
+| `422` | Unprocessable Entity | Validation error |
+| `429` | Too Many Requests | Rate limit exceeded |
+| `500` | Internal Server Error | Server error |
+| `503` | Service Unavailable | Server temporarily unavailable |
+
+### Application Error Codes
+
+| Error Code | Description | HTTP Status |
+|-----------|-------------|-------------|
+| `AUTH_INVALID_CREDENTIALS` | Invalid email or password | 401 |
+| `AUTH_TOKEN_EXPIRED` | JWT token has expired | 401 |
+| `AUTH_TOKEN_INVALID` | JWT token is invalid | 401 |
+| `AUTH_USER_EXISTS` | Email already registered | 409 |
+| `ARTICLE_NOT_FOUND` | Article does not exist | 404 |
+| `ARTICLE_DUPLICATE` | Article URL already saved | 409 |
+| `VALIDATION_ERROR` | Request validation failed | 422 |
+| `RATE_LIMIT_EXCEEDED` | Too many requests | 429 |
+| `POCKET_AUTH_FAILED` | Pocket authentication failed | 401 |
+| `POCKET_IMPORT_IN_PROGRESS` | Import already running | 409 |
+| `SERVER_ERROR` | Internal server error | 500 |
 
 ## Security Headers
 
@@ -325,3 +395,17 @@ X-RateLimit-Limit: 100
 X-RateLimit-Remaining: 99
 X-RateLimit-Reset: 1640995200
 ```
+## API Changelog
+
+### Version 1.0.0 (Initial Release)
+- Authentication endpoints (register, login, logout)
+- Article CRUD operations
+- Pocket import functionality
+- Account synchronization
+- Rate limiting implementation
+
+### Future Versions
+- Webhook support for real-time updates
+- Batch operations for articles
+- Enhanced search with filters
+- Export functionality

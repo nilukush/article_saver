@@ -87,7 +87,7 @@ JWT_SECRET="your-super-secret-jwt-key-change-this-in-production"
 JWT_EXPIRES_IN="7d"
 
 # Server
-PORT=3001
+PORT=3003
 NODE_ENV="development"
 
 # CORS

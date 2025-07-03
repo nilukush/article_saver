@@ -32,7 +32,39 @@ This Code of Conduct applies within all community spaces, and also applies when 
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the project team at conduct@articlesaver.app. All complaints will be reviewed and investigated promptly and fairly.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by:
+
+* Opening a private issue on GitHub (maintainers only will see it)
+* Contacting project maintainers directly through GitHub
+* Using GitHub's [private security advisory](https://github.com/nilukush/article_saver/security/advisories/new) feature for sensitive reports
+
+All complaints will be reviewed and investigated promptly and fairly. Project maintainers are obligated to respect the privacy and security of the reporter.
+
+### Response Timeline
+
+* **Acknowledgment**: Within 48 hours
+* **Initial Response**: Within 5 business days
+* **Resolution**: Depends on complexity, but we aim for 30 days
+
+### Enforcement Guidelines
+
+Project maintainers will follow these Community Impact Guidelines in determining consequences:
+
+#### 1. Correction
+**Community Impact**: Minor inappropriate behavior
+**Consequence**: Private written warning, providing clarity around violation
+
+#### 2. Warning
+**Community Impact**: A violation through a single incident or series of actions
+**Consequence**: Warning with consequences for continued behavior
+
+#### 3. Temporary Ban
+**Community Impact**: Serious violation of community standards
+**Consequence**: Temporary ban from interaction for a specified period
+
+#### 4. Permanent Ban
+**Community Impact**: Pattern of violations or egregious behavior
+**Consequence**: Permanent ban from any public interaction
 
 ## Attribution
 
