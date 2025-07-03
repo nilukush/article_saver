@@ -139,7 +139,11 @@
       "Bash(./cleanup-codebase.sh:*)",
       "Bash(tree:*)",
       "Bash(npm run:*)",
-      "WebFetch(domain:umami.is)"
+      "WebFetch(domain:umami.is)",
+      "Bash(for:*)",
+      "Bash(do if [[ -f \"$file\" ]])",
+      "Bash(then echo \"$file exists\")",
+      "Bash(fi)"
     ],
     "deny": []
   }
