@@ -6,6 +6,7 @@ import { AccountLinking } from './AccountLinking'
 import { EnterpriseAccountLinkingPrompt } from './EnterpriseAccountLinkingPrompt'
 import { logger } from '../utils/logger'
 import { getApiUrl } from '../../config/production'
+import { debugImportProgress } from '../debug/importDebug'
 // Simplified imports - removed unused hooks
 
 interface SettingsProps {
@@ -709,6 +710,13 @@ export function Settings({ onClose }: SettingsProps) {
                 })
                 
                 logger.info('Import job created', { importJobId }, 'Import', 'Settings')
+                
+                // Debug: Log session ID for manual debugging
+                console.log('=== POCKET IMPORT STARTED ===')
+                console.log('Session ID:', data.sessionId)
+                console.log('Import Job ID:', importJobId)
+                console.log('To debug progress, run in console:')
+                console.log(`window.debugImportProgress('${data.sessionId}')`)
                 
                 // Update last import time
                 const importTimestamp = new Date().toISOString()

@@ -10,6 +10,7 @@
 
 import { useEffect, useRef, useCallback, useMemo } from 'react'
 import { progressStore } from './useProgressStore'
+import { getApiUrl } from '../../config/production'
 
 interface ProgressPollingOptions {
     sessionId: string
@@ -53,7 +54,7 @@ export function useProgressPolling({
             // Fetching progress for session
 
             const response = await window.electronAPI.netFetch(
-                `http://localhost:3003/api/pocket/progress/${sessionId}?t=${Date.now()}`,
+                `${getApiUrl()}/api/pocket/progress/${sessionId}?t=${Date.now()}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${token}`,
