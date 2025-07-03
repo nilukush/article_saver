@@ -130,3 +130,6 @@ railway-service-variables.json
 *.cert
 *.p12
 *.pfx
+desktop/.env.development
+desktop/.env.production
+!desktop/.env*.example

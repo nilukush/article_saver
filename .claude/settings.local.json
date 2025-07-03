@@ -145,7 +145,8 @@
       "Bash(then echo \"$file exists\")",
       "Bash(fi)",
       "Bash(./fix-screenshots-now.sh:*)",
-      "Bash(do echo \"$i\")"
+      "Bash(do echo \"$i\")",
+      "Bash(./cleanup-security.sh)"
     ],
     "deny": []
   }
