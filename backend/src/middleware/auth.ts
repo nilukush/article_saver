@@ -12,6 +12,8 @@ const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
     throw new Error('JWT_SECRET environment variable is required');
 }
+// TypeScript now knows JWT_SECRET is defined after this check
+const JWT_SECRET_VERIFIED: string = JWT_SECRET;
 
 export const authenticateToken = (req: Request, res: Response, next: NextFunction): void => {
     const authHeader = req.headers.authorization;
@@ -22,7 +24,7 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     }
 
     try {
-        const decoded = jwt.verify(token, JWT_SECRET) as any;
+        const decoded = jwt.verify(token, JWT_SECRET_VERIFIED) as any;
         (req as AuthenticatedRequest).user = {
             userId: decoded.userId,
             email: decoded.email,

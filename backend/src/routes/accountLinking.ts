@@ -17,6 +17,8 @@ const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
     throw new Error('JWT_SECRET environment variable is required');
 }
+// TypeScript now knows JWT_SECRET is defined after this check
+const JWT_SECRET_VERIFIED: string = JWT_SECRET;
 
 // Get linked accounts for the current user - using enterprise auth
 router.get('/linked', authenticateEnterpriseToken, resolveLinkedAccounts, asyncHandler(async (req: any, res: Response) => {
@@ -329,7 +331,7 @@ router.post('/verify', authenticateToken, asyncHandler(async (req, res: Response
         userId: linkedAccount.primaryUserId,
         email: linkedAccount.primaryUser.email,
         linkedUserIds: allUserIds
-    }, JWT_SECRET, { expiresIn: '7d' });
+    }, JWT_SECRET_VERIFIED, { expiresIn: '7d' });
 
     res.json({
         message: 'Accounts successfully linked',
@@ -357,7 +359,7 @@ router.post('/oauth/link', asyncHandler(async (req: any, res: Response) => {
 
     try {
         // Verify linking token
-        const decoded = jwt.verify(linkingToken, JWT_SECRET) as any;
+        const decoded = jwt.verify(linkingToken, JWT_SECRET_VERIFIED) as any;
         
         if (decoded.action !== 'link_account') {
             throw createError('Invalid linking token', 400);
@@ -420,7 +422,7 @@ router.post('/oauth/link', asyncHandler(async (req: any, res: Response) => {
                 userId: primaryUser.id,
                 email: primaryUser.email,
                 linkedUserIds: [newProviderUser.id]
-            }, JWT_SECRET, { expiresIn: '7d' });
+            }, JWT_SECRET_VERIFIED, { expiresIn: '7d' });
 
             logger.info('ACCOUNT LINKING: Accounts already linked', {
                 primaryUserId: primaryUser.id,
@@ -492,7 +494,7 @@ router.post('/oauth/link', asyncHandler(async (req: any, res: Response) => {
             userId: primaryUser.id,
             email: primaryUser.email,
             linkedUserIds: [newProviderUser.id]
-        }, JWT_SECRET, { expiresIn: '7d' });
+        }, JWT_SECRET_VERIFIED, { expiresIn: '7d' });
 
         res.json({
             message: 'Accounts successfully linked',

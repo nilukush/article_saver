@@ -569,7 +569,7 @@ export async function handleEnterpriseOAuthLogin(
                     trustLevel: calculateCombinedTrustLevel(primaryTrust, linkedProviderTrust),
                     exp: Math.floor(Date.now() / 1000) + (60 * 60) // 60 minute expiry for enterprise workflows
                 },
-                JWT_SECRET
+                JWT_SECRET_VERIFIED
             );
             
             const redirectUrl = buildRedirectUrl(electronPort, provider, {
@@ -705,7 +705,7 @@ export async function handleEnterpriseOAuthLogin(
             trustLevel: calculateCombinedTrustLevel(primaryTrust, trustLevel),
             exp: Math.floor(Date.now() / 1000) + (60 * 60) // 60 minute expiry for enterprise workflows
         },
-        JWT_SECRET
+        JWT_SECRET_VERIFIED
     );
     
     // Create pending link record

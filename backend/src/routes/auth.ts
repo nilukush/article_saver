@@ -15,11 +15,13 @@ const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
     throw new Error('JWT_SECRET environment variable is required');
-};
+}
+// TypeScript now knows JWT_SECRET is defined after this check
+const JWT_SECRET_VERIFIED: string = JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
 const verifyJWT = (token: string): any => {
-    return jwt.verify(token, JWT_SECRET);
+    return jwt.verify(token, JWT_SECRET_VERIFIED);
 };
 
 // Register endpoint
@@ -593,7 +595,7 @@ router.post('/oauth/create-separate', asyncHandler(async (req: Request, res: Res
     
     try {
         // Verify the linking token to ensure this is a legitimate request
-        const decoded = jwt.verify(linkingToken, JWT_SECRET) as any;
+        const decoded = jwt.verify(linkingToken, JWT_SECRET_VERIFIED) as any;
         
         if (decoded.action !== 'link_account' || decoded.email !== email) {
             throw createError('Invalid linking token', 400);
@@ -609,7 +611,7 @@ router.post('/oauth/create-separate', asyncHandler(async (req: Request, res: Res
         });
         
         // Generate JWT token for the new user
-        const token = jwt.sign({ userId: newUser.id, email }, JWT_SECRET, { expiresIn: '7d' });
+        const token = jwt.sign({ userId: newUser.id, email }, JWT_SECRET_VERIFIED, { expiresIn: '7d' });
         
         res.json({
             message: 'Separate account created successfully',
