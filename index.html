@@ -614,20 +614,23 @@
                 
                 <div class="screenshot-tabs">
                     <button class="tab-button active" onclick="showScreenshot('list', event)">Article List</button>
+                    <button class="tab-button" onclick="showScreenshot('import', event)">Import Progress</button>
                     <button class="tab-button" onclick="showScreenshot('account', event)">Account & Sync</button>
-                    <button class="tab-button" onclick="showScreenshot('pocket', event)">Pocket Import</button>
+                    <button class="tab-button" onclick="showScreenshot('pocket', event)">Pocket Options</button>
                     <button class="tab-button" onclick="showScreenshot('add', event)">Add Articles</button>
                 </div>
                 
                 <div class="screenshot-container">
-                    <img id="screenshot-list" src="screenshots/article-list.png" alt="Article Saver main interface showing 5,529 imported articles with tags and search functionality" class="screenshot active">
-                    <img id="screenshot-account" src="screenshots/account-panel.png" alt="Account panel showing Pocket integration authorized and sync status with 3,870 unread articles" class="screenshot">
-                    <img id="screenshot-pocket" src="screenshots/pocket-integration.png" alt="Pocket import successful showing 5,529 articles imported with options to re-sync and manage content" class="screenshot">
-                    <img id="screenshot-add" src="screenshots/add-article.png" alt="Add article dialog with URL input and tag management for organizing saved content" class="screenshot">
+                    <img id="screenshot-list" src="screenshots/Screenshot 2025-07-03 at 7.53.37 PM.png" alt="Article Saver main interface showing 5,529 imported articles with tags and search functionality" class="screenshot active">
+                    <img id="screenshot-import" src="screenshots/Screenshot 2025-07-03 at 8.42.17 PM.png" alt="Import progress showing real-time Pocket API sync - fetching 60 articles with progress bar" class="screenshot">
+                    <img id="screenshot-account" src="screenshots/Screenshot 2025-07-03 at 7.53.56 PM.png" alt="Account panel showing Pocket integration authorized and sync status with 3,870 unread articles" class="screenshot">
+                    <img id="screenshot-pocket" src="screenshots/Screenshot 2025-07-03 at 7.54.01 PM.png" alt="Pocket import successful showing 5,529 articles imported with options to re-sync and manage content" class="screenshot">
+                    <img id="screenshot-add" src="screenshots/Screenshot 2025-07-03 at 7.54.08 PM.png" alt="Add article dialog with URL input and tag management for organizing saved content" class="screenshot">
                 </div>
                 
                 <div class="screenshot-description">
                     <p id="desc-list" class="desc active">Clean, organized interface showing all your saved articles with tags, search, and filtering options</p>
+                    <p id="desc-import" class="desc">Real-time import progress with detailed status updates and API compliance indicators</p>
                     <p id="desc-account" class="desc">Manage your account and Pocket integration with real-time sync status and statistics</p>
                     <p id="desc-pocket" class="desc">Successfully imported 5,529 articles from Pocket with detailed import statistics</p>
                     <p id="desc-add" class="desc">Easily add new articles with custom tags for better organization and searchability</p>
