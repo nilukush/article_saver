@@ -6,7 +6,10 @@ import logger from './logger';
 import { emailService } from '../services/emailService';
 import { getAllLinkedUserIds } from './authHelpers';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is required');
+}
 
 interface EnterpriseOAuthResult {
     type: 'success' | 'requires_linking' | 'requires_verification';

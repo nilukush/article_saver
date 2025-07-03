@@ -187,7 +187,6 @@ router.get('/auth/url', authenticateToken, asyncHandler(async (req: Request, res
 // Pocket OAuth callback endpoint
 router.get('/callback', asyncHandler(async (req: Request, res: Response) => {
     logger.info('🔍 POCKET CALLBACK: Received callback request');
-    logger.info('🔍 POCKET CALLBACK: currentRequestToken =', currentRequestToken);
 
     // Pocket callback contains no parameters - just the redirect
     if (!currentRequestToken) {
@@ -203,7 +202,7 @@ router.get('/callback', asyncHandler(async (req: Request, res: Response) => {
     }
 
     const request_token = currentRequestToken.token;
-    logger.info('🔍 POCKET CALLBACK: Using request token:', request_token);
+    logger.info('🔍 POCKET CALLBACK: Processing request token');
 
     const userRequestToken = currentRequestToken; // Store reference before cleanup
     // Clean up the stored token
@@ -246,7 +245,7 @@ router.get('/callback', asyncHandler(async (req: Request, res: Response) => {
     }
 
     const accessTokenData = await accessTokenResponse.json();
-    logger.info('🔍 POCKET CALLBACK: Token exchange response:', accessTokenData);
+    logger.info('🔍 POCKET CALLBACK: Token exchange completed');
 
     if (!accessTokenData.access_token) {
         logger.error('❌ POCKET CALLBACK: No access token in response');
@@ -360,7 +359,7 @@ router.get('/callback', asyncHandler(async (req: Request, res: Response) => {
                     try {
                         window.close();
                     } catch (e) {
-                        console.log('Standard close failed:', e);
+                        // Standard close failed
                     }
                     
                     // Method 2: Replace current page and close
@@ -368,7 +367,7 @@ router.get('/callback', asyncHandler(async (req: Request, res: Response) => {
                         window.open('', '_self');
                         window.close();
                     } catch (e) {
-                        console.log('Replace and close failed:', e);
+                        // Replace and close failed
                     }
                     
                     // Method 3: Try to close parent/opener
@@ -378,7 +377,7 @@ router.get('/callback', asyncHandler(async (req: Request, res: Response) => {
                             window.close();
                         }
                     } catch (e) {
-                        console.log('Opener close failed:', e);
+                        // Opener close failed
                     }
                     
                     // Method 4: Set location to about:blank then close
@@ -386,7 +385,7 @@ router.get('/callback', asyncHandler(async (req: Request, res: Response) => {
                         window.location.href = 'about:blank';
                         setTimeout(() => window.close(), 100);
                     } catch (e) {
-                        console.log('About blank close failed:', e);
+                        // About blank close failed
                     }
                     
                     // Method 5: Use history.back() if available
@@ -395,7 +394,7 @@ router.get('/callback', asyncHandler(async (req: Request, res: Response) => {
                             window.history.back();
                         }
                     } catch (e) {
-                        console.log('History back failed:', e);
+                        // History back failed
                     }
                     
                     // Method 6: Open empty window and focus it (to replace current)
@@ -406,7 +405,7 @@ router.get('/callback', asyncHandler(async (req: Request, res: Response) => {
                             window.close();
                         }
                     } catch (e) {
-                        console.log('New window replacement failed:', e);
+                        // New window replacement failed
                     }
                     
                     // If all methods fail, show the fallback message after a short delay
@@ -437,7 +436,7 @@ router.get('/callback', asyncHandler(async (req: Request, res: Response) => {
                     try {
                         window.close();
                     } catch (e) {
-                        console.log('Immediate close failed, will wait for countdown');
+                        // Immediate close failed, will wait for countdown
                     }
                 }, 500);
                 

@@ -13,7 +13,10 @@ import { emailService } from '../services/emailService';
 import { getAllLinkedUserIds } from '../utils/authHelpers';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is required');
+}
 
 // Get linked accounts for the current user - using enterprise auth
 router.get('/linked', authenticateEnterpriseToken, resolveLinkedAccounts, asyncHandler(async (req: any, res: Response) => {
