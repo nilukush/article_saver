@@ -13,11 +13,11 @@
   <h3>🚀 Enterprise-Grade Article Management System</h3>
   <p>Save, organize, and read articles with powerful cloud sync, OAuth authentication, and Pocket integration</p>
   <p>
-    <a href="#quick-start">Quick Start</a> •
+    <a href="#-quick-start">Quick Start</a> •
+    <a href="#-downloads">Downloads</a> •
     <a href="API.md">API Docs</a> •
     <a href="DEVELOPMENT.md">Development</a> •
-    <a href="CONTRIBUTING.md">Contributing</a> •
-    <a href="SECURITY.md">Security</a>
+    <a href="CONTRIBUTING.md">Contributing</a>
   </p>
 </div>
 
@@ -38,6 +38,26 @@
 - 📥 **Pocket Import** - Import your entire Pocket library with one click
 - 🔒 **Enterprise Security** - JWT authentication, rate limiting, and security headers
 - 📊 **Bulk Operations** - Import, export, and manage thousands of articles efficiently
+
+## 📥 Downloads
+
+Download the latest version (v1.1.3) for your platform:
+
+### Windows
+- [Article.Saver.Setup.1.1.3.exe](https://github.com/nilukush/article_saver/releases/download/v1.1.3/Article.Saver.Setup.1.1.3.exe) - Installer (Recommended)
+- [Article.Saver.1.1.3.exe](https://github.com/nilukush/article_saver/releases/download/v1.1.3/Article.Saver.1.1.3.exe) - Portable
+
+### macOS
+- [Article.Saver-1.1.3-arm64.dmg](https://github.com/nilukush/article_saver/releases/download/v1.1.3/Article.Saver-1.1.3-arm64.dmg) - Apple Silicon (M1/M2/M3)
+- [Article.Saver-1.1.3.dmg](https://github.com/nilukush/article_saver/releases/download/v1.1.3/Article.Saver-1.1.3.dmg) - Intel
+
+**Note**: If macOS shows "damaged app", run: `xattr -cr /Applications/Article\ Saver.app`
+
+### Linux
+- [Article.Saver-1.1.3.AppImage](https://github.com/nilukush/article_saver/releases/download/v1.1.3/Article.Saver-1.1.3.AppImage) - AppImage (Universal)
+- [article-saver-desktop_1.1.3_amd64.deb](https://github.com/nilukush/article_saver/releases/download/v1.1.3/article-saver-desktop_1.1.3_amd64.deb) - Debian/Ubuntu
+
+[View all releases →](https://github.com/nilukush/article_saver/releases)
 
 ## 🏗️ Architecture
 

@@ -1,27 +1,25 @@
-# Installation Guide - Article Saver v1.1.0
-
-> ⚠️ **IMPORTANT**: This release is unsigned due to the urgent Pocket shutdown deadline. You may see security warnings during installation. These are normal for unsigned applications and can be safely bypassed using the instructions below.
+# Installation Guide - Article Saver
 
 ## 🚨 Pocket is shutting down July 7, 2025!
 **Import your articles NOW before it's too late!**
 
 ## Download Links
 
-Download Article Saver v1.1.0 from our [GitHub Releases page](https://github.com/nilukush/article_saver/releases/tag/v1.1.0).
+Download the latest version (v1.1.3) from our [GitHub Releases page](https://github.com/nilukush/article_saver/releases/latest).
 
 Choose the appropriate file for your platform:
 
 ### Windows
-- **Installer (Recommended)**: `Article.Saver.Setup.1.1.0.exe` - Standard Windows installer
-- **Portable**: `Article.Saver.1.1.0.exe` - No installation required
+- **Installer (Recommended)**: `Article.Saver.Setup.1.1.3.exe` - Standard Windows installer
+- **Portable**: `Article.Saver.1.1.3.exe` - No installation required
 
 ### macOS
-- **Intel Macs**: `Article.Saver-1.1.0.dmg`
-- **Apple Silicon (M1/M2/M3)**: `Article.Saver-1.1.0-arm64.dmg`
+- **Intel Macs**: `Article.Saver-1.1.3.dmg`
+- **Apple Silicon (M1/M2/M3)**: `Article.Saver-1.1.3-arm64.dmg`
 
 ### Linux
-- **AppImage (Universal)**: `Article.Saver-1.1.0.AppImage` - Works on most distributions
-- **Debian/Ubuntu**: `article-saver-desktop_1.1.0_amd64.deb`
+- **AppImage (Universal)**: `Article.Saver-1.1.3.AppImage` - Works on most distributions
+- **Debian/Ubuntu**: `article-saver-desktop_1.1.3_amd64.deb`
 
 ---
 
