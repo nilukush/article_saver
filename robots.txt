@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://nilukush.github.io/article_saver/sitemap.xml
+
+# Crawl-delay for responsible crawling
+User-agent: *
+Crawl-delay: 1
+
+# Block access to development files
+User-agent: *
+Disallow: /.git/
+Disallow: /node_modules/
+Disallow: /*.json$
+Disallow: /*.md$
+Disallow: /backend/
+Disallow: /desktop/src/
