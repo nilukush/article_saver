@@ -137,7 +137,9 @@
       "WebFetch(domain:docs.github.com)",
       "WebFetch(domain:peps.python.org)",
       "Bash(./cleanup-codebase.sh:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(npm run:*)",
+      "WebFetch(domain:umami.is)"
     ],
     "deny": []
   }
