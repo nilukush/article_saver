@@ -60,7 +60,7 @@ export const productionConfig = {
       'script-src': ["'self'", "'unsafe-inline'"],
       'style-src': ["'self'", "'unsafe-inline'"],
       'img-src': ["'self'", 'data:', 'https:'],
-      'connect-src': ["'self'", 'https://articlesaver.up.railway.app', 'https://api.github.com']
+      'connect-src': ["'self'", 'https://articlesaver-production.up.railway.app', 'https://api.github.com']
     },
     
     // Require HTTPS in production

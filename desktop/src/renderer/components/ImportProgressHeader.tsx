@@ -4,6 +4,7 @@ import { useProgressStore } from '../hooks/useProgressStore'
 import { useProgressPolling } from '../hooks/useProgressPolling'
 import { ErrorBoundary } from './ErrorBoundary'
 import { useEffect } from 'react'
+import { getApiUrl } from '../../config/production'
 
 function ImportProgressHeaderContent() {
     // ENTERPRISE-GRADE SOLUTION: Single source of truth for progress
@@ -210,7 +211,7 @@ function ImportProgressHeaderContent() {
                                             const token = localStorage.getItem('authToken')
                                             if (token) {
                                                 const response = await window.electronAPI.netFetch(
-                                                    'http://localhost:3003/api/pocket/sessions/cancel',
+                                                    `${getApiUrl()}/api/pocket/sessions/cancel`,
                                                     {
                                                         method: 'POST',
                                                         headers: {

@@ -1,6 +1,6 @@
 {
     "name": "article-saver-backend",
-    "version": "1.1.2",
+    "version": "1.1.3",
     "description": "Cloud backend API for Article Saver with authentication and sync",
     "main": "dist/index.js",
     "scripts": {
