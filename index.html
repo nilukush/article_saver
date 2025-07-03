@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <!-- Primary Meta Tags -->
+    <title>Article Saver - Open Source Read-Later App | Privacy-First Pocket Alternative</title>
+    <meta name="title" content="Article Saver - Open Source Read-Later App | Privacy-First Pocket Alternative">
+    <meta name="description" content="Save articles for later with our free, open source read-later app. Import from Pocket with one click. Self-host or use our secure cloud. No ads, no tracking, just reading.">
+    <meta name="keywords" content="read later app, pocket alternative, article saver, bookmark manager, open source, privacy, self-hosted">
+    <meta name="author" content="Article Saver Team">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://nilukush.github.io/article_saver/">
+    <meta property="og:title" content="Article Saver - Open Source Read-Later App">
+    <meta property="og:description" content="Save articles for later with our free, open source read-later app. Import from Pocket with one click.">
+    <meta property="og:image" content="https://nilukush.github.io/article_saver/og-image.png">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://nilukush.github.io/article_saver/">
+    <meta property="twitter:title" content="Article Saver - Open Source Read-Later App">
+    <meta property="twitter:description" content="Save articles for later with our free, open source read-later app. Import from Pocket with one click.">
+    <meta property="twitter:image" content="https://nilukush.github.io/article_saver/og-image.png">
+    
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📚</text></svg>">
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://nilukush.github.io/article_saver/">
+    
+    <!-- Schema.org Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Article Saver",
+        "applicationCategory": "Productivity",
+        "operatingSystem": "Windows, macOS, Linux",
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+        },
+        "description": "Open source read-later app for saving and organizing articles",
+        "url": "https://nilukush.github.io/article_saver/",
+        "author": {
+            "@type": "Organization",
+            "name": "Article Saver Team"
+        }
+    }
+    </script>
+    
+    <style>
+        /* CSS Variables for Easy Customization */
+        :root {
+            --primary-color: #007bff;
+            --primary-hover: #0056b3;
+            --secondary-color: #28a745;
+            --secondary-hover: #218838;
+            --dark-color: #333;
+            --light-color: #f8f9fa;
+            --border-color: #dee2e6;
+            --max-width: 1200px;
+            --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+        
+        /* Reset and Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        body {
+            font-family: var(--font-family);
+            line-height: 1.6;
+            color: var(--dark-color);
+            background-color: #fff;
+        }
+        
+        /* Accessibility: Skip to Content */
+        .skip-to-content {
+            position: absolute;
+            left: -9999px;
+            z-index: 999;
+            padding: 1em;
+            background-color: var(--primary-color);
+            color: white;
+            text-decoration: none;
+        }
+        
+        .skip-to-content:focus {
+            left: 50%;
+            transform: translateX(-50%);
+            top: 10px;
+        }
+        
+        /* Container */
+        .container {
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        /* Header */
+        header {
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 0;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-decoration: none;
+            color: var(--dark-color);
+        }
+        
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+        }
+        
+        .nav-links a {
+            text-decoration: none;
+            color: var(--dark-color);
+            transition: color 0.3s;
+        }
+        
+        .nav-links a:hover {
+            color: var(--primary-color);
+        }
+        
+        /* Hero Section */
+        .hero {
+            padding: 80px 0;
+            text-align: center;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+        
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            color: var(--dark-color);
+        }
+        
+        .hero .tagline {
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+            color: #666;
+        }
+        
+        .hero .announcement {
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 30px;
+            display: inline-block;
+        }
+        
+        .announcement strong {
+            color: #856404;
+        }
+        
+        /* Buttons */
+        .button-group {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 1.1rem;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,123,255,0.3);
+        }
+        
+        .btn-secondary {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: var(--secondary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40,167,69,0.3);
+        }
+        
+        .btn-outline {
+            background-color: transparent;
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .btn-outline:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        /* Features Section */
+        .features {
+            padding: 80px 0;
+            background-color: var(--light-color);
+        }
+        
+        .section-title {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 50px;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 40px;
+        }
+        
+        .feature-card {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+        
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+        
+        .feature-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+        }
+        
+        /* How It Works Section */
+        .how-it-works {
+            padding: 80px 0;
+        }
+        
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 40px;
+            margin-top: 50px;
+        }
+        
+        .step {
+            text-align: center;
+        }
+        
+        .step-number {
+            display: inline-block;
+            width: 60px;
+            height: 60px;
+            line-height: 60px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            color: white;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        
+        /* Screenshots Section */
+        .screenshots {
+            padding: 80px 0;
+            background-color: var(--light-color);
+        }
+        
+        .screenshot-container {
+            text-align: center;
+            margin-top: 50px;
+        }
+        
+        .screenshot {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        /* CTA Section */
+        .cta {
+            padding: 80px 0;
+            background-color: var(--primary-color);
+            color: white;
+            text-align: center;
+        }
+        
+        .cta h2 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+        
+        .cta p {
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+        }
+        
+        .cta .btn {
+            background-color: white;
+            color: var(--primary-color);
+        }
+        
+        .cta .btn:hover {
+            background-color: var(--light-color);
+        }
+        
+        /* Footer */
+        footer {
+            padding: 40px 0;
+            background-color: var(--dark-color);
+            color: white;
+            text-align: center;
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .footer-links a {
+            color: white;
+            text-decoration: none;
+            transition: opacity 0.3s;
+        }
+        
+        .footer-links a:hover {
+            opacity: 0.8;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+            
+            .hero .tagline {
+                font-size: 1.2rem;
+            }
+            
+            .nav-links {
+                gap: 1rem;
+            }
+            
+            .button-group {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn {
+                width: 250px;
+                text-align: center;
+            }
+        }
+        
+        /* Print Styles */
+        @media print {
+            header, footer, .cta, .button-group {
+                display: none;
+            }
+            
+            body {
+                font-size: 12pt;
+            }
+        }
+        
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <!-- Skip to Content Link for Accessibility -->
+    <a href="#main" class="skip-to-content">Skip to main content</a>
+    
+    <!-- Header -->
+    <header>
+        <nav class="container">
+            <a href="#" class="logo">📚 Article Saver</a>
+            <ul class="nav-links">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#how-it-works">How It Works</a></li>
+                <li><a href="https://github.com/nilukush/article_saver">GitHub</a></li>
+                <li><a href="https://github.com/nilukush/article_saver/releases">Download</a></li>
+            </ul>
+        </nav>
+    </header>
+    
+    <!-- Main Content -->
+    <main id="main">
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="container">
+                <div class="announcement">
+                    <strong>⚠️ Pocket is shutting down on July 8, 2025</strong> - Don't lose your saved articles!
+                </div>
+                <h1 class="fade-in">Article Saver</h1>
+                <p class="tagline fade-in">The Open Source Read-Later App That Respects Your Privacy</p>
+                <p style="font-size: 1.2rem; margin-bottom: 40px;" class="fade-in">
+                    Import all your Pocket articles with one click. 100% free, forever.
+                </p>
+                <div class="button-group fade-in">
+                    <a href="https://github.com/nilukush/article_saver/releases" class="btn btn-primary">
+                        Download Now
+                    </a>
+                    <a href="https://github.com/nilukush/article_saver" class="btn btn-secondary">
+                        View on GitHub
+                    </a>
+                    <a href="#how-it-works" class="btn btn-outline">
+                        Learn More
+                    </a>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Features Section -->
+        <section class="features" id="features">
+            <div class="container">
+                <h2 class="section-title">Why Choose Article Saver?</h2>
+                <div class="features-grid">
+                    <article class="feature-card">
+                        <div class="feature-icon">🔒</div>
+                        <h3>Privacy First</h3>
+                        <p>Your data stays yours. Self-host on your own server or use our secure cloud. No tracking, no ads, no data mining.</p>
+                    </article>
+                    
+                    <article class="feature-card">
+                        <div class="feature-icon">🚀</div>
+                        <h3>Easy Migration</h3>
+                        <p>Import from Pocket, Instapaper, or any read-later app with our one-click import tool. Keep all your saved articles and reading progress.</p>
+                    </article>
+                    
+                    <article class="feature-card">
+                        <div class="feature-icon">💻</div>
+                        <h3>Cross Platform</h3>
+                        <p>Available on Windows, macOS, and Linux. Sync seamlessly across all your devices with our secure cloud sync.</p>
+                    </article>
+                    
+                    <article class="feature-card">
+                        <div class="feature-icon">🌟</div>
+                        <h3>Open Source</h3>
+                        <p>MIT licensed and community-driven. Contribute features, report bugs, or fork the project. You're in complete control.</p>
+                    </article>
+                    
+                    <article class="feature-card">
+                        <div class="feature-icon">⚡</div>
+                        <h3>Lightning Fast</h3>
+                        <p>Built with modern technologies for blazing-fast performance. Search thousands of articles instantly.</p>
+                    </article>
+                    
+                    <article class="feature-card">
+                        <div class="feature-icon">🎨</div>
+                        <h3>Beautiful Reading</h3>
+                        <p>Distraction-free reading experience with customizable themes, fonts, and layouts. Focus on what matters.</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+        
+        <!-- How It Works Section -->
+        <section class="how-it-works" id="how-it-works">
+            <div class="container">
+                <h2 class="section-title">Get Started in Minutes</h2>
+                <div class="steps">
+                    <article class="step">
+                        <div class="step-number">1</div>
+                        <h3>Download</h3>
+                        <p>Download Article Saver for your platform. Available for Windows, macOS, and Linux.</p>
+                    </article>
+                    
+                    <article class="step">
+                        <div class="step-number">2</div>
+                        <h3>Install</h3>
+                        <p>Simple installation process. No complex setup or configuration required.</p>
+                    </article>
+                    
+                    <article class="step">
+                        <div class="step-number">3</div>
+                        <h3>Import</h3>
+                        <p>Click "Import from Pocket" and watch as all your articles are safely transferred.</p>
+                    </article>
+                    
+                    <article class="step">
+                        <div class="step-number">4</div>
+                        <h3>Enjoy</h3>
+                        <p>Start reading! Your articles are now safe and accessible forever.</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Screenshots Section -->
+        <section class="screenshots">
+            <div class="container">
+                <h2 class="section-title">See It In Action</h2>
+                <div class="screenshot-container">
+                    <img src="data:image/svg+xml,%3Csvg width='800' height='500' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='800' height='500' fill='%23f0f0f0'/%3E%3Ctext x='400' y='250' font-family='Arial' font-size='24' fill='%23999' text-anchor='middle'%3EScreenshot Coming Soon%3C/text%3E%3C/svg%3E" 
+                         alt="Article Saver screenshot showing the main interface" 
+                         class="screenshot"
+                         loading="lazy">
+                </div>
+            </div>
+        </section>
+        
+        <!-- CTA Section -->
+        <section class="cta">
+            <div class="container">
+                <h2>Ready to Save Your Articles?</h2>
+                <p>Join thousands of users who've already made the switch</p>
+                <a href="https://github.com/nilukush/article_saver/releases" class="btn">
+                    Download Article Saver Free
+                </a>
+            </div>
+        </section>
+    </main>
+    
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-links">
+                <a href="https://github.com/nilukush/article_saver">GitHub</a>
+                <a href="https://github.com/nilukush/article_saver/issues">Support</a>
+                <a href="https://github.com/nilukush/article_saver/blob/main/README.md">Documentation</a>
+                <a href="https://github.com/nilukush/article_saver/blob/main/PRIVACY.md">Privacy Policy</a>
+            </div>
+            <p>© 2025 Article Saver. Not affiliated with Mozilla or Pocket.</p>
+            <p>Made with ❤️ by the open source community</p>
+        </div>
+    </footer>
+    
+    <!-- Analytics (Optional - Replace with your preferred analytics) -->
+    <script>
+        // Simple page view tracking (privacy-friendly)
+        if (window.location.hostname !== 'localhost') {
+            console.log('Page view tracked:', window.location.pathname);
+        }
+        
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+        
+        // Add fade-in animation on scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -100px 0px'
+        };
+        
+        const observer = new IntersectionObserver(function(entries) {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+        
+        document.querySelectorAll('.feature-card, .step').forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(20px)';
+            el.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
+            observer.observe(el);
+        });
+    </script>
+</body>
+</html>
