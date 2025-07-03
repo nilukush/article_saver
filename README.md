@@ -1,12 +1,30 @@
 # Article Saver
 
 <div align="center">
+  
+  [![Website](https://img.shields.io/badge/Website-Live-brightgreen)](https://nilukush.github.io/article_saver/)
+  [![GitHub Stars](https://img.shields.io/github/stars/nilukush/article_saver)](https://github.com/nilukush/article_saver/stargazers)
+  [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+  [![GitHub release](https://img.shields.io/github/release/nilukush/article_saver.svg)](https://github.com/nilukush/article_saver/releases/)
+  
+  **[🌐 Visit Our Website](https://nilukush.github.io/article_saver/) | [📥 Download](https://github.com/nilukush/article_saver/releases) | [📖 Documentation](https://github.com/nilukush/article_saver/wiki)**
+
+</div>
+
+> 🚨 **Pocket is shutting down on July 8, 2025!** Don't lose your saved articles. Article Saver offers one-click import to save your entire library.
+
+## 🎯 Quick Links
+
+- **Website**: https://nilukush.github.io/article_saver/
+- **Download**: [Latest Release](https://github.com/nilukush/article_saver/releases)
+- **Import from Pocket**: [Migration Guide](https://nilukush.github.io/article_saver/blog/migrate-from-pocket)
+
+<div align="center">
   <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React">
   <img src="https://img.shields.io/badge/Electron-47848F?style=for-the-badge&logo=electron&logoColor=white" alt="Electron">
   <img src="https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
   <img src="https://img.shields.io/badge/Express.js-404D59?style=for-the-badge" alt="Express">
-  <img src="https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge" alt="MIT License">
 </div>
 
 <div align="center">
