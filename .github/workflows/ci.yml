@@ -437,8 +437,13 @@ jobs:
           path: |
             desktop/release/*.exe
             desktop/release/*.dmg
+            desktop/release/*.zip
             desktop/release/*.AppImage
             desktop/release/*.deb
+            desktop/release/*.nupkg
+            desktop/release/*.yml
+            desktop/release/*.yaml
+            desktop/release/*.blockmap
           retention-days: 30
 
   create-release:
