@@ -7,7 +7,7 @@ import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken } from '../middleware/auth';
 import logger from '../utils/logger';
 import { getAllLinkedUserIds } from '../utils/authHelpers';
-import { executeSearchQuery } from '../utils/pgbouncerSearchFix';
+import { executeSearchQuery } from '../utils/pgbouncerEmergencyFix';
 
 const router = Router();
 
