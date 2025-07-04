@@ -7,6 +7,7 @@ import { asyncHandler, createError } from '../middleware/errorHandler';
 import { authenticateToken } from '../middleware/auth';
 import logger from '../utils/logger';
 import { getAllLinkedUserIds } from '../utils/authHelpers';
+import { executeSearchQuery } from '../utils/pgbouncerSearchFix';
 
 const router = Router();
 
@@ -25,64 +26,37 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     const tokenLinkedIds = (req as any).user.linkedUserIds;
     const userIds = await getAllLinkedUserIds(userId, tokenLinkedIds);
 
-    // Build where clause
-    const where: any = { userId: { in: userIds } };
-
-    if (search) {
-        where.OR = [
-            { title: { contains: search as string, mode: 'insensitive' } },
-            { content: { contains: search as string, mode: 'insensitive' } },
-            { excerpt: { contains: search as string, mode: 'insensitive' } }
-        ];
-    }
-
-    if (tags) {
-        const tagArray = (tags as string).split(',');
-        where.tags = { hasSome: tagArray };
-    }
-
-    if (isRead !== undefined) {
-        where.isRead = isRead === 'true';
-    }
-
-    if (isArchived !== undefined) {
-        where.isArchived = isArchived === 'true';
-    }
-
-    const [articles, total] = await Promise.all([
-        prisma.article.findMany({
-            where,
+    try {
+        // Use PgBouncer-compatible search implementation
+        const { articles, total } = await executeSearchQuery({
+            userIds,
+            search: search as string | undefined,
+            tags: tags as string | undefined,
+            isRead: isRead === 'true' ? true : isRead === 'false' ? false : undefined,
+            isArchived: isArchived === 'true' ? true : isArchived === 'false' ? false : undefined,
             skip,
-            take,
-            orderBy: { savedAt: 'desc' },
-            select: {
-                id: true,
-                url: true,
-                title: true,
-                content: true,
-                excerpt: true,
-                author: true,
-                publishedDate: true,
-                tags: true,
-                isRead: true,
-                isArchived: true,
-                savedAt: true,
-                createdAt: true,
-                updatedAt: true
-            }
-        }),
-        prisma.article.count({ where })
-    ]);
+            take
+        });
 
-    res.json({
-        articles,
-        pagination: {
-            page: Number(page),
-            limit: Number(limit),
-            total,
-            pages: Math.ceil(total / Number(limit))
-        }
-    });
+        res.json({
+            articles,
+            pagination: {
+                page: Number(page),
+                limit: Number(limit),
+                total,
+                pages: Math.ceil(total / Number(limit))
+            }
+        });
+    } catch (error) {
+        logger.error('Error fetching articles', { 
+            error: error instanceof Error ? error.message : 'Unknown error',
+            search: !!search,
+            userId 
+        });
+        
+        // If all strategies fail, return error to user
+        throw createError('Unable to fetch articles. Please try again without search.', 503);
+    }
 }));
 
 // Get single article by ID
