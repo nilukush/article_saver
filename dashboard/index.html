@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Download Statistics - Article Saver</title>
     <meta name="description" content="Real-time download statistics and analytics for Article Saver">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📚</text></svg>">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
     <style>
         * {
@@ -344,10 +344,10 @@
         // Chart instances
         let versionChart, platformChart, timelineChart;
         
-        // Load data on page load with small delay for GitHub Pages
+        // Enterprise-grade initialization
         window.addEventListener('DOMContentLoaded', () => {
-            // Small delay to ensure GitHub Pages is fully ready
-            setTimeout(loadDashboard, 500);
+            // Wait for DOM to be fully ready, then add a small delay for GitHub Pages
+            setTimeout(loadDashboard, 1000);
         });
         
         async function loadDashboard() {
@@ -370,7 +370,7 @@
                 if (error.message.includes('rate limit')) {
                     errorMessage += error.message;
                 } else if (error.message.includes('Failed to fetch')) {
-                    errorMessage += 'Network error - please check your connection or try the debug version.';
+                    errorMessage += 'Network error - please check your connection or try refreshing.';
                 } else {
                     errorMessage += error.message || 'Please check your connection and try again.';
                 }
@@ -380,39 +380,31 @@
         }
         
         async function fetchGitHubData() {
-            try {
-                // First, check rate limit
-                const rateLimitResponse = await fetch('https://api.github.com/rate_limit', {
-                    headers: {
-                        'Accept': 'application/vnd.github.v3+json'
-                    }
-                });
-                
-                if (rateLimitResponse.ok) {
-                    const rateLimitData = await rateLimitResponse.json();
-                    const remaining = rateLimitData.rate?.remaining || rateLimitData.resources?.core?.remaining;
-                    console.log(`GitHub API rate limit remaining: ${remaining}`);
-                    
-                    if (remaining === 0) {
-                        const resetTime = new Date((rateLimitData.rate?.reset || rateLimitData.resources?.core?.reset) * 1000);
-                        throw new Error(`GitHub API rate limit exceeded. Resets at ${resetTime.toLocaleTimeString()}`);
-                    }
-                }
-            } catch (rateLimitError) {
-                console.warn('Could not check rate limit:', rateLimitError);
-            }
-            
-            // Make the actual API call
+            // Enterprise-grade fetch configuration
+            // Only use headers that are explicitly allowed by GitHub's CORS policy
             const response = await fetch(GITHUB_API, {
                 method: 'GET',
                 headers: {
+                    // 'Accept' is a CORS-safelisted header, always allowed
                     'Accept': 'application/vnd.github.v3+json'
+                    // Do NOT include 'Cache-Control' - it's not in GitHub's allowed headers
+                    // Other allowed headers we could use if needed:
+                    // 'User-Agent': 'Article-Saver-Dashboard/1.0',
+                    // 'X-GitHub-Api-Version': '2022-11-28'
                 }
             });
             
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('GitHub API response:', response.status, errorText);
+                
+                // Check for rate limiting
+                const remaining = response.headers.get('X-RateLimit-Remaining');
+                if (remaining === '0') {
+                    const resetTime = new Date(parseInt(response.headers.get('X-RateLimit-Reset')) * 1000);
+                    throw new Error(`GitHub API rate limit exceeded. Resets at ${resetTime.toLocaleTimeString()}`);
+                }
+                
                 throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
             }
             
