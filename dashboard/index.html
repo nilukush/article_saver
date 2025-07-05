@@ -344,8 +344,11 @@
         // Chart instances
         let versionChart, platformChart, timelineChart;
         
-        // Load data on page load
-        window.addEventListener('DOMContentLoaded', loadDashboard);
+        // Load data on page load with small delay for GitHub Pages
+        window.addEventListener('DOMContentLoaded', () => {
+            // Small delay to ensure GitHub Pages is fully ready
+            setTimeout(loadDashboard, 500);
+        });
         
         async function loadDashboard() {
             try {
