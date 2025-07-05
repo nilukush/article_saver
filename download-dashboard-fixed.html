@@ -3,13 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Download Statistics - Article Saver</title>
-    <meta name="description" content="Real-time download statistics and analytics for Article Saver">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📚</text></svg>">
+    <title>Article Saver - Download Tracking Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
-    <!-- Date adapter for Chart.js time scales -->
-    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/index.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -22,44 +17,6 @@
             background-color: #f5f5f5;
             color: #333;
             line-height: 1.6;
-        }
-        
-        /* Navigation */
-        nav {
-            background: #fff;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            padding: 1rem 0;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-        
-        nav .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        nav .logo {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #667eea;
-            text-decoration: none;
-        }
-        
-        nav .back-link {
-            color: #667eea;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        nav .back-link:hover {
-            text-decoration: underline;
         }
         
         .container {
@@ -124,6 +81,7 @@
             letter-spacing: 1px;
         }
         
+        /* CRITICAL: Fixed chart container sizing */
         .chart-container {
             background: white;
             padding: 30px;
@@ -134,7 +92,7 @@
         
         .chart-wrapper {
             position: relative;
-            height: 300px;
+            height: 300px; /* Fixed height instead of vh */
             width: 100%;
             margin: 0 auto;
         }
@@ -166,18 +124,13 @@
             margin: 20px 0;
         }
         
-        .info-banner {
-            background: #e3f2fd;
-            border: 1px solid #1976d2;
-            border-radius: 5px;
-            padding: 15px;
-            margin: 20px 0;
+        .warning {
+            background: #fffae6;
+            color: #8b6914;
+            padding: 20px;
+            border-radius: 10px;
             text-align: center;
-        }
-        
-        .info-banner h3 {
-            color: #1976d2;
-            margin-bottom: 10px;
+            margin: 20px 0;
         }
         
         .refresh-btn {
@@ -234,13 +187,25 @@
         .positive { color: #48bb78; }
         .negative { color: #f56565; }
         
-        .data-source {
+        .cors-notice {
+            background: #e3f2fd;
+            border: 1px solid #1976d2;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
             text-align: center;
-            color: #666;
-            font-size: 0.85em;
-            margin-top: 30px;
-            padding-top: 30px;
-            border-top: 1px solid #e0e0e0;
+        }
+        
+        .cors-notice h3 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+        
+        .cors-notice code {
+            background: #f5f5f5;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
         }
         
         @media (max-width: 768px) {
@@ -257,18 +222,21 @@
     </style>
 </head>
 <body>
-    <nav>
-        <div class="container">
-            <a href="../" class="logo">📚 Article Saver</a>
-            <a href="../" class="back-link">← Back to Home</a>
-        </div>
-    </nav>
-    
     <div class="container">
         <header>
-            <h1>📊 Download Statistics Dashboard</h1>
-            <p class="subtitle">Real-time download analytics for Article Saver</p>
+            <h1>📊 Article Saver Download Dashboard</h1>
+            <p class="subtitle">Real-time download statistics and growth tracking</p>
         </header>
+        
+        <div id="cors-warning" class="cors-notice" style="display: none;">
+            <h3>⚠️ Local File Access Detected</h3>
+            <p>To view live data, please use one of these methods:</p>
+            <ol style="text-align: left; max-width: 600px; margin: 10px auto;">
+                <li>Run a local server: <code>python3 -m http.server 8000</code> then visit <code>http://localhost:8000/download-dashboard-fixed.html</code></li>
+                <li>Use the CLI tool: <code>node scripts/download-tracker.js</code></li>
+                <li>Host on GitHub Pages for public access</li>
+            </ol>
+        </div>
         
         <div id="loading" class="loading">Loading download statistics...</div>
         <div id="error" class="error" style="display: none;"></div>
@@ -300,12 +268,6 @@
                 </div>
             </div>
             
-            <div class="info-banner">
-                <h3>📈 Open Source Transparency</h3>
-                <p>This dashboard displays anonymous download statistics from GitHub Releases API. No personal data is collected or shown.</p>
-                <p style="font-size: 0.9em; margin-top: 10px; opacity: 0.8;">Download counts help users gauge project adoption and stability.</p>
-            </div>
-            
             <div class="chart-container">
                 <h2 class="chart-title">Downloads by Version</h2>
                 <div class="chart-wrapper">
@@ -330,89 +292,90 @@
             
             <p class="last-updated" id="last-updated"></p>
             <button class="refresh-btn" onclick="refreshData()">🔄 Refresh Data</button>
-            
-            <div class="data-source">
-                <p><strong>Privacy Notice:</strong> Only anonymous download counts are shown. No user data is collected.</p>
-                <p>Data source: GitHub Releases API | Updates every 5 minutes | <a href="https://github.com/nilukush/article_saver/releases" target="_blank">View Releases →</a></p>
-            </div>
         </div>
     </div>
     
     <script>
         // Configuration
         const GITHUB_API = 'https://api.github.com/repos/nilukush/article_saver/releases';
+        const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
         const CACHE_KEY = 'article_saver_download_data';
         const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+        
+        // Sample data for file:// protocol
+        const SAMPLE_DATA = {
+            totalDownloads: 4,
+            weekDownloads: 4,
+            latestVersion: 'v1.1.3',
+            latestDownloads: 3,
+            versionData: [
+                { version: 'v1.1.3', downloads: 3, date: new Date('2025-01-03') },
+                { version: 'v1.1.2', downloads: 1, date: new Date('2025-01-02') }
+            ],
+            platformData: { windows: 2, mac: 2, linux: 0 },
+            releaseTimeline: [
+                { date: new Date('2025-01-02'), downloads: 1, version: 'v1.1.2' },
+                { date: new Date('2025-01-03'), downloads: 3, version: 'v1.1.3' }
+            ],
+            timestamp: new Date().toISOString()
+        };
         
         // Chart instances
         let versionChart, platformChart, timelineChart;
         
-        // Enterprise-grade initialization
-        window.addEventListener('DOMContentLoaded', () => {
-            // Wait for DOM to be fully ready, then add a small delay for GitHub Pages
-            setTimeout(loadDashboard, 1000);
-        });
+        // Detect if running from file:// protocol
+        function isFileProtocol() {
+            return window.location.protocol === 'file:';
+        }
+        
+        // Load data on page load
+        window.addEventListener('DOMContentLoaded', loadDashboard);
         
         async function loadDashboard() {
             try {
+                if (isFileProtocol()) {
+                    document.getElementById('cors-warning').style.display = 'block';
+                    // Use sample data for file:// protocol
+                    displayDashboard(SAMPLE_DATA);
+                    document.getElementById('loading').style.display = 'none';
+                    return;
+                }
+                
                 const cachedData = getCachedData();
                 if (cachedData) {
                     displayDashboard(cachedData);
-                    document.getElementById('loading').style.display = 'none';
                     return;
                 }
                 
                 const data = await fetchGitHubData();
                 cacheData(data);
                 displayDashboard(data);
-                document.getElementById('loading').style.display = 'none';
             } catch (error) {
+                showError('Failed to load download data. Using sample data. Error: ' + error.message);
+                displayDashboard(SAMPLE_DATA);
                 console.error('Dashboard error:', error);
-                let errorMessage = 'Unable to load live data. ';
-                
-                if (error.message.includes('rate limit')) {
-                    errorMessage += error.message;
-                } else if (error.message.includes('Failed to fetch')) {
-                    errorMessage += 'Network error - please check your connection or try refreshing.';
-                } else {
-                    errorMessage += error.message || 'Please check your connection and try again.';
-                }
-                
-                showError(errorMessage + ' <a href="index-debug.html" style="color: #721c24; text-decoration: underline;">Try Debug Mode</a>');
             }
         }
         
         async function fetchGitHubData() {
-            // Enterprise-grade fetch configuration
-            // Only use headers that are explicitly allowed by GitHub's CORS policy
-            const response = await fetch(GITHUB_API, {
-                method: 'GET',
-                headers: {
-                    // 'Accept' is a CORS-safelisted header, always allowed
-                    'Accept': 'application/vnd.github.v3+json'
-                    // Do NOT include 'Cache-Control' - it's not in GitHub's allowed headers
-                    // Other allowed headers we could use if needed:
-                    // 'User-Agent': 'Article-Saver-Dashboard/1.0',
-                    // 'X-GitHub-Api-Version': '2022-11-28'
-                }
-            });
+            let response;
             
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('GitHub API response:', response.status, errorText);
-                
-                // Check for rate limiting
-                const remaining = response.headers.get('X-RateLimit-Remaining');
-                if (remaining === '0') {
-                    const resetTime = new Date(parseInt(response.headers.get('X-RateLimit-Reset')) * 1000);
-                    throw new Error(`GitHub API rate limit exceeded. Resets at ${resetTime.toLocaleTimeString()}`);
-                }
-                
-                throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+            try {
+                // Try direct fetch first
+                response = await fetch(GITHUB_API, {
+                    headers: {
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+            } catch (error) {
+                // If direct fetch fails, try with proxy
+                console.log('Direct fetch failed, trying proxy...');
+                response = await fetch(CORS_PROXY + encodeURIComponent(GITHUB_API));
             }
             
+            if (!response.ok) throw new Error('Failed to fetch data');
+            
             const releases = await response.json();
-            console.log(`Successfully fetched ${releases.length} releases`);
             return processReleaseData(releases);
         }
         
@@ -482,6 +445,7 @@
         }
         
         function displayDashboard(data) {
+            document.getElementById('loading').style.display = 'none';
             document.getElementById('dashboard').style.display = 'block';
             
             // Update stats
@@ -494,18 +458,12 @@
             const dailyAvg = Math.round(data.weekDownloads / 7);
             document.getElementById('daily-average').textContent = dailyAvg.toLocaleString();
             
-            // Calculate weekly change
-            if (data.weekDownloads > 0) {
-                document.getElementById('week-trend').textContent = '📈 Growing';
-                document.getElementById('week-trend').className = 'weekly-change positive';
-            }
-            
             // Destroy existing charts before creating new ones
             if (versionChart) versionChart.destroy();
             if (platformChart) platformChart.destroy();
             if (timelineChart) timelineChart.destroy();
             
-            // Update charts
+            // Update charts with proper sizing
             updateVersionChart(data.versionData);
             updatePlatformChart(data.platformData);
             updateTimelineChart(data.releaseTimeline);
@@ -694,6 +652,11 @@
         }
         
         function refreshData() {
+            if (isFileProtocol()) {
+                alert('Please run from a web server to fetch live data. See instructions above.');
+                return;
+            }
+            
             localStorage.removeItem(CACHE_KEY);
             document.getElementById('dashboard').style.display = 'none';
             document.getElementById('loading').style.display = 'block';
@@ -704,15 +667,17 @@
         function showError(message) {
             document.getElementById('loading').style.display = 'none';
             document.getElementById('error').style.display = 'block';
-            document.getElementById('error').innerHTML = message;
+            document.getElementById('error').textContent = message;
         }
         
-        // Auto-refresh every 5 minutes
-        setInterval(() => {
-            if (document.visibilityState === 'visible') {
-                refreshData();
-            }
-        }, 5 * 60 * 1000);
+        // Auto-refresh every 5 minutes (only if not file protocol)
+        if (!isFileProtocol()) {
+            setInterval(() => {
+                if (document.visibilityState === 'visible') {
+                    refreshData();
+                }
+            }, 5 * 60 * 1000);
+        }
     </script>
 </body>
 </html>

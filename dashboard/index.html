@@ -367,7 +367,7 @@
                 displayDashboard(data);
                 document.getElementById('loading').style.display = 'none';
             } catch (error) {
-                console.error('Dashboard error:', error);
+                // Production: Error logging disabled for security
                 let errorMessage = 'Unable to load live data. ';
                 
                 if (error.message.includes('rate limit')) {
@@ -378,7 +378,7 @@
                     errorMessage += error.message || 'Please check your connection and try again.';
                 }
                 
-                showError(errorMessage + ' <a href="index-debug.html" style="color: #721c24; text-decoration: underline;">Try Debug Mode</a>');
+                showError(errorMessage);
             }
         }
         
@@ -399,7 +399,7 @@
             
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('GitHub API response:', response.status, errorText);
+                // Production: API error logging disabled for security
                 
                 // Check for rate limiting
                 const remaining = response.headers.get('X-RateLimit-Remaining');
@@ -412,7 +412,7 @@
             }
             
             const releases = await response.json();
-            console.log(`Successfully fetched ${releases.length} releases`);
+            // Production: Success logging disabled
             return processReleaseData(releases);
         }
         

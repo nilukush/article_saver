@@ -280,12 +280,22 @@ devTools: false // Completely disabled in production with enterprise controls
 - **Personal/organizational information**: Directory structures, internal URLs, employee names
 - **System configurations**: Development environment details, internal tooling configs
 - **Sensitive documentation**: Any docs with non-public information
+- **Debug/development versions**: Never deploy debug, test, or multiple versions to production
+- **Console statements**: Remove all console.log/error from production code (security risk)
 
 ### SAFE to Commit to Public Repositories
 - **Generic documentation**: README files, API docs, contributing guidelines
 - **Public dashboards**: Analytics dashboards using only public APIs (like GitHub stats)
 - **Example configurations**: Using placeholders and generic paths
 - **Open source code**: Without embedded secrets or personal information
+
+### Enterprise Dashboard Security Best Practices
+1. **Single Production Version**: Only deploy ONE hardened version, never multiple variants
+2. **No Debug Code**: Remove all debug features, console statements, and test endpoints
+3. **Environment Separation**: Use environment variables, not separate code versions
+4. **Security Headers**: Implement CSP, HSTS, and other security headers
+5. **OWASP Compliance**: Follow OWASP guidelines (avoid CWE-489: Active Debug Code)
+6. **Automated Security Checks**: Use CI/CD to verify no debug code reaches production
 
 ### Best Practices for Documentation
 1. **Use .gitignore**: Add patterns for internal docs (e.g., `*_DEPLOYMENT_*.md`, `*_INTERNAL_*.md`)
