@@ -271,3 +271,51 @@ devTools: false // Completely disabled in production with enterprise controls
 - Rate limiting: 100 requests per 15 minutes globally
 - Input validation on all API endpoints
 - No sensitive data in logs or error messages
+
+## Public Repository Security Guidelines
+
+### NEVER Commit to Public Repositories
+- **Local file paths**: Especially those containing usernames (e.g., `/Users/username/...`)
+- **Internal deployment guides**: Keep deployment instructions with system-specific paths local only
+- **Personal/organizational information**: Directory structures, internal URLs, employee names
+- **System configurations**: Development environment details, internal tooling configs
+- **Sensitive documentation**: Any docs with non-public information
+
+### SAFE to Commit to Public Repositories
+- **Generic documentation**: README files, API docs, contributing guidelines
+- **Public dashboards**: Analytics dashboards using only public APIs (like GitHub stats)
+- **Example configurations**: Using placeholders and generic paths
+- **Open source code**: Without embedded secrets or personal information
+
+### Best Practices for Documentation
+1. **Use .gitignore**: Add patterns for internal docs (e.g., `*_DEPLOYMENT_*.md`, `*_INTERNAL_*.md`)
+2. **Review before committing**: Check for usernames, local paths, internal URLs
+3. **Separate internal/external docs**: Keep internal guides in a separate, non-tracked directory
+4. **Use environment variables**: Never hardcode paths or sensitive data
+5. **Generic examples**: Replace real paths with placeholders in public docs
+
+### Example .gitignore Patterns for Internal Docs
+```
+# Internal deployment and planning documents
+DEPLOYMENT_*.md
+*_DEPLOYMENT_*.md
+*_INTERNAL_*.md
+*_STRATEGY.md
+*_ACTION_PLAN*.md
+URGENT_*.md
+CRITICAL_*.md
+FIX_*.md
+
+# Local configuration
+.env*
+!.env.example
+*.local
+```
+
+### Security Incident Response
+If sensitive information is accidentally committed:
+1. **Remove from repository immediately**: Use `git rm --cached filename`
+2. **Update .gitignore**: Add patterns to prevent future commits
+3. **Clean git history if needed**: Use BFG Repo-Cleaner for sensitive data in history
+4. **Rotate any exposed credentials**: Assume full exposure, rotate immediately
+5. **Document the learning**: Update this file to prevent recurrence
