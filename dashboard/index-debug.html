@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download Statistics - Article Saver (Debug Version)</title>
+    <meta name="description" content="Real-time download statistics and analytics for Article Saver">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        nav {
+            background: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        nav .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        nav .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+            text-decoration: none;
+        }
+        
+        nav .back-link {
+            color: #667eea;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        nav .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 0;
+            margin-bottom: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+        
+        .debug-info {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        
+        .debug-info h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+        
+        .debug-log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 0.9em;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .test-button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .test-button:hover {
+            background: #218838;
+        }
+        
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 1.2em;
+            color: #666;
+        }
+        
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 3px;
+            overflow-x: auto;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="container">
+            <a href="../" class="logo">📚 Article Saver</a>
+            <a href="../" class="back-link">← Back to Home</a>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <header>
+            <h1>📊 Download Statistics Dashboard (Debug Mode)</h1>
+            <p class="subtitle">Troubleshooting version with detailed diagnostics</p>
+        </header>
+        
+        <div class="debug-info">
+            <h3>🔍 Debug Information</h3>
+            <p><strong>Current URL:</strong> <span id="current-url"></span></p>
+            <p><strong>Protocol:</strong> <span id="protocol"></span></p>
+            <p><strong>GitHub API Endpoint:</strong> https://api.github.com/repos/nilukush/article_saver/releases</p>
+            <p><strong>Rate Limit Remaining:</strong> <span id="rate-limit">Checking...</span></p>
+            <div id="debug-log" class="debug-log"></div>
+        </div>
+        
+        <div class="debug-info">
+            <h3>🧪 Connection Tests</h3>
+            <button class="test-button" onclick="testDirectAPI()">Test Direct API Call</button>
+            <button class="test-button" onclick="testWithProxy()">Test with CORS Proxy</button>
+            <button class="test-button" onclick="checkRateLimit()">Check Rate Limit</button>
+            <button class="test-button" onclick="clearCacheAndRetry()">Clear Cache & Retry</button>
+        </div>
+        
+        <div id="loading" class="loading">Running diagnostics...</div>
+        <div id="error" class="error" style="display: none;"></div>
+        <div id="success" class="success" style="display: none;"></div>
+        
+        <div id="dashboard" style="display: none;">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Total Downloads</div>
+                    <div class="stat-number" id="total-downloads">0</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-label">This Week</div>
+                    <div class="stat-number" id="week-downloads">0</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-label">Latest Version</div>
+                    <div class="stat-number" id="latest-downloads">0</div>
+                    <div id="version-info"></div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-label">Average Per Day</div>
+                    <div class="stat-number" id="daily-average">0</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="debug-info">
+            <h3>📋 Raw API Response</h3>
+            <pre id="raw-response">No data yet...</pre>
+        </div>
+    </div>
+    
+    <script>
+        const GITHUB_API = 'https://api.github.com/repos/nilukush/article_saver/releases';
+        const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+        const debugLog = [];
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toISOString();
+            const logEntry = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+            debugLog.push(logEntry);
+            console.log(logEntry);
+            updateDebugLog();
+        }
+        
+        function updateDebugLog() {
+            const logElement = document.getElementById('debug-log');
+            logElement.innerHTML = debugLog.slice(-10).join('<br>');
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error').textContent = message;
+            document.getElementById('success').style.display = 'none';
+        }
+        
+        function showSuccess(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('success').style.display = 'block';
+            document.getElementById('success').textContent = message;
+            document.getElementById('error').style.display = 'none';
+        }
+        
+        // Initialize debug info
+        document.getElementById('current-url').textContent = window.location.href;
+        document.getElementById('protocol').textContent = window.location.protocol;
+        
+        async function testDirectAPI() {
+            log('Testing direct API call...');
+            try {
+                const response = await fetch(GITHUB_API, {
+                    headers: {
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                
+                log(`Response status: ${response.status}`);
+                log(`Response headers: ${JSON.stringify(Object.fromEntries(response.headers))}`);
+                
+                if (!response.ok) {
+                    throw new Error(`API returned ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                log(`Success! Got ${data.length} releases`);
+                document.getElementById('raw-response').textContent = JSON.stringify(data[0], null, 2);
+                
+                processAndDisplayData(data);
+                showSuccess('✅ Direct API call successful!');
+                
+            } catch (error) {
+                log(`Direct API error: ${error.message}`, 'error');
+                showError(`Direct API failed: ${error.message}`);
+            }
+        }
+        
+        async function testWithProxy() {
+            log('Testing with CORS proxy...');
+            try {
+                const proxyUrl = CORS_PROXY + encodeURIComponent(GITHUB_API);
+                log(`Proxy URL: ${proxyUrl}`);
+                
+                const response = await fetch(proxyUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`Proxy returned ${response.status}`);
+                }
+                
+                const data = await response.json();
+                log(`Proxy success! Got ${data.length} releases`);
+                
+                processAndDisplayData(data);
+                showSuccess('✅ CORS proxy call successful!');
+                
+            } catch (error) {
+                log(`Proxy error: ${error.message}`, 'error');
+                showError(`Proxy failed: ${error.message}`);
+            }
+        }
+        
+        async function checkRateLimit() {
+            log('Checking GitHub API rate limit...');
+            try {
+                const response = await fetch('https://api.github.com/rate_limit', {
+                    headers: {
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                
+                const data = await response.json();
+                const core = data.rate || data.resources?.core;
+                
+                log(`Rate limit: ${core.remaining}/${core.limit}`);
+                log(`Reset at: ${new Date(core.reset * 1000).toLocaleString()}`);
+                
+                document.getElementById('rate-limit').textContent = 
+                    `${core.remaining}/${core.limit} (resets ${new Date(core.reset * 1000).toLocaleTimeString()})`;
+                
+                if (core.remaining === 0) {
+                    showError('⚠️ GitHub API rate limit exceeded! Wait for reset.');
+                } else {
+                    showSuccess(`✅ Rate limit OK: ${core.remaining} requests remaining`);
+                }
+                
+            } catch (error) {
+                log(`Rate limit check error: ${error.message}`, 'error');
+            }
+        }
+        
+        function clearCacheAndRetry() {
+            log('Clearing cache and retrying...');
+            localStorage.clear();
+            sessionStorage.clear();
+            log('Cache cleared');
+            testDirectAPI();
+        }
+        
+        function processAndDisplayData(releases) {
+            const data = {
+                totalDownloads: 0,
+                weekDownloads: 0,
+                latestVersion: '',
+                latestDownloads: 0
+            };
+            
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+            
+            releases.forEach((release, index) => {
+                let releaseTotal = 0;
+                const releaseDate = new Date(release.created_at);
+                
+                release.assets.forEach(asset => {
+                    const downloads = asset.download_count;
+                    data.totalDownloads += downloads;
+                    releaseTotal += downloads;
+                    
+                    if (releaseDate > oneWeekAgo) {
+                        data.weekDownloads += downloads;
+                    }
+                });
+                
+                if (index === 0) {
+                    data.latestVersion = release.tag_name;
+                    data.latestDownloads = releaseTotal;
+                }
+            });
+            
+            // Display data
+            document.getElementById('dashboard').style.display = 'block';
+            document.getElementById('total-downloads').textContent = data.totalDownloads;
+            document.getElementById('week-downloads').textContent = data.weekDownloads;
+            document.getElementById('latest-downloads').textContent = data.latestDownloads;
+            document.getElementById('version-info').textContent = data.latestVersion;
+            document.getElementById('daily-average').textContent = Math.round(data.weekDownloads / 7);
+        }
+        
+        // Auto-run diagnostics on load
+        window.addEventListener('DOMContentLoaded', async () => {
+            log('Page loaded, starting diagnostics...');
+            
+            // Check rate limit first
+            await checkRateLimit();
+            
+            // Then try direct API
+            setTimeout(() => testDirectAPI(), 1000);
+        });
+    </script>
+</body>
+</html>

@@ -361,24 +361,62 @@
                 displayDashboard(data);
                 document.getElementById('loading').style.display = 'none';
             } catch (error) {
-                showError('Unable to load live data. Please check your connection and try again.');
                 console.error('Dashboard error:', error);
+                let errorMessage = 'Unable to load live data. ';
+                
+                if (error.message.includes('rate limit')) {
+                    errorMessage += error.message;
+                } else if (error.message.includes('Failed to fetch')) {
+                    errorMessage += 'Network error - please check your connection or try the debug version.';
+                } else {
+                    errorMessage += error.message || 'Please check your connection and try again.';
+                }
+                
+                showError(errorMessage + ' <a href="index-debug.html" style="color: #721c24; text-decoration: underline;">Try Debug Mode</a>');
             }
         }
         
         async function fetchGitHubData() {
-            // GitHub API allows CORS from GitHub Pages
-            const response = await fetch(GITHUB_API, {
-                headers: {
-                    'Accept': 'application/vnd.github.v3+json'
+            try {
+                // First, check rate limit
+                const rateLimitResponse = await fetch('https://api.github.com/rate_limit', {
+                    headers: {
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                
+                if (rateLimitResponse.ok) {
+                    const rateLimitData = await rateLimitResponse.json();
+                    const remaining = rateLimitData.rate?.remaining || rateLimitData.resources?.core?.remaining;
+                    console.log(`GitHub API rate limit remaining: ${remaining}`);
+                    
+                    if (remaining === 0) {
+                        const resetTime = new Date((rateLimitData.rate?.reset || rateLimitData.resources?.core?.reset) * 1000);
+                        throw new Error(`GitHub API rate limit exceeded. Resets at ${resetTime.toLocaleTimeString()}`);
+                    }
                 }
+            } catch (rateLimitError) {
+                console.warn('Could not check rate limit:', rateLimitError);
+            }
+            
+            // Make the actual API call
+            const response = await fetch(GITHUB_API, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Cache-Control': 'no-cache'
+                },
+                mode: 'cors'
             });
             
             if (!response.ok) {
-                throw new Error(`GitHub API error: ${response.status}`);
+                const errorText = await response.text();
+                console.error('GitHub API response:', response.status, errorText);
+                throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
             }
             
             const releases = await response.json();
+            console.log(`Successfully fetched ${releases.length} releases`);
             return processReleaseData(releases);
         }
         
@@ -670,7 +708,7 @@
         function showError(message) {
             document.getElementById('loading').style.display = 'none';
             document.getElementById('error').style.display = 'block';
-            document.getElementById('error').textContent = message;
+            document.getElementById('error').innerHTML = message;
         }
         
         // Auto-refresh every 5 minutes
