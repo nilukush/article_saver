@@ -6,6 +6,7 @@
   [![GitHub Stars](https://img.shields.io/github/stars/nilukush/article_saver)](https://github.com/nilukush/article_saver/stargazers)
   [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
   [![GitHub release](https://img.shields.io/github/release/nilukush/article_saver.svg)](https://github.com/nilukush/article_saver/releases/)
+  [![Downloads](https://img.shields.io/github/downloads/nilukush/article_saver/total?style=flat&color=orange&label=Downloads)](https://tooomm.github.io/github-release-stats/?username=nilukush&repository=article_saver)
   [![GitHub issues](https://img.shields.io/github/issues/nilukush/article_saver)](https://github.com/nilukush/article_saver/issues)
   [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/nilukush/article_saver/pulls)
   
@@ -96,6 +97,16 @@ Download the latest version (v1.1.3) for your platform:
 - [article-saver-desktop_1.1.3_amd64.deb](https://github.com/nilukush/article_saver/releases/download/v1.1.3/article-saver-desktop_1.1.3_amd64.deb) - Debian/Ubuntu
 
 [View all releases →](https://github.com/nilukush/article_saver/releases)
+
+## 📊 Download Statistics
+
+Track our growth and see platform distribution in real-time:
+
+- **Live Dashboard**: [View Download Statistics →](https://nilukush.github.io/article_saver/dashboard/)
+- **Total Downloads**: ![Downloads](https://img.shields.io/github/downloads/nilukush/article_saver/total?style=flat&color=orange&label=Total)
+- **Latest Release**: ![Latest Downloads](https://img.shields.io/github/downloads/nilukush/article_saver/latest/total?style=flat&color=green&label=Latest)
+
+The dashboard shows anonymous download counts from GitHub's public API. No personal data is collected or displayed.
 
 ## 📸 Screenshots
 
