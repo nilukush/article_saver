@@ -174,3 +174,24 @@ desktop/release/
 ci-artifacts/
 .claude/settings.local.json
 internal-docs-backup/
+
+# Product and business strategy files - NEVER commit
+PRODUCT_ROADMAP.md
+*_ROADMAP.md
+POCKET_APP_*.md
+POCKET_API_*.md
+*_ANALYSIS.md
+
+# Analytics and metrics data - business sensitive  
+download-data.json
+analytics-data.json
+metrics-*.json
+usage-*.json
+stats-*.json
+
+# Dashboard files that shouldn't be in main repo
+download-dashboard*.html
+*-dashboard.html
+scripts/download-tracker.js
+scripts/serve-dashboard.js
+scripts/*-tracker.js
