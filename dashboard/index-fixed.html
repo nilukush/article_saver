@@ -124,6 +124,7 @@
             letter-spacing: 1px;
         }
         
+        /* CRITICAL: Fixed chart container sizing */
         .chart-container {
             background: white;
             padding: 30px;
@@ -160,6 +161,24 @@
         .error {
             background: #fee;
             color: #c33;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .warning {
+            background: #fffae6;
+            color: #8b6914;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
             padding: 20px;
             border-radius: 10px;
             text-align: center;
@@ -272,6 +291,7 @@
         
         <div id="loading" class="loading">Loading download statistics...</div>
         <div id="error" class="error" style="display: none;"></div>
+        <div id="success" class="success" style="display: none;"></div>
         
         <div id="dashboard" style="display: none;">
             <div class="stats-grid">
@@ -341,79 +361,132 @@
     <script>
         // Configuration
         const GITHUB_API = 'https://api.github.com/repos/nilukush/article_saver/releases';
-        const CACHE_KEY = 'article_saver_download_data';
+        const CACHE_KEY = 'article_saver_download_data_v2';
         const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
         
         // Chart instances
         let versionChart, platformChart, timelineChart;
+        let retryCount = 0;
+        const MAX_RETRIES = 3;
         
-        // Enterprise-grade initialization
-        window.addEventListener('DOMContentLoaded', () => {
-            // Wait for DOM to be fully ready, then add a small delay for GitHub Pages
-            setTimeout(loadDashboard, 1000);
-        });
+        // Enhanced initialization with multiple fallbacks
+        function init() {
+            console.log('Initializing dashboard...');
+            
+            // Method 1: Wait for full page load
+            if (document.readyState === 'complete') {
+                startDashboard();
+            } else {
+                window.addEventListener('load', startDashboard);
+            }
+            
+            // Method 2: DOMContentLoaded with delay
+            document.addEventListener('DOMContentLoaded', () => {
+                setTimeout(startDashboard, 1000);
+            });
+            
+            // Method 3: Fallback timer
+            setTimeout(startDashboard, 2000);
+        }
+        
+        let dashboardStarted = false;
+        function startDashboard() {
+            if (dashboardStarted) return;
+            dashboardStarted = true;
+            console.log('Starting dashboard...');
+            loadDashboard();
+        }
         
         async function loadDashboard() {
             try {
+                console.log('Loading dashboard, attempt:', retryCount + 1);
+                
+                // Check cache first
                 const cachedData = getCachedData();
                 if (cachedData) {
+                    console.log('Using cached data');
                     displayDashboard(cachedData);
                     document.getElementById('loading').style.display = 'none';
+                    // Still try to fetch fresh data in background
+                    fetchInBackground();
                     return;
                 }
                 
-                const data = await fetchGitHubData();
+                // Fetch fresh data
+                const data = await fetchGitHubDataWithRetry();
                 cacheData(data);
                 displayDashboard(data);
                 document.getElementById('loading').style.display = 'none';
+                showSuccess('Dashboard loaded successfully!');
+                setTimeout(() => {
+                    document.getElementById('success').style.display = 'none';
+                }, 3000);
+                
             } catch (error) {
                 console.error('Dashboard error:', error);
-                let errorMessage = 'Unable to load live data. ';
-                
-                if (error.message.includes('rate limit')) {
-                    errorMessage += error.message;
-                } else if (error.message.includes('Failed to fetch')) {
-                    errorMessage += 'Network error - please check your connection or try refreshing.';
-                } else {
-                    errorMessage += error.message || 'Please check your connection and try again.';
+                handleError(error);
+            }
+        }
+        
+        async function fetchGitHubDataWithRetry() {
+            try {
+                return await fetchGitHubData();
+            } catch (error) {
+                if (retryCount < MAX_RETRIES) {
+                    retryCount++;
+                    console.log(`Retry ${retryCount}/${MAX_RETRIES} in 2 seconds...`);
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    return fetchGitHubDataWithRetry();
                 }
-                
-                showError(errorMessage + ' <a href="index-debug.html" style="color: #721c24; text-decoration: underline;">Try Debug Mode</a>');
+                throw error;
             }
         }
         
         async function fetchGitHubData() {
-            // Enterprise-grade fetch configuration
-            // Only use headers that are explicitly allowed by GitHub's CORS policy
-            const response = await fetch(GITHUB_API, {
-                method: 'GET',
-                headers: {
-                    // 'Accept' is a CORS-safelisted header, always allowed
-                    'Accept': 'application/vnd.github.v3+json'
-                    // Do NOT include 'Cache-Control' - it's not in GitHub's allowed headers
-                    // Other allowed headers we could use if needed:
-                    // 'User-Agent': 'Article-Saver-Dashboard/1.0',
-                    // 'X-GitHub-Api-Version': '2022-11-28'
-                }
-            });
+            console.log('Fetching from GitHub API...');
             
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('GitHub API response:', response.status, errorText);
-                
-                // Check for rate limiting
-                const remaining = response.headers.get('X-RateLimit-Remaining');
-                if (remaining === '0') {
-                    const resetTime = new Date(parseInt(response.headers.get('X-RateLimit-Reset')) * 1000);
-                    throw new Error(`GitHub API rate limit exceeded. Resets at ${resetTime.toLocaleTimeString()}`);
+            // Multiple fetch attempts with different configurations
+            const fetchConfigs = [
+                {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/vnd.github.v3+json'
+                    },
+                    mode: 'cors',
+                    cache: 'no-cache'
+                },
+                {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                },
+                {
+                    method: 'GET'
                 }
-                
-                throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+            ];
+            
+            let lastError;
+            for (const config of fetchConfigs) {
+                try {
+                    console.log('Trying fetch with config:', config);
+                    const response = await fetch(GITHUB_API, config);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const releases = await response.json();
+                    console.log(`Success! Got ${releases.length} releases`);
+                    return processReleaseData(releases);
+                    
+                } catch (error) {
+                    console.error('Fetch attempt failed:', error);
+                    lastError = error;
+                }
             }
             
-            const releases = await response.json();
-            console.log(`Successfully fetched ${releases.length} releases`);
-            return processReleaseData(releases);
+            throw lastError;
         }
         
         function processReleaseData(releases) {
@@ -449,7 +522,7 @@
                         data.platformData.linux += downloads;
                     }
                     
-                    // Week calculation (approximate)
+                    // Week calculation
                     if (releaseDate > oneWeekAgo) {
                         data.weekDownloads += downloads;
                     }
@@ -482,6 +555,7 @@
         }
         
         function displayDashboard(data) {
+            console.log('Displaying dashboard with data:', data);
             document.getElementById('dashboard').style.display = 'block';
             
             // Update stats
@@ -494,24 +568,8 @@
             const dailyAvg = Math.round(data.weekDownloads / 7);
             document.getElementById('daily-average').textContent = dailyAvg.toLocaleString();
             
-            // Calculate weekly change
-            if (data.weekDownloads > 0) {
-                document.getElementById('week-trend').textContent = '📈 Growing';
-                document.getElementById('week-trend').className = 'weekly-change positive';
-            }
-            
-            // Destroy existing charts before creating new ones
-            if (versionChart) versionChart.destroy();
-            if (platformChart) platformChart.destroy();
-            if (timelineChart) timelineChart.destroy();
-            
             // Update charts
-            updateVersionChart(data.versionData);
-            updatePlatformChart(data.platformData);
-            updateTimelineChart(data.releaseTimeline);
-            
-            // Update platform details
-            updatePlatformDetails(data.platformData, data.totalDownloads);
+            updateCharts(data);
             
             // Update last updated
             const lastUpdated = new Date(data.timestamp);
@@ -519,16 +577,21 @@
                 `Last updated: ${lastUpdated.toLocaleString()}`;
         }
         
-        function updateVersionChart(versionData) {
-            const ctx = document.getElementById('version-chart').getContext('2d');
+        function updateCharts(data) {
+            // Destroy existing charts
+            if (versionChart) versionChart.destroy();
+            if (platformChart) platformChart.destroy();
+            if (timelineChart) timelineChart.destroy();
             
-            versionChart = new Chart(ctx, {
+            // Version chart
+            const versionCtx = document.getElementById('version-chart').getContext('2d');
+            versionChart = new Chart(versionCtx, {
                 type: 'bar',
                 data: {
-                    labels: versionData.map(v => v.version),
+                    labels: data.versionData.map(v => v.version),
                     datasets: [{
                         label: 'Downloads',
-                        data: versionData.map(v => v.downloads),
+                        data: data.versionData.map(v => v.downloads),
                         backgroundColor: '#667eea',
                         borderColor: '#5a67d8',
                         borderWidth: 1
@@ -543,46 +606,41 @@
                     scales: {
                         y: { 
                             beginAtZero: true,
-                            ticks: {
-                                precision: 0
-                            }
+                            ticks: { precision: 0 }
                         }
                     }
                 }
             });
-        }
-        
-        function updatePlatformChart(platformData) {
-            const ctx = document.getElementById('platform-chart').getContext('2d');
             
-            // Filter out platforms with 0 downloads
-            const labels = [];
-            const data = [];
-            const colors = [];
+            // Platform chart
+            const platformCtx = document.getElementById('platform-chart').getContext('2d');
+            const platformLabels = [];
+            const platformValues = [];
+            const platformColors = [];
             
-            if (platformData.windows > 0) {
-                labels.push('Windows');
-                data.push(platformData.windows);
-                colors.push('#3182ce');
+            if (data.platformData.windows > 0) {
+                platformLabels.push('Windows');
+                platformValues.push(data.platformData.windows);
+                platformColors.push('#3182ce');
             }
-            if (platformData.mac > 0) {
-                labels.push('macOS');
-                data.push(platformData.mac);
-                colors.push('#805ad5');
+            if (data.platformData.mac > 0) {
+                platformLabels.push('macOS');
+                platformValues.push(data.platformData.mac);
+                platformColors.push('#805ad5');
             }
-            if (platformData.linux > 0) {
-                labels.push('Linux');
-                data.push(platformData.linux);
-                colors.push('#38a169');
+            if (data.platformData.linux > 0) {
+                platformLabels.push('Linux');
+                platformValues.push(data.platformData.linux);
+                platformColors.push('#38a169');
             }
             
-            platformChart = new Chart(ctx, {
+            platformChart = new Chart(platformCtx, {
                 type: 'doughnut',
                 data: {
-                    labels: labels,
+                    labels: platformLabels,
                     datasets: [{
-                        data: data,
-                        backgroundColor: colors,
+                        data: platformValues,
+                        backgroundColor: platformColors,
                         borderWidth: 2,
                         borderColor: '#fff'
                     }]
@@ -593,31 +651,23 @@
                     plugins: {
                         legend: { 
                             position: 'bottom',
-                            labels: {
-                                padding: 20
-                            }
+                            labels: { padding: 20 }
                         }
                     }
                 }
             });
-        }
-        
-        function updateTimelineChart(timeline) {
-            const ctx = document.getElementById('timeline-chart').getContext('2d');
             
-            // Prepare cumulative data
+            // Timeline chart
+            const timelineCtx = document.getElementById('timeline-chart').getContext('2d');
             let cumulative = 0;
-            const cumulativeData = timeline
-                .sort((a, b) => a.date - b.date) // Sort chronologically
+            const cumulativeData = data.releaseTimeline
+                .sort((a, b) => a.date - b.date)
                 .map(item => {
                     cumulative += item.downloads;
-                    return {
-                        x: item.date,
-                        y: cumulative
-                    };
+                    return { x: item.date, y: cumulative };
                 });
             
-            timelineChart = new Chart(ctx, {
+            timelineChart = new Chart(timelineCtx, {
                 type: 'line',
                 data: {
                     datasets: [{
@@ -638,20 +688,19 @@
                             type: 'time',
                             time: {
                                 unit: 'day',
-                                displayFormats: {
-                                    day: 'MMM dd'
-                                }
+                                displayFormats: { day: 'MMM dd' }
                             }
                         },
                         y: { 
                             beginAtZero: true,
-                            ticks: {
-                                precision: 0
-                            }
+                            ticks: { precision: 0 }
                         }
                     }
                 }
             });
+            
+            // Update platform details
+            updatePlatformDetails(data.platformData, data.totalDownloads);
         }
         
         function updatePlatformDetails(platformData, total) {
@@ -663,7 +712,7 @@
             ];
             
             details.innerHTML = platforms
-                .filter(p => p.count > 0) // Only show platforms with downloads
+                .filter(p => p.count > 0)
                 .map(p => `
                     <div class="platform-stat">
                         <div class="platform-icon">${p.icon}</div>
@@ -675,29 +724,50 @@
         }
         
         function getCachedData() {
-            const cached = localStorage.getItem(CACHE_KEY);
-            if (!cached) return null;
-            
-            const data = JSON.parse(cached);
-            const age = new Date() - new Date(data.timestamp);
-            
-            if (age > CACHE_DURATION) {
-                localStorage.removeItem(CACHE_KEY);
+            try {
+                const cached = localStorage.getItem(CACHE_KEY);
+                if (!cached) return null;
+                
+                const data = JSON.parse(cached);
+                const age = new Date() - new Date(data.timestamp);
+                
+                if (age > CACHE_DURATION) {
+                    localStorage.removeItem(CACHE_KEY);
+                    return null;
+                }
+                
+                return data;
+            } catch (error) {
+                console.error('Cache error:', error);
                 return null;
             }
-            
-            return data;
         }
         
         function cacheData(data) {
-            localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+            try {
+                localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+            } catch (error) {
+                console.error('Cache save error:', error);
+            }
+        }
+        
+        async function fetchInBackground() {
+            try {
+                const data = await fetchGitHubData();
+                cacheData(data);
+                console.log('Background update successful');
+            } catch (error) {
+                console.log('Background update failed, using cache');
+            }
         }
         
         function refreshData() {
+            retryCount = 0;
             localStorage.removeItem(CACHE_KEY);
             document.getElementById('dashboard').style.display = 'none';
             document.getElementById('loading').style.display = 'block';
             document.getElementById('error').style.display = 'none';
+            document.getElementById('success').style.display = 'none';
             loadDashboard();
         }
         
@@ -707,10 +777,44 @@
             document.getElementById('error').innerHTML = message;
         }
         
+        function showSuccess(message) {
+            document.getElementById('success').style.display = 'block';
+            document.getElementById('success').textContent = message;
+        }
+        
+        function handleError(error) {
+            let errorMessage = 'Unable to load data. ';
+            
+            if (error.message.includes('rate limit')) {
+                errorMessage += error.message;
+            } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                errorMessage += 'Network error. Try refreshing or check your connection.';
+            } else {
+                errorMessage += error.message || 'Please try again.';
+            }
+            
+            errorMessage += '<br><br>Alternative options:<br>';
+            errorMessage += '• <a href="index-debug.html" style="color: #c33;">Try Debug Mode</a><br>';
+            errorMessage += '• <a href="https://tooomm.github.io/github-release-stats/?username=nilukush&repository=article_saver" target="_blank" style="color: #c33;">View on GitHub Stats</a>';
+            
+            showError(errorMessage);
+            
+            // Try to load from cache as fallback
+            const cachedData = getCachedData();
+            if (cachedData) {
+                console.log('Loading stale cache as fallback');
+                displayDashboard(cachedData);
+                document.getElementById('error').innerHTML += '<br><br><em>Showing cached data from ' + new Date(cachedData.timestamp).toLocaleString() + '</em>';
+            }
+        }
+        
+        // Start initialization
+        init();
+        
         // Auto-refresh every 5 minutes
         setInterval(() => {
             if (document.visibilityState === 'visible') {
-                refreshData();
+                fetchInBackground();
             }
         }, 5 * 60 * 1000);
     </script>
