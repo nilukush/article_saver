@@ -406,10 +406,8 @@
             const response = await fetch(GITHUB_API, {
                 method: 'GET',
                 headers: {
-                    'Accept': 'application/vnd.github.v3+json',
-                    'Cache-Control': 'no-cache'
-                },
-                mode: 'cors'
+                    'Accept': 'application/vnd.github.v3+json'
+                }
             });
             
             if (!response.ok) {
