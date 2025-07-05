@@ -120,7 +120,7 @@ We may update this Privacy Policy periodically. Changes will be posted on this p
 For privacy-related questions or concerns:
 
 - **GitHub Issues**: https://github.com/nilukush/article_saver/issues
-- **Email**: [privacy@articlesaver.app] (replace with actual email)
+- **Email**: nilukush@gmail.com
 - **Project Lead**: Via GitHub @nilukush
 
 ## Compliance
