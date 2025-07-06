@@ -311,11 +311,19 @@
         function trackDownload(platform) {
             // Try to track immediately
             if (window.goatcounter && window.goatcounter.count) {
+                // Track as a regular pageview (this will definitely show up)
                 window.goatcounter.count({
-                    path: 'event/download-' + platform,
+                    path: '/downloads/click/' + platform,
+                    title: 'Download: ' + platform
+                });
+                
+                // Also try as an event
+                window.goatcounter.count({
+                    path: 'download-' + platform,
                     title: 'Download ' + platform,
                     event: true
                 });
+                
                 console.log('Download tracked:', platform);
             } else {
                 console.log('GoatCounter not loaded yet, retrying...');
@@ -323,10 +331,16 @@
                 setTimeout(function() {
                     if (window.goatcounter && window.goatcounter.count) {
                         window.goatcounter.count({
-                            path: 'event/download-' + platform,
+                            path: '/downloads/click/' + platform,
+                            title: 'Download: ' + platform
+                        });
+                        
+                        window.goatcounter.count({
+                            path: 'download-' + platform,
                             title: 'Download ' + platform,
                             event: true
                         });
+                        
                         console.log('Download tracked (delayed):', platform);
                     }
                 }, 500);
