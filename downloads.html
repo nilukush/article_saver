@@ -309,12 +309,27 @@
     <script>
         // Track download clicks with GoatCounter
         function trackDownload(platform) {
+            // Try to track immediately
             if (window.goatcounter && window.goatcounter.count) {
                 window.goatcounter.count({
-                    path: 'download-' + platform,
+                    path: 'event/download-' + platform,
                     title: 'Download ' + platform,
                     event: true
                 });
+                console.log('Download tracked:', platform);
+            } else {
+                console.log('GoatCounter not loaded yet, retrying...');
+                // Retry after a short delay
+                setTimeout(function() {
+                    if (window.goatcounter && window.goatcounter.count) {
+                        window.goatcounter.count({
+                            path: 'event/download-' + platform,
+                            title: 'Download ' + platform,
+                            event: true
+                        });
+                        console.log('Download tracked (delayed):', platform);
+                    }
+                }, 500);
             }
             // Don't prevent default - let the download happen
             return true;
