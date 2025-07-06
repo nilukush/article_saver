@@ -216,3 +216,10 @@ google*.html
 gitattributes-for-*
 
 # Internal documentation backup
+
+# Enterprise cleanup patterns
+*.blockmap
+builder-debug.yml
+latest-*.yml
+cleanup-*.sh
+*_CLEANUP_*.md
