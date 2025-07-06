@@ -195,3 +195,24 @@ download-dashboard*.html
 scripts/download-tracker.js
 scripts/serve-dashboard.js
 scripts/*-tracker.js
+
+# Portfolio and personal files
+portfolio-*.html
+
+# Temporary scripts and fixes
+deploy-*.sh
+diagnose-*.sh
+fix-*.sh
+cleanup-*.sh
+
+# Test and temporary HTML files
+test-*.html
+redirect-*.html
+
+# Google verification files
+google*.html
+
+# Temporary git configs
+gitattributes-for-*
+
+# Internal documentation backup
