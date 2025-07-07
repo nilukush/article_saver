@@ -82,6 +82,11 @@ async function getMetrics() {
   }
 }
 
+// Serve enterprise dashboard
+app.get('/enterprise', (req, res) => {
+  res.sendFile('enterprise-dashboard.html', { root: __dirname });
+});
+
 // Serve dashboard
 app.get('/', async (req, res) => {
   const metrics = await getMetrics();
@@ -212,7 +217,12 @@ app.get('/', async (req, res) => {
         <div class="footer">
           <p>Last updated: ${new Date(metrics.lastUpdated).toLocaleString()}</p>
           <button class="refresh-btn" onclick="window.location.reload()">Refresh Dashboard</button>
-          <p style="margin-top: 20px;">Data cached for 5 minutes to optimize performance</p>
+          <p style="margin-top: 20px;">
+            <a href="/enterprise" style="color: #3498db; text-decoration: none; font-weight: bold;">
+              🚀 View Enterprise Dashboard →
+            </a>
+          </p>
+          <p style="margin-top: 10px;">Data cached for 5 minutes to optimize performance</p>
         </div>
       </div>
     </body>
