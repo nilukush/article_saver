@@ -1,0 +1,19 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files from analytics directory
+COPY analytics/package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy application files from analytics directory
+COPY analytics/server.js ./
+COPY analytics/.env.example ./
+
+# Expose port
+EXPOSE 3000
+
+# Start the application
+CMD ["npm", "start"]

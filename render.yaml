@@ -3,7 +3,7 @@ services:
     name: article-saver-analytics
     plan: free
     env: docker
-    dockerfilePath: ./analytics/Dockerfile
+    dockerfilePath: ./Dockerfile.analytics
     envVars:
       - key: SUPABASE_URL
         sync: false
