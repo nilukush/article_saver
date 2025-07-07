@@ -10,6 +10,7 @@ RUN npm ci --only=production
 
 # Copy application files from analytics directory
 COPY analytics/server.js ./
+COPY analytics/enterprise-metrics.js ./
 COPY analytics/.env.example ./
 
 # Expose port

@@ -1,6 +1,5 @@
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
-const EnterpriseMetrics = require('./enterprise-metrics');
 require('dotenv').config();
 
 const app = express();
@@ -12,11 +11,18 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
-// Initialize enterprise metrics
-const metrics = new EnterpriseMetrics(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
+// Initialize enterprise metrics if available
+let EnterpriseMetrics;
+let metrics;
+try {
+  EnterpriseMetrics = require('./enterprise-metrics');
+  metrics = new EnterpriseMetrics(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_ANON_KEY
+  );
+} catch (err) {
+  console.log('Enterprise metrics module not found, using basic metrics only');
+}
 
 // Cache metrics for 5 minutes to reduce database calls
 let metricsCache = null;
@@ -221,6 +227,13 @@ app.get('/health', (req, res) => {
 
 // Enterprise metrics endpoint
 app.get('/metrics/enterprise', async (req, res) => {
+  if (!metrics) {
+    return res.status(503).json({ 
+      error: 'Enterprise metrics not available', 
+      message: 'The enterprise metrics module is not loaded'
+    });
+  }
+  
   try {
     const enterpriseMetrics = await metrics.getAllMetrics();
     res.json(enterpriseMetrics);
