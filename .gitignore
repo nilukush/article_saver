@@ -217,6 +217,29 @@ gitattributes-for-*
 
 # Internal documentation backup
 
+# Python virtual environments
+analytics-env/
+venv/
+env/
+.env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Analytics databases
+*.h2.db
+metabase.db.mv.db
+metabase.db.trace.db
+superset.db
+superset_cache/
+
+# Research and temporary docs
+METRICS_DASHBOARD_RESEARCH.md
+
 # Enterprise cleanup patterns
 *.blockmap
 builder-debug.yml
