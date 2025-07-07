@@ -1,9 +1,3 @@
-databases:
-  - name: metabase-db
-    plan: free
-    databaseName: metabase
-    user: metabase
-
 services:
   - type: web
     name: article-saver-analytics
@@ -11,27 +5,7 @@ services:
     env: docker
     dockerfilePath: ./analytics/Dockerfile
     envVars:
-      - key: MB_DB_TYPE
-        value: postgres
-      - key: MB_DB_DBNAME
-        fromDatabase:
-          name: metabase-db
-          property: database
-      - key: MB_DB_HOST
-        fromDatabase:
-          name: metabase-db
-          property: host
-      - key: MB_DB_PORT
-        fromDatabase:
-          name: metabase-db
-          property: port
-      - key: MB_DB_USER
-        fromDatabase:
-          name: metabase-db
-          property: user
-      - key: MB_DB_PASS
-        fromDatabase:
-          name: metabase-db
-          property: password
-      - key: MB_ENCRYPTION_SECRET_KEY
-        generateValue: true
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
