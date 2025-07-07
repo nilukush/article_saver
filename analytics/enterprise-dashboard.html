@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Article Saver - Enterprise Analytics Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f7f9fc;
+      color: #1a1a1a;
+      line-height: 1.6;
+    }
+    
+    /* Header */
+    .header {
+      background: white;
+      border-bottom: 1px solid #e1e8ed;
+      padding: 20px 0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    }
+    
+    .header-content {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      font-size: 24px;
+      font-weight: 700;
+      color: #0066ff;
+    }
+    
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      margin-right: 12px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+    
+    /* Container */
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 32px 20px;
+    }
+    
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 32px;
+      border-bottom: 1px solid #e1e8ed;
+      background: white;
+      padding: 0 20px;
+      border-radius: 12px 12px 0 0;
+    }
+    
+    .tab {
+      padding: 16px 24px;
+      cursor: pointer;
+      border: none;
+      background: none;
+      font-size: 15px;
+      color: #64748b;
+      font-weight: 500;
+      position: relative;
+      transition: all 0.2s;
+    }
+    
+    .tab:hover {
+      color: #1a1a1a;
+    }
+    
+    .tab.active {
+      color: #0066ff;
+    }
+    
+    .tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: #0066ff;
+      border-radius: 3px 3px 0 0;
+    }
+    
+    /* KPI Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+    
+    .kpi-card {
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      border: 1px solid #e1e8ed;
+      transition: all 0.2s;
+    }
+    
+    .kpi-card:hover {
+      box-shadow: 0 8px 16px rgba(0,0,0,0.08);
+      transform: translateY(-2px);
+    }
+    
+    .kpi-label {
+      font-size: 13px;
+      color: #64748b;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    
+    .kpi-value {
+      font-size: 36px;
+      font-weight: 700;
+      color: #1a1a1a;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    
+    .kpi-trend {
+      display: flex;
+      align-items: center;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    .kpi-trend.positive {
+      color: #10b981;
+    }
+    
+    .kpi-trend.negative {
+      color: #ef4444;
+    }
+    
+    .kpi-trend.neutral {
+      color: #64748b;
+    }
+    
+    .kpi-card.highlight {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+    }
+    
+    .kpi-card.highlight .kpi-label,
+    .kpi-card.highlight .kpi-value,
+    .kpi-card.highlight .kpi-trend {
+      color: white;
+    }
+    
+    /* Charts Grid */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+    
+    .chart-card {
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      border: 1px solid #e1e8ed;
+    }
+    
+    .chart-card.full-width {
+      grid-column: 1 / -1;
+    }
+    
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    
+    .chart-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+    
+    .chart-subtitle {
+      font-size: 14px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+    
+    .chart-container {
+      position: relative;
+      height: 300px;
+    }
+    
+    /* Feature Grid */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    
+    .feature-card {
+      background: #f8fafc;
+      padding: 20px;
+      border-radius: 8px;
+      border: 1px solid #e1e8ed;
+      text-align: center;
+    }
+    
+    .feature-name {
+      font-size: 14px;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+    
+    .feature-adoption {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1a1a1a;
+    }
+    
+    .feature-users {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+    
+    /* Retention Table */
+    .retention-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .retention-table th,
+    .retention-table td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid #e1e8ed;
+    }
+    
+    .retention-table th {
+      background: #f8fafc;
+      font-weight: 600;
+      color: #64748b;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .retention-table td {
+      font-size: 15px;
+      color: #1a1a1a;
+    }
+    
+    .retention-value {
+      font-weight: 600;
+    }
+    
+    .retention-value.good {
+      color: #10b981;
+    }
+    
+    .retention-value.medium {
+      color: #f59e0b;
+    }
+    
+    .retention-value.poor {
+      color: #ef4444;
+    }
+    
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 40px 20px;
+      color: #64748b;
+      font-size: 14px;
+    }
+    
+    .refresh-btn {
+      background: #0066ff;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .refresh-btn:hover {
+      background: #0052cc;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 102, 255, 0.2);
+    }
+    
+    /* Loading State */
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 400px;
+      font-size: 18px;
+      color: #64748b;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .charts-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .tabs {
+        overflow-x: auto;
+        padding: 0 10px;
+      }
+      
+      .tab {
+        padding: 12px 16px;
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-content">
+      <div class="logo">
+        <div class="logo-icon">📊</div>
+        Article Saver Analytics
+      </div>
+      <button class="refresh-btn" onclick="refreshDashboard()">
+        <span>↻</span> Refresh
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="container">
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('overview')">Overview</button>
+      <button class="tab" onclick="showTab('growth')">Growth</button>
+      <button class="tab" onclick="showTab('engagement')">Engagement</button>
+      <button class="tab" onclick="showTab('retention')">Retention</button>
+      <button class="tab" onclick="showTab('features')">Features</button>
+    </div>
+
+    <!-- Tab Content -->
+    <div id="overview-tab" class="tab-content">
+      <!-- KPI Cards -->
+      <div class="kpi-grid" id="kpi-container">
+        <div class="loading">Loading metrics...</div>
+      </div>
+
+      <!-- Charts -->
+      <div class="charts-grid">
+        <!-- User Growth Chart -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <h3 class="chart-title">User Growth Trend</h3>
+              <p class="chart-subtitle">Daily new users over time</p>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="growthChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Engagement Chart -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <h3 class="chart-title">User Engagement</h3>
+              <p class="chart-subtitle">DAU, WAU, and MAU comparison</p>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="engagementChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature Adoption -->
+      <div class="chart-card full-width">
+        <div class="chart-header">
+          <div>
+            <h3 class="chart-title">Feature Adoption</h3>
+            <p class="chart-subtitle">Percentage of users using each feature</p>
+          </div>
+        </div>
+        <div class="feature-grid" id="feature-container">
+          <div class="loading">Loading features...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Growth Tab -->
+    <div id="growth-tab" class="tab-content" style="display: none;">
+      <div class="chart-card full-width">
+        <div class="chart-header">
+          <div>
+            <h3 class="chart-title">Monthly User Growth</h3>
+            <p class="chart-subtitle">New users and cumulative growth</p>
+          </div>
+        </div>
+        <div class="chart-container" style="height: 400px;">
+          <canvas id="monthlyGrowthChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Engagement Tab -->
+    <div id="engagement-tab" class="tab-content" style="display: none;">
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <h3 class="chart-title">DAU/MAU Ratio</h3>
+              <p class="chart-subtitle">Daily stickiness over time</p>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="stickinessChart"></canvas>
+          </div>
+        </div>
+        
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <h3 class="chart-title">User Activity Distribution</h3>
+              <p class="chart-subtitle">Articles saved per user</p>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="activityChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Retention Tab -->
+    <div id="retention-tab" class="tab-content" style="display: none;">
+      <div class="chart-card full-width">
+        <div class="chart-header">
+          <div>
+            <h3 class="chart-title">Retention Cohorts</h3>
+            <p class="chart-subtitle">User retention by signup cohort</p>
+          </div>
+        </div>
+        <table class="retention-table" id="retention-table">
+          <thead>
+            <tr>
+              <th>Cohort</th>
+              <th>Day 1</th>
+              <th>Day 7</th>
+              <th>Day 30</th>
+              <th>Day 90</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td colspan="5" style="text-align: center; padding: 40px;">Loading retention data...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Features Tab -->
+    <div id="features-tab" class="tab-content" style="display: none;">
+      <div class="chart-card full-width">
+        <div class="chart-header">
+          <div>
+            <h3 class="chart-title">Feature Usage Funnel</h3>
+            <p class="chart-subtitle">User journey through key features</p>
+          </div>
+        </div>
+        <div class="chart-container" style="height: 400px;">
+          <canvas id="featureFunnelChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p id="last-updated">Last updated: -</p>
+    <p style="margin-top: 8px; font-size: 12px;">Data refreshes every 5 minutes</p>
+  </div>
+
+  <script>
+    // Global variables
+    let basicMetrics = null;
+    let enterpriseMetrics = null;
+    let charts = {};
+    
+    // Tab switching
+    function showTab(tabName) {
+      // Hide all tabs
+      document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.style.display = 'none';
+      });
+      
+      // Remove active class from all tabs
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      
+      // Show selected tab
+      document.getElementById(tabName + '-tab').style.display = 'block';
+      
+      // Add active class to selected tab
+      event.target.classList.add('active');
+    }
+    
+    // Fetch all metrics
+    async function fetchMetrics() {
+      try {
+        // Fetch basic metrics
+        const basicResponse = await fetch('/');
+        const basicHtml = await basicResponse.text();
+        
+        // Parse basic metrics from HTML (quick hack)
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(basicHtml, 'text/html');
+        const metricValues = doc.querySelectorAll('.metric-value');
+        
+        basicMetrics = {
+          totalUsers: parseInt(metricValues[0]?.textContent) || 0,
+          totalArticles: parseInt(metricValues[1]?.textContent) || 0,
+          readRate: parseFloat(metricValues[2]?.textContent) || 0,
+          articlesPerUser: parseFloat(metricValues[3]?.textContent) || 0,
+          activeUsersWeek: parseInt(metricValues[4]?.textContent) || 0,
+          articlesRead: parseInt(metricValues[5]?.textContent) || 0
+        };
+        
+        // Fetch enterprise metrics
+        const enterpriseResponse = await fetch('/metrics/enterprise');
+        enterpriseMetrics = await enterpriseResponse.json();
+        
+        // Update UI
+        updateKPIs();
+        updateCharts();
+        updateTables();
+        
+        // Update last updated time
+        document.getElementById('last-updated').textContent = 
+          'Last updated: ' + new Date().toLocaleString();
+          
+      } catch (error) {
+        console.error('Error fetching metrics:', error);
+      }
+    }
+    
+    // Update KPI cards
+    function updateKPIs() {
+      const kpiContainer = document.getElementById('kpi-container');
+      
+      const kpis = [
+        {
+          label: 'Total Users',
+          value: basicMetrics.totalUsers,
+          trend: enterpriseMetrics?.growth?.growthRateMoM || '0%',
+          highlight: true
+        },
+        {
+          label: 'Monthly Active Users',
+          value: enterpriseMetrics?.engagement?.monthlyActiveUsers || 0,
+          trend: `${enterpriseMetrics?.engagement?.dauMauRatio || '0%'} DAU/MAU`
+        },
+        {
+          label: 'Total Articles',
+          value: basicMetrics.totalArticles.toLocaleString(),
+          trend: `${basicMetrics.articlesPerUser} per user`
+        },
+        {
+          label: 'User Activation',
+          value: enterpriseMetrics?.health?.userActivationRate || '0%',
+          trend: `${enterpriseMetrics?.health?.activatedUsers || 0} users`
+        }
+      ];
+      
+      kpiContainer.innerHTML = kpis.map(kpi => `
+        <div class="kpi-card ${kpi.highlight ? 'highlight' : ''}">
+          <div class="kpi-label">${kpi.label}</div>
+          <div class="kpi-value">${kpi.value}</div>
+          <div class="kpi-trend ${getTrendClass(kpi.trend)}">${kpi.trend}</div>
+        </div>
+      `).join('');
+    }
+    
+    // Update feature cards
+    function updateFeatures() {
+      const featureContainer = document.getElementById('feature-container');
+      
+      if (!enterpriseMetrics?.features) return;
+      
+      const features = [
+        { name: 'Reading', adoption: enterpriseMetrics.features.readingFeature },
+        { name: 'Tagging', adoption: enterpriseMetrics.features.taggingFeature },
+        { name: 'Archiving', adoption: enterpriseMetrics.features.archiveFeature }
+      ];
+      
+      featureContainer.innerHTML = features.map(feature => `
+        <div class="feature-card">
+          <div class="feature-name">${feature.name}</div>
+          <div class="feature-adoption">${feature.adoption}</div>
+          <div class="feature-users">of all users</div>
+        </div>
+      `).join('');
+    }
+    
+    // Update charts
+    function updateCharts() {
+      updateFeatures();
+      
+      // User Growth Chart
+      if (charts.growth) charts.growth.destroy();
+      const growthCtx = document.getElementById('growthChart').getContext('2d');
+      charts.growth = new Chart(growthCtx, {
+        type: 'line',
+        data: {
+          labels: getLast30Days(),
+          datasets: [{
+            label: 'New Users',
+            data: generateGrowthData(),
+            borderColor: '#0066ff',
+            backgroundColor: 'rgba(0, 102, 255, 0.1)',
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            y: { beginAtZero: true }
+          }
+        }
+      });
+      
+      // Engagement Chart
+      if (charts.engagement) charts.engagement.destroy();
+      const engagementCtx = document.getElementById('engagementChart').getContext('2d');
+      charts.engagement = new Chart(engagementCtx, {
+        type: 'bar',
+        data: {
+          labels: ['Daily Active', 'Weekly Active', 'Monthly Active'],
+          datasets: [{
+            label: 'Users',
+            data: [
+              enterpriseMetrics?.engagement?.dailyActiveUsers || 0,
+              enterpriseMetrics?.engagement?.weeklyActiveUsers || 0,
+              enterpriseMetrics?.engagement?.monthlyActiveUsers || 0
+            ],
+            backgroundColor: ['#10b981', '#3b82f6', '#8b5cf6']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            y: { beginAtZero: true }
+          }
+        }
+      });
+    }
+    
+    // Update retention table
+    function updateTables() {
+      const retentionTable = document.getElementById('retention-table').querySelector('tbody');
+      
+      if (!enterpriseMetrics?.retention) return;
+      
+      retentionTable.innerHTML = `
+        <tr>
+          <td>Current Cohort</td>
+          <td class="retention-value ${getRetentionClass(enterpriseMetrics.retention.day1)}">
+            ${enterpriseMetrics.retention.day1}
+          </td>
+          <td class="retention-value ${getRetentionClass(enterpriseMetrics.retention.day7)}">
+            ${enterpriseMetrics.retention.day7}
+          </td>
+          <td class="retention-value ${getRetentionClass(enterpriseMetrics.retention.day30)}">
+            ${enterpriseMetrics.retention.day30}
+          </td>
+          <td class="retention-value ${getRetentionClass(enterpriseMetrics.retention.day90)}">
+            ${enterpriseMetrics.retention.day90}
+          </td>
+        </tr>
+      `;
+    }
+    
+    // Helper functions
+    function getTrendClass(trend) {
+      if (typeof trend === 'string' && trend.includes('-')) return 'negative';
+      if (typeof trend === 'string' && trend !== '0%' && trend !== '0') return 'positive';
+      return 'neutral';
+    }
+    
+    function getRetentionClass(value) {
+      if (value === 'N/A') return 'neutral';
+      const num = parseFloat(value);
+      if (num >= 40) return 'good';
+      if (num >= 20) return 'medium';
+      return 'poor';
+    }
+    
+    function getLast30Days() {
+      const days = [];
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        days.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+      }
+      return days;
+    }
+    
+    function generateGrowthData() {
+      // Simulate growth data for demo
+      return Array(30).fill(0).map((_, i) => {
+        if (i < 20) return 0;
+        if (i < 25) return Math.floor(Math.random() * 2);
+        return Math.floor(Math.random() * 3);
+      });
+    }
+    
+    // Refresh dashboard
+    function refreshDashboard() {
+      fetchMetrics();
+    }
+    
+    // Initial load
+    fetchMetrics();
+    
+    // Auto-refresh every 5 minutes
+    setInterval(fetchMetrics, 5 * 60 * 1000);
+  </script>
+</body>
+</html>
