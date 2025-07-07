@@ -23,24 +23,32 @@ async function getMetrics() {
   }
 
   try {
-    // Fetch all metrics in parallel
+    // Fetch all metrics in parallel - use correct lowercase table names and snake_case columns
     const [users, articles, readArticles, recentActivity] = await Promise.all([
-      supabase.from('User').select('*', { count: 'exact', head: true }),
-      supabase.from('Article').select('*', { count: 'exact', head: true }),
-      supabase.from('Article').select('*', { count: 'exact', head: true }).eq('isRead', true),
-      supabase.from('Article')
-        .select('createdAt')
-        .order('createdAt', { ascending: false })
+      supabase.from('users').select('*', { count: 'exact', head: true }),
+      supabase.from('articles').select('*', { count: 'exact', head: true }),
+      supabase.from('articles').select('*', { count: 'exact', head: true }).eq('is_read', true),
+      supabase.from('articles')
+        .select('created_at')
+        .order('created_at', { ascending: false })
         .limit(30)
     ]);
 
-    // Calculate daily active users (last 7 days)
-    const { data: activeUsers } = await supabase
-      .from('Article')
-      .select('userId')
-      .gte('createdAt', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+    // Log any errors for debugging
+    if (users.error) console.error('Users query error:', users.error);
+    if (articles.error) console.error('Articles query error:', articles.error);
+    if (readArticles.error) console.error('Read articles query error:', readArticles.error);
+    if (recentActivity.error) console.error('Recent activity query error:', recentActivity.error);
+
+    // Calculate daily active users (last 7 days) - use snake_case column names
+    const { data: activeUsers, error: activeUsersError } = await supabase
+      .from('articles')
+      .select('user_id')
+      .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
     
-    const uniqueActiveUsers = new Set(activeUsers?.map(a => a.userId) || []).size;
+    if (activeUsersError) console.error('Active users query error:', activeUsersError);
+    
+    const uniqueActiveUsers = new Set(activeUsers?.map(a => a.user_id) || []).size;
 
     metricsCache = {
       totalUsers: users.count || 0,
@@ -55,7 +63,8 @@ async function getMetrics() {
     
     return metricsCache;
   } catch (error) {
-    console.error('Error fetching metrics:', error);
+    console.error('Error fetching metrics:', error.message);
+    console.error('Full error details:', error);
     return null;
   }
 }
@@ -201,6 +210,37 @@ app.get('/', async (req, res) => {
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
+
+// Debug endpoint to test database connection
+app.get('/debug', async (req, res) => {
+  try {
+    // Test queries with detailed error logging
+    const usersTest = await supabase.from('users').select('*', { count: 'exact', head: true });
+    const articlesTest = await supabase.from('articles').select('*', { count: 'exact', head: true });
+    
+    res.json({
+      success: true,
+      users: {
+        count: usersTest.count,
+        error: usersTest.error
+      },
+      articles: {
+        count: articlesTest.count,
+        error: articlesTest.error
+      },
+      environment: {
+        SUPABASE_URL: process.env.SUPABASE_URL ? 'Set' : 'Not set',
+        SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY ? 'Set' : 'Not set'
+      }
+    });
+  } catch (error) {
+    res.json({
+      success: false,
+      error: error.message,
+      stack: error.stack
+    });
+  }
 });
 
 app.listen(port, () => {
