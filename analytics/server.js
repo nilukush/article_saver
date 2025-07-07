@@ -1,5 +1,6 @@
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
+const EnterpriseMetrics = require('./enterprise-metrics');
 require('dotenv').config();
 
 const app = express();
@@ -7,6 +8,12 @@ const port = process.env.PORT || 3000;
 
 // Initialize Supabase client
 const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
+
+// Initialize enterprise metrics
+const metrics = new EnterpriseMetrics(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
 );
@@ -212,36 +219,34 @@ app.get('/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
-// Debug endpoint to test database connection
-app.get('/debug', async (req, res) => {
+// Enterprise metrics endpoint
+app.get('/metrics/enterprise', async (req, res) => {
   try {
-    // Test queries with detailed error logging
-    const usersTest = await supabase.from('users').select('*', { count: 'exact', head: true });
-    const articlesTest = await supabase.from('articles').select('*', { count: 'exact', head: true });
-    
-    res.json({
-      success: true,
-      users: {
-        count: usersTest.count,
-        error: usersTest.error
-      },
-      articles: {
-        count: articlesTest.count,
-        error: articlesTest.error
-      },
-      environment: {
-        SUPABASE_URL: process.env.SUPABASE_URL ? 'Set' : 'Not set',
-        SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY ? 'Set' : 'Not set'
-      }
-    });
+    const enterpriseMetrics = await metrics.getAllMetrics();
+    res.json(enterpriseMetrics);
   } catch (error) {
-    res.json({
-      success: false,
-      error: error.message,
-      stack: error.stack
-    });
+    console.error('Error fetching enterprise metrics:', error);
+    res.status(500).json({ error: 'Failed to fetch enterprise metrics' });
   }
 });
+
+// Debug endpoint - ONLY IN DEVELOPMENT
+if (process.env.NODE_ENV !== 'production') {
+  app.get('/debug', async (req, res) => {
+    try {
+      const usersTest = await supabase.from('users').select('*', { count: 'exact', head: true });
+      const articlesTest = await supabase.from('articles').select('*', { count: 'exact', head: true });
+      
+      res.json({
+        success: true,
+        users: { count: usersTest.count, error: usersTest.error },
+        articles: { count: articlesTest.count, error: articlesTest.error }
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+}
 
 app.listen(port, () => {
   console.log(`Analytics dashboard running on port ${port}`);
