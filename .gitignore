@@ -246,3 +246,16 @@ builder-debug.yml
 latest-*.yml
 cleanup-*.sh
 *_CLEANUP_*.md
+
+# Public repository exclusions
+DEPLOYMENT*.md
+*_DEPLOYMENT_*.md
+*_INTERNAL_*.md
+*_STRATEGY*.md
+*_IMPLEMENTATION*.md
+*_SETUP_FIX*.md
+QUICK_*_FIX.md
+FIX_*.sh
+FIXED_*.sh
+analytics-env/
+superset_config.py
