@@ -1,6 +1,8 @@
 
 import { DarkModeSimpleToggle } from './DarkModeToggle'
 import { AccountInfo } from './AccountInfo'
+import EthicalAd from './EthicalAd'
+import { shouldShowAds, ETHICAL_ADS_CONFIG } from '../config/ethicalads'
 
 interface SidebarProps {
     currentView: 'all' | 'unread' | 'archived'
@@ -46,6 +48,19 @@ export function Sidebar({ currentView, onViewChange, onAddArticle, onOpenSetting
 
             {/* Account info - subtle and non-intrusive */}
             <AccountInfo />
+            
+            {/* EthicalAds - Privacy-focused ads for free users */}
+            {shouldShowAds() && (
+                <div className="sidebar-ad px-2">
+                    <EthicalAd
+                        publisher={ETHICAL_ADS_CONFIG.PUBLISHER_ID}
+                        type="text"
+                        placement={ETHICAL_ADS_CONFIG.PLACEMENTS.SIDEBAR}
+                        keywords={ETHICAL_ADS_CONFIG.DEFAULT_KEYWORDS}
+                        theme="light"
+                    />
+                </div>
+            )}
             
             {/* Fixed bottom CTAs - always visible */}
             <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2 flex-shrink-0 bg-white dark:bg-gray-800">

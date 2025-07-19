@@ -4,6 +4,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* EthicalAds styles */
+@import './styles/ethical-ads.css';
+
 * {
     box-sizing: border-box;
 }

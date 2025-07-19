@@ -2,6 +2,29 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Monetization Status
+
+### Current Situation (Jan 2025)
+- **Traffic**: ~3,000-6,000 monthly pageviews (not eligible for EthicalAds which requires 50k+)
+- **Railway Costs**: $5/month (transitioned from free tier)
+- **Founder**: Solo founder (Nilesh Kumar), also CEO/CTO of Zenith (unfunded startup)
+
+### Active Monetization
+1. **Ko-fi**: Set up at https://ko-fi.com/nilukush
+   - Username: nilukush
+   - No company required for individual creators
+   - 0% platform fee (only payment processing ~3%)
+   - Accepts one-time and monthly support
+   - PayPal and Stripe payouts available
+   
+2. **Support Page**: Created at `/support.html` showing infrastructure costs
+3. **GitHub Sponsors**: Added FUNDING.yml file for GitHub sponsor button
+
+### Future Options When Traffic Grows
+- **EthicalAds**: Integration code ready but disabled (requires 50k+ pageviews)
+- **Open Collective**: Provides financial transparency for open source projects (10% + payment fees)
+- **GitHub Sponsors**: Requires business entity for Stripe
+
 ## Development Commands
 
 ### Root Level Commands

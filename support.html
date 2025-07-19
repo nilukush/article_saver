@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <!-- Primary Meta Tags -->
+    <title>Support Article Saver - Help Keep It Running | Open Source Read-Later App</title>
+    <meta name="title" content="Support Article Saver - Help Keep It Running">
+    <meta name="description" content="Support the development of Article Saver, a free open-source Pocket alternative. Help cover infrastructure costs and keep the project alive.">
+    
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📚</text></svg>">
+    
+    <style>
+        /* Reuse styles from main page */
+        :root {
+            --primary-color: #007bff;
+            --primary-hover: #0056b3;
+            --secondary-color: #28a745;
+            --secondary-hover: #218838;
+            --dark-color: #333;
+            --light-color: #f8f9fa;
+            --border-color: #dee2e6;
+            --max-width: 800px;
+            --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: var(--font-family);
+            line-height: 1.6;
+            color: var(--dark-color);
+            background-color: #fff;
+        }
+        
+        .container {
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        header {
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding: 1rem 0;
+        }
+        
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            text-decoration: none;
+            color: var(--dark-color);
+        }
+        
+        .back-link {
+            text-decoration: none;
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        main {
+            padding: 60px 0;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            color: #666;
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .costs-section {
+            background-color: var(--light-color);
+            padding: 2rem;
+            border-radius: 10px;
+            margin-bottom: 3rem;
+        }
+        
+        .costs-section h2 {
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .cost-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.8rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .cost-item:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            margin-top: 1rem;
+            padding-top: 1.5rem;
+            border-top: 2px solid var(--dark-color);
+        }
+        
+        .progress-section {
+            margin-bottom: 3rem;
+        }
+        
+        .progress-bar {
+            background-color: #e9ecef;
+            height: 30px;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+        
+        .progress-fill {
+            background-color: var(--secondary-color);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .support-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+        
+        .support-card {
+            background-color: white;
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .support-card:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        
+        .support-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .support-card .amount {
+            font-size: 2rem;
+            color: var(--primary-color);
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+        
+        .support-card p {
+            color: #666;
+            margin-bottom: 1.5rem;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: 500;
+            transition: all 0.3s;
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .btn:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-2px);
+        }
+        
+        .why-support {
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            border-radius: 10px;
+            padding: 2rem;
+            margin-bottom: 3rem;
+        }
+        
+        .why-support h2 {
+            color: #856404;
+            margin-bottom: 1rem;
+        }
+        
+        .why-support ul {
+            list-style-position: inside;
+            color: #856404;
+        }
+        
+        .why-support li {
+            margin-bottom: 0.5rem;
+        }
+        
+        footer {
+            padding: 40px 0;
+            background-color: var(--dark-color);
+            color: white;
+            text-align: center;
+            margin-top: 80px;
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .support-options {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav class="container">
+            <a href="/" class="logo">📚 Article Saver</a>
+            <a href="/" class="back-link">← Back to Home</a>
+        </nav>
+    </header>
+    
+    <main>
+        <div class="container">
+            <h1>Help Keep Article Saver Running! 🚀</h1>
+            <p class="subtitle">Your support helps maintain and improve this free, open-source project</p>
+            
+            <div class="costs-section">
+                <h2>💰 Monthly Infrastructure Costs</h2>
+                <div class="cost-item">
+                    <span>Railway Hosting (Backend API)</span>
+                    <span>$5/month</span>
+                </div>
+                <div class="cost-item">
+                    <span>Domain Registration</span>
+                    <span>$1/month</span>
+                </div>
+                <div class="cost-item">
+                    <span>Development Time</span>
+                    <span>Volunteer</span>
+                </div>
+                <div class="cost-item">
+                    <span><strong>Total Monthly Costs</strong></span>
+                    <span><strong>$6/month</strong></span>
+                </div>
+            </div>
+            
+            <div class="progress-section">
+                <h2>📊 Current Support Progress</h2>
+                <p>Goal: 2 supporters at $5/month to cover basic infrastructure</p>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 0%">
+                        $0 / $10
+                    </div>
+                </div>
+                <p style="text-align: center; color: #666;">0 supporters so far</p>
+            </div>
+            
+            <div class="why-support">
+                <h2>🤔 Why Support Article Saver?</h2>
+                <ul>
+                    <li>Keep the service free for everyone forever</li>
+                    <li>Ensure reliable hosting and uptime</li>
+                    <li>Support ongoing development and new features</li>
+                    <li>Help migrate users from Pocket before it shuts down</li>
+                    <li>Maintain a privacy-focused alternative to commercial services</li>
+                </ul>
+            </div>
+            
+            <div class="support-options">
+                <div class="support-card">
+                    <h3>☕ One-Time</h3>
+                    <p class="amount">$5</p>
+                    <p>Buy me a coffee to fuel development</p>
+                    <a href="https://ko-fi.com/nilukush" class="btn" target="_blank" rel="noopener">
+                        Support Once
+                    </a>
+                </div>
+                
+                <div class="support-card">
+                    <h3>🎯 Monthly</h3>
+                    <p class="amount">$5/mo</p>
+                    <p>Help cover ongoing infrastructure costs</p>
+                    <a href="https://ko-fi.com/nilukush/membership" class="btn" target="_blank" rel="noopener">
+                        Become a Member
+                    </a>
+                </div>
+                
+                <div class="support-card">
+                    <h3>💎 Sponsor</h3>
+                    <p class="amount">$25+</p>
+                    <p>Support the project's growth</p>
+                    <a href="https://github.com/sponsors/nilukush" class="btn" target="_blank" rel="noopener">
+                        GitHub Sponsors
+                    </a>
+                </div>
+            </div>
+            
+            <div style="background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 10px; padding: 2rem; text-align: center;">
+                <h2 style="color: #155724; margin-bottom: 1rem;">🙏 Thank You!</h2>
+                <p style="color: #155724;">
+                    Every contribution, no matter how small, helps keep Article Saver free and accessible to everyone.
+                    <br><br>
+                    <strong>— Nilesh Kumar, Solo Developer</strong>
+                </p>
+            </div>
+        </div>
+    </main>
+    
+    <footer>
+        <div class="container">
+            <p>© 2025 Article Saver. Made with ❤️ by the open source community</p>
+        </div>
+    </footer>
+    
+    <!-- Analytics -->
+    <script data-goatcounter="https://articlesaver.goatcounter.com/count"
+            async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>

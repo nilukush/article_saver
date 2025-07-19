@@ -9,8 +9,9 @@
   [![Downloads](https://img.shields.io/github/downloads/nilukush/article_saver/total?style=flat&color=orange&label=Downloads)](https://tooomm.github.io/github-release-stats/?username=nilukush&repository=article_saver)
   [![GitHub issues](https://img.shields.io/github/issues/nilukush/article_saver)](https://github.com/nilukush/article_saver/issues)
   [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/nilukush/article_saver/pulls)
+  [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-ff5e5b)](https://ko-fi.com/nilukush)
   
-  **[🌐 Visit Our Website](https://nilukush.github.io/article_saver/) | [📥 Download](https://github.com/nilukush/article_saver/releases) | [📖 Documentation](https://github.com/nilukush/article_saver#-documentation)**
+  **[🌐 Visit Our Website](https://nilukush.github.io/article_saver/) | [📥 Download](https://github.com/nilukush/article_saver/releases) | [📖 Documentation](https://github.com/nilukush/article_saver#-documentation) | [☕ Support](https://ko-fi.com/nilukush)**
 
 </div>
 
@@ -227,6 +228,17 @@ Article Saver implements enterprise-grade security:
 - **SQL Injection Prevention**: Prisma ORM with parameterized queries
 
 See [SECURITY.md](SECURITY.md) for vulnerability reporting.
+
+## 💰 Monetization & Sustainability
+
+Article Saver is free and open source. To support ongoing development and hosting costs, we use [EthicalAds](https://www.ethicalads.io/):
+
+- **Privacy First**: No user tracking or cookies
+- **Developer Focused**: Relevant ads for our technical audience
+- **Non-Intrusive**: Minimal, text-only ads shown only to free users
+- **Transparent**: Our ad integration is open source
+
+Authenticated users enjoy an ad-free experience. See [ETHICAL_ADS_SETUP.md](ETHICAL_ADS_SETUP.md) for implementation details.
 
 ## 🤝 Contributing
 

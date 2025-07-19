@@ -1,0 +1,120 @@
+/* EthicalAds Styling */
+.ethical-ad-wrapper {
+  position: relative;
+  margin: 1rem 0;
+  padding: 0.75rem;
+  background-color: rgba(0, 0, 0, 0.02);
+  border-radius: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.dark .ethical-ad-wrapper {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.ethical-ad {
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Loading state */
+.ethical-ad:empty::before {
+  content: '';
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-top-color: rgba(0, 0, 0, 0.3);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.dark .ethical-ad:empty::before {
+  border-color: rgba(255, 255, 255, 0.1);
+  border-top-color: rgba(255, 255, 255, 0.3);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Sponsored label */
+.ethical-ad-label {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.5rem;
+  font-size: 0.75rem;
+  color: rgba(0, 0, 0, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dark .ethical-ad-label {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Sidebar specific styling */
+.sidebar-ad .ethical-ad-wrapper {
+  margin: 1rem;
+  padding: 0.5rem;
+}
+
+.sidebar-ad .ethical-ad {
+  min-height: 80px;
+}
+
+/* Hide ads on small screens in sidebar */
+@media (max-width: 768px) {
+  .sidebar-ad {
+    display: none;
+  }
+}
+
+/* Landing page ad styling */
+.landing-page-ad .ethical-ad-wrapper {
+  max-width: 728px;
+  margin: 2rem auto;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+}
+
+.landing-page-ad .ethical-ad {
+  min-height: 90px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .landing-page-ad .ethical-ad-wrapper {
+    margin: 1rem;
+    max-width: 100%;
+  }
+}
+
+/* EthicalAds native styles override */
+.ethical-ad [data-ea-type] {
+  margin: 0 !important;
+}
+
+.ethical-ad .ea-content {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Smooth transition when ads load */
+.ethical-ad > div {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

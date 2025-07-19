@@ -248,7 +248,6 @@ cleanup-*.sh
 *_CLEANUP_*.md
 
 # Public repository exclusions
-DEPLOYMENT*.md
 *_DEPLOYMENT_*.md
 *_INTERNAL_*.md
 *_STRATEGY*.md
@@ -259,3 +258,12 @@ FIX_*.sh
 FIXED_*.sh
 analytics-env/
 superset_config.py
+# But allow public deployment guide
+!DEPLOYMENT_GUIDE.md
+
+# EthicalAds config (if using env-specific config)
+desktop/src/renderer/config/ethicalads.local.ts
+*ethicalads*.local.ts
+
+# Product Hunt launch planning
+PRODUCT_HUNT_LAUNCH_PLAN.md
